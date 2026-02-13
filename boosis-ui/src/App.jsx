@@ -56,19 +56,19 @@ function App() {
   }, [token])
 
   const toggleTradingMode = async () => {
-    const newMode = !data.paperTrading;
-    const modeName = newMode ? 'REAL (LIVE)' : 'SIMULADO (PAPER)';
+    const targetLive = !!data.paperTrading; // Si está en paper, el objetivo es live (true)
+    const modeName = targetLive ? 'REAL (LIVE)' : 'SIMULADO (PAPER)';
 
     setModal({
       show: true,
-      title: newMode ? '🛑 ¡PELIGRO: DINERO REAL!' : 'Confirmar Cambio de Sistema',
-      message: newMode
+      title: targetLive ? '🛑 ¡PELIGRO: DINERO REAL!' : 'Confirmar Cambio de Sistema',
+      message: targetLive
         ? `ESTÁS POR ENTRAR EN MODO DE TRADING REAL. El bot comenzará a usar tus fondos de BINANCE inmediatamente e CORRERÁS EL RIESGO DE PERDER DINERO REAL. ¿Estás absolutamente seguro de que la estrategia está lista?`
         : `Estas por cambiar al modo ${modeName}. ¿Estás seguro de continuar? Esto afectará la ejecución de órdenes inmediatamente.`,
-      type: newMode ? 'danger' : 'info',
+      type: targetLive ? 'danger' : 'info',
       onConfirm: async () => {
         try {
-          await axios.post(`${apiUrl}/settings/trading-mode`, { live: newMode });
+          await axios.post(`${apiUrl}/settings/trading-mode`, { live: targetLive });
           fetchData();
           setModal({ ...modal, show: false });
         } catch (err) {
