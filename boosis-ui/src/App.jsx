@@ -275,6 +275,22 @@ function App() {
             </div>
           </div>
 
+          {/* Real Binance Balance */}
+          <div className="panel mt-6" style={{ padding: '15px', border: '1px solid #30363d', background: 'rgba(255, 170, 0, 0.05)' }}>
+            <div className="stat-label mb-2" style={{ fontSize: '11px', color: '#ffa500' }}>REAL BINANCE BALANCE</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>USDT</span>
+              <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                ${parseFloat(data.realBalance?.find(b => b.asset === 'USDT')?.free || 0).toFixed(2)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>BTC</span>
+              <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                {parseFloat(data.realBalance?.find(b => b.asset === 'BTC')?.free || 0).toFixed(6)}
+              </span>
+            </div>
+          </div>
           <div className="stat-card mt-6" style={{ background: 'rgba(56, 139, 253, 0.05)' }}>
             <div className="stat-label">Current RSI (14)</div>
             <div className={`stat-value ${candles[candles.length - 1]?.rsi > 70 ? 'text-red-400' : candles[candles.length - 1]?.rsi < 30 ? 'text-green-400' : ''}`}>
