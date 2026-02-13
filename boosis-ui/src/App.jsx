@@ -203,6 +203,21 @@ function App() {
             </div>
           </div>
 
+          <h3 className="stat-label-tiny mt-6 mb-3">Latency Monitor</h3>
+          <div className="space-y-2">
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>Binance API</span>
+              <span style={{ color: health?.latency?.apiLatency > 500 ? '#f85149' : '#2ea043' }}>
+                {health?.latency?.apiLatency || '--'}ms
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>WebSocket RTT</span>
+              <span style={{ color: health?.latency?.wsLatency > 300 ? '#f85149' : '#2ea043' }}>
+                {health?.latency?.wsLatency || '--'}ms
+              </span>
+            </div>
+          </div>
           <h3 className="stat-label-tiny mt-6 mb-3">Capital Growth</h3>
           <div style={{ height: '120px', width: '100%' }}>
             <ResponsiveContainer>

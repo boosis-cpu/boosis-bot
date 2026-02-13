@@ -45,6 +45,10 @@ class LiveTrader {
         this.equityHistory = []; // Track capital growth
         this.liveTrading = process.env.LIVE_TRADING === 'true';
         this.realBalance = [];
+        this.metrics = {
+            apiLatency: 0,
+            wsLatency: 0
+        };
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -148,7 +152,11 @@ class LiveTrader {
         });
 
         this.app.get('/api/health', authMiddleware, (req, res) => {
-            res.json(this.health.getStatus());
+            const health = this.health.getStatus();
+            res.json({
+                ...health,
+                latency: this.metrics
+            });
         });
 
         this.app.get('/api/metrics', authMiddleware, (req, res) => {
@@ -260,7 +268,10 @@ class LiveTrader {
             notifications.notifyAlert('Conectado a Binance WebSocket. Monitoreo Activo. 🚀');
 
             heartbeatInterval = setInterval(() => {
-                if (this.ws.readyState === WebSocket.OPEN) this.ws.ping();
+                if (this.ws.readyState === WebSocket.OPEN) {
+                    this.metrics.pingStart = Date.now();
+                    this.ws.ping();
+                }
             }, 30000);
 
             setInterval(() => {
@@ -273,7 +284,10 @@ class LiveTrader {
             }, 60000);
         });
 
-        this.ws.on('pong', () => { this.lastMessageTime = Date.now(); });
+        this.ws.on('pong', () => {
+            this.lastMessageTime = Date.now();
+            this.metrics.wsLatency = Date.now() - this.metrics.pingStart;
+        });
 
         this.ws.on('message', (data) => {
             try {
@@ -327,9 +341,57 @@ class LiveTrader {
     }
 
     async executeTrade(signal) {
-        if (this.paperTrading) {
+        if (this.liveTrading) {
+            await this.executeRealTrade(signal);
+        } else {
+            // Paper trading is always the fallback if live is OFF
             await this.executePaperTrade(signal);
-            this.recordEquitySnapshot(signal.price);
+        }
+        this.recordEquitySnapshot(signal.price);
+    }
+
+    async executeRealTrade(signal) {
+        try {
+            logger.warn(`!!! EJECUTANDO ORDEN REAL EN BINANCE: ${signal.action} @ ${signal.price} !!!`);
+
+            // For now, we still calculate simulated quantity based on balance
+            // In a full implementation, we'd fetch balance from Binance first
+            const fee = 0.001;
+            let quantity = 0;
+
+            if (signal.action === 'BUY') {
+                const availableUsdt = parseFloat(this.realBalance?.find(b => b.asset === 'USDT')?.free || 0);
+                if (availableUsdt < 10) throw new Error('Balance insuficiente en Binance para comprar.');
+                quantity = (availableUsdt / signal.price) * (1 - fee);
+            } else {
+                const availableAsset = parseFloat(this.realBalance?.find(b => b.asset === 'BTC')?.free || 0);
+                if (availableAsset < 0.0001) throw new Error('Fondos de BTC insuficientes en Binance para vender.');
+                quantity = availableAsset;
+            }
+
+            // Aproximate Binance precision (BTC usually 5 or 6 decimals)
+            const roundedQty = parseFloat(quantity.toFixed(5));
+
+            const result = await binanceService.executeOrder(CONFIG.symbol, signal.action, roundedQty);
+
+            const trade = {
+                symbol: CONFIG.symbol,
+                side: signal.action,
+                price: signal.price,
+                amount: roundedQty,
+                timestamp: Date.now(),
+                type: 'REAL',
+                executionId: result.orderId,
+                reason: signal.reason
+            };
+
+            this.trades.push(trade);
+            await db.saveTrade(trade);
+            notifications.notifyTrade({ ...trade, status: 'REAL EXECUTION SUCCESS' });
+
+        } catch (error) {
+            logger.error(`FALLO CRÍTICO EN EJECUCIÓN REAL: ${error.message}`);
+            notifications.notifyAlert(`❌ ERROR EN BINANCE: No se pudo ejecutar ${signal.action}. Revisar búnker.`);
         }
     }
 
@@ -385,7 +447,10 @@ class LiveTrader {
 
     async fetchRealBalance() {
         try {
+            const start = Date.now();
             const balances = await binanceService.getAccountBalance();
+            this.metrics.apiLatency = Date.now() - start;
+
             if (balances) {
                 this.realBalance = balances;
                 logger.info('Balance real de Binance sincronizado.');
