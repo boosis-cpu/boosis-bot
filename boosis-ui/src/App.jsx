@@ -54,6 +54,18 @@ function App() {
     }
   }, [token])
 
+  const toggleTradingMode = async () => {
+    const newMode = !data.paperTrading; // recordamos que !paperTrading === live
+    if (window.confirm(`⚠️ ADVERTENCIA: ¿Estás seguro de que quieres cambiar al modo ${newMode ? 'REAL (LIVE)' : 'SIMULADO (PAPER)'}?`)) {
+      try {
+        await axios.post(`${apiUrl}/settings/trading-mode`, { live: newMode });
+        fetchData();
+      } catch (err) {
+        setError('No se pudo cambiar el modo de trading.');
+      }
+    }
+  }
+
   const fetchData = async () => {
     try {
       const [statusRes, candlesRes, tradesRes, healthRes, metricsRes] = await Promise.all([
@@ -142,8 +154,23 @@ function App() {
         </div>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <div className={`badge ${data.paperTrading ? 'badge-blue' : 'badge-red'}`}>
-            {data.paperTrading ? 'PAPER TRADING' : 'LIVE TRADING'}
+          <div
+            onClick={toggleTradingMode}
+            className={`badge ${data.paperTrading ? 'badge-blue' : 'badge-red'}`}
+            style={{
+              cursor: 'pointer',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: '800',
+              letterSpacing: '0.5px',
+              transition: 'all 0.2s ease',
+              border: data.paperTrading ? '1px solid #388bfd' : '1px solid #f85149',
+              background: data.paperTrading ? 'rgba(56, 139, 253, 0.1)' : 'rgba(248, 81, 73, 0.1)',
+              color: data.paperTrading ? '#58a6ff' : '#ff7b72'
+            }}
+          >
+            {data.paperTrading ? 'OFFLINE (PAPER)' : '⚠️ ONLINE (LIVE)'}
           </div>
           <button onClick={() => { setToken(null); localStorage.removeItem('boosis_token'); }}
             style={{ background: 'transparent', border: '1px solid #30363d', color: 'white', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>

@@ -194,6 +194,20 @@ class LiveTrader {
             });
         });
 
+        this.app.post('/api/settings/trading-mode', authMiddleware, async (req, res) => {
+            const { live } = req.body;
+            this.liveTrading = live;
+            binanceService.isLive = live; // Sincronizar el servicio
+
+            await db.setBotState('liveTrading', live);
+
+            const mode = live ? 'REAL' : 'Simulado (Paper)';
+            logger.warn(`MODO DE TRADING CAMBIADO DESDE EL DASHBOARD: ${mode}`);
+            notifications.notifyAlert(`⚠️ CAMBIO DE SISTEMA: El bot ahora opera en modo ${mode}.`);
+
+            res.json({ success: true, mode });
+        });
+
         this.app.get('/', (req, res) => {
             res.sendFile(path.join(__dirname, '../../public', 'index.html'));
         });
@@ -214,6 +228,13 @@ class LiveTrader {
 
             const savedPrice = await db.getBotState('lastBuyPrice');
             if (savedPrice) this.lastBuyPrice = parseFloat(savedPrice);
+
+            const savedMode = await db.getBotState('liveTrading');
+            if (savedMode !== null) {
+                this.liveTrading = savedMode;
+                binanceService.isLive = savedMode;
+                logger.info(`Trading Mode cargado de la Base de Datos: ${this.liveTrading ? 'REAL' : 'PAPER'}`);
+            }
 
             if (this.candles.length > 0) {
                 this.recordEquitySnapshot(this.candles[this.candles.length - 1][4]);
