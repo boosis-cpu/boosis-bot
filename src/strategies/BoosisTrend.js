@@ -16,7 +16,9 @@ class BoosisTrend extends BaseStrategy {
     }
 
     onCandle(candle, history, inPosition = false, entryPrice = 0) {
-        const prices = history.map(c => parseFloat(c[4]));
+        // Optimization: only take what we need (SMA200 needs 200, but we take 300 for safety)
+        const historySlice = history.slice(-300);
+        const prices = historySlice.map(c => parseFloat(c[4]));
         const currentPrice = parseFloat(candle[4]);
 
         if (prices.length < this.smaLong) return null;

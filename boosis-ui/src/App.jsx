@@ -19,6 +19,8 @@ function App() {
   })
   const [candles, setCandles] = useState([])
   const [trades, setTrades] = useState([])
+  const [health, setHealth] = useState(null)
+  const [metrics, setMetrics] = useState({ profitFactor: '0', winRate: '0%', totalTrades: 0 })
   const [error, setError] = useState(null)
 
   // Use relative path since we are served from the same origin
@@ -79,6 +81,14 @@ function App() {
         if (Array.isArray(tradesRes.data)) {
           setTrades(tradesRes.data);
         }
+
+        // Fetch Health
+        const healthRes = await axios.get(`${apiUrl}/health`);
+        setHealth(healthRes.data);
+
+        // Fetch Metrics
+        const metricsRes = await axios.get(`${apiUrl}/metrics`);
+        setMetrics(metricsRes.data);
 
         setError(null);
       } catch (err) {
@@ -268,6 +278,37 @@ function App() {
             <div className="stat-label">Current RSI (14)</div>
             <div className={`stat-value ${candles[candles.length - 1]?.rsi > 70 ? 'text-red-400' : candles[candles.length - 1]?.rsi < 30 ? 'text-green-400' : ''}`}>
               {candles[candles.length - 1]?.rsi?.toFixed(2) || '--'}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="stat-small">
+              <div className="stat-label">Profit Factor</div>
+              <div className="stat-value-small text-blue-400">{metrics.profitFactor}</div>
+            </div>
+            <div className="stat-small">
+              <div className="stat-label">Win Rate</div>
+              <div className="stat-value-small text-purple-400">{metrics.winRate}</div>
+            </div>
+          </div>
+
+          <div className="panel mt-6" style={{ padding: '15px', border: '1px solid #30363d', background: 'rgba(0,0,0,0.2)' }}>
+            <div className="stat-label mb-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>System Health</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8b949e' }}>Uptime</span>
+                <span>{health ? `${Math.floor(health.uptime / 60)}m ${health.uptime % 60}s` : '--'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8b949e' }}>Memory</span>
+                <span>{health ? health.processes.heapUsed : '--'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8b949e' }}>WebSocket</span>
+                <span style={{ color: health?.bot.wsConnected ? '#2ea043' : '#da3633' }}>
+                  {health?.bot.wsConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
             </div>
           </div>
 

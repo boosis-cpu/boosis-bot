@@ -11,6 +11,7 @@ const validators = require('../core/validators');
 const db = require('../core/database');
 const TechnicalIndicators = require('../core/technical_indicators');
 const notifications = require('../core/notifications');
+const HealthChecker = require('../core/health');
 
 // Configuration
 const CONFIG = {
@@ -36,6 +37,7 @@ class LiveTrader {
             asset: 0
         };
         this.lastBuyPrice = 0;
+        this.health = new HealthChecker(this);
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -143,6 +145,46 @@ class LiveTrader {
             } catch (error) {
                 res.status(400).json({ error: error.message });
             }
+        });
+
+        this.app.get('/api/health', authMiddleware, (req, res) => {
+            res.json(this.health.getStatus());
+        });
+
+        this.app.get('/api/metrics', authMiddleware, (req, res) => {
+            const trades = this.trades;
+            if (trades.length === 0) {
+                return res.json({ profitFactor: 0, winRate: 0, totalTrades: 0 });
+            }
+
+            let grossProfit = 0;
+            let grossLoss = 0;
+            let wins = 0;
+
+            // Simplified metric calculation from paper trades
+            // In a real system, we'd compare sequential BUY/SELL pairs
+            for (let i = 1; i < trades.length; i++) {
+                if (trades[i].side === 'SELL' && trades[i - 1].side === 'BUY') {
+                    const profit = (trades[i].price - trades[i - 1].price) * trades[i - 1].amount;
+                    if (profit > 0) {
+                        grossProfit += profit;
+                        wins++;
+                    } else {
+                        grossLoss += Math.abs(profit);
+                    }
+                }
+            }
+
+            const winRate = ((wins / (trades.length / 2)) * 100).toFixed(2);
+            const profitFactor = grossLoss === 0 ? grossProfit : (grossProfit / grossLoss).toFixed(2);
+
+            res.json({
+                profitFactor,
+                winRate: winRate + '%',
+                totalTrades: trades.length,
+                grossProfit: grossProfit.toFixed(2),
+                grossLoss: grossLoss.toFixed(2)
+            });
         });
 
         // Serve React App for root
