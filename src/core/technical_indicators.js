@@ -85,6 +85,23 @@ class TechnicalIndicators {
 
         return Math.sqrt(avgSquaredDiff);
     }
+
+    /**
+     * Calculate Average True Range (ATR)
+     */
+    static calculateATR(high, low, close, period = 14) {
+        if (high.length < period) return null;
+
+        const results = TI.ATR.calculate({
+            high: high,
+            low: low,
+            close: close,
+            period: period
+        });
+
+        if (!results || results.length === 0) return null;
+        return results[results.length - 1];
+    }
 }
 
 module.exports = TechnicalIndicators;

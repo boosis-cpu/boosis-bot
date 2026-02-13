@@ -15,7 +15,14 @@ function App() {
     bot: 'Loading...',
     balance: { usdt: 0, asset: 0 },
     strategy: '',
+<<<<<<< Updated upstream
     paperTrading: false
+=======
+    paperTrading: false,
+    equityHistory: [],
+    realBalance: [],
+    marketStatus: { status: 'UNKNOWN', volatility: 0 }
+>>>>>>> Stashed changes
   })
   const [candles, setCandles] = useState([])
   const [trades, setTrades] = useState([])
@@ -199,6 +206,7 @@ function App() {
   return (
     <div className="dashboard-container">
       <header className="header">
+<<<<<<< Updated upstream
         <div>
           <h1 style={{ marginBottom: '4px', fontSize: '1.5rem' }}>Boosis Quant Dashboard</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8b949e' }}>
@@ -206,6 +214,17 @@ function App() {
             <span>{data.bot}</span>
             <span>•</span>
             <span>{data.strategy}</span>
+=======
+        <div className="flex items-center gap-4">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Zap color="#58a6ff" size={24} />
+            <h1 style={{ fontSize: '1.2rem', margin: 0 }}>Boosis <b>Quant</b></h1>
+          </div>
+          <div className="status-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className={`pulse ${data.marketStatus?.status === 'SAFE' ? 'bg-green-500' : 'bg-red-500'}`}
+              style={{ background: data.marketStatus?.status === 'SAFE' ? '#2ea043' : '#f85149' }} />
+            <span>MERCADO: {data.marketStatus?.status === 'SAFE' ? 'SEGURO' : 'VOLÁTIL'} ({data.marketStatus?.volatility || 0}%)</span>
+>>>>>>> Stashed changes
           </div>
         </div>
 
@@ -230,13 +249,49 @@ function App() {
         </div>
       </header>
 
+<<<<<<< Updated upstream
       {error && (
         <div style={{ padding: '12px', background: 'rgba(218,54,51,0.1)', color: '#da3633', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <AlertTriangle size={20} />
           {error}
+=======
+      <div className="grid-layout">
+        {/* TOP ROW: KEY METRICS */}
+        <div className="metrics-row">
+          <div className="stat-card-compact">
+            <div className="stat-label-tiny">Total Portfolio</div>
+            <div className="stat-value-med text-green-400">${totalBalance.toFixed(2)}</div>
+          </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#ffa500' }}>
+            <div className="stat-label-tiny">Binance Real (USDT)</div>
+            <div className="stat-value-med" style={{ color: '#ffa500' }}>${realUsdt}</div>
+          </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#9333ea' }}>
+            <div className="stat-label-tiny">Volatilidad (ATR)</div>
+            <div className="stat-value-med">{data.marketStatus?.volatility || '0.00'}%</div>
+          </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#2ea043' }}>
+            <div className="stat-label-tiny">Tasa de Victoria</div>
+            <div className="stat-value-med">{metrics.winRate}</div>
+          </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#f0883e' }}>
+            <div className="stat-label-tiny">Slippage Promedio</div>
+            <div className="stat-value-med">
+              {trades.length > 0 ?
+                (trades.reduce((sum, t) => sum + (t.slippage || 0), 0) / trades.filter(t => t.slippage).length || 0).toFixed(3) :
+                '0.00'
+              }%
+            </div>
+          </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#388bfd' }}>
+            <div className="stat-label-tiny">Factor de Beneficio</div>
+            <div className="stat-value-med">{metrics.profitFactor}</div>
+          </div>
+>>>>>>> Stashed changes
         </div>
       )}
 
+<<<<<<< Updated upstream
       <div className="grid">
         {/* Sidebar Stats */}
         <aside className="sidebar panel">
@@ -253,12 +308,48 @@ function App() {
             <div className="stat-small">
               <div className="stat-label">USDT Available</div>
               <div className="stat-value-small">${data.balance?.usdt?.toFixed(2) || '0.00'}</div>
+=======
+        {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
+        <aside className="sidebar-area panel">
+          <h3 className="stat-label-tiny mb-3">Simulación de Wallet</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12px', color: '#8b949e' }}>USDT Disponible</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>${data.balance?.usdt?.toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <span style={{ fontSize: '12px', color: '#8b949e' }}>Tenencia BTC</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{data.balance?.asset?.toFixed(6)} BTC</span>
+          </div>
+
+          <h3 className="stat-label-tiny mb-3">Salud del Sistema</h3>
+          <div className="space-y-2">
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>Uptime</span>
+              <span>{health ? `${Math.floor(health.uptime / 60)}m` : '--'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>WebSocket</span>
+              <span style={{ color: health?.bot.wsConnected ? '#2ea043' : '#da3633' }}>
+                {health?.bot.wsConnected ? 'ACTIVO' : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
+
+          <h3 className="stat-label-tiny mt-6 mb-3">Monitor de Latencia</h3>
+          <div className="space-y-2">
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>Binance API</span>
+              <span style={{ color: health?.latency?.apiLatency > 500 ? '#f85149' : '#2ea043' }}>
+                {health?.latency?.apiLatency || '--'}ms
+              </span>
+>>>>>>> Stashed changes
             </div>
             <div className="stat-small">
               <div className="stat-label">BTC Asset</div>
               <div className="stat-value-small">{data.balance?.asset?.toFixed(4) || '0.0000'}</div>
             </div>
           </div>
+<<<<<<< Updated upstream
 
           <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
             <div className="stat-label flex items-center gap-2 mb-2">
@@ -267,6 +358,22 @@ function App() {
             <div className="badge badge-blue">
               {data.paperTrading ? 'PAPER TRADING' : 'LIVE TRADING'}
             </div>
+=======
+          <h3 className="stat-label-tiny mt-6 mb-3">Crecimiento de Capital</h3>
+          <div style={{ height: '120px', width: '100%' }}>
+            <ResponsiveContainer>
+              <AreaChart data={data.equityHistory}>
+                <defs>
+                  <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2ea043" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2ea043" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="value" stroke="#3fb950" fillOpacity={1} fill="url(#colorVal)" dot={false} />
+                <Tooltip hide />
+              </AreaChart>
+            </ResponsiveContainer>
+>>>>>>> Stashed changes
           </div>
         </aside>
 
@@ -316,6 +423,7 @@ function App() {
           </div>
         </main>
 
+<<<<<<< Updated upstream
         {/* Activity Feed */}
         <section className="activity-feed panel col-span-2">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -326,6 +434,17 @@ function App() {
             {trades.length === 0 ? (
               <div style={{ color: '#8b949e', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
                 No trades executed yet. Waiting for signals...
+=======
+        {/* ACTIVITY AREA */}
+        <section className="activity-area panel">
+          <h3 className="stat-label-tiny mb-4 flex items-center gap-2">
+            <Activity size={12} /> Registro de Ejecución
+          </h3>
+          <div className="space-y-2">
+            {trades.length === 0 ? (
+              <div style={{ color: '#8b949e', fontSize: '11px', textAlign: 'center', padding: '20px' }}>
+                Esperando señales...
+>>>>>>> Stashed changes
               </div>
             ) : (
               trades.map((trade, i) => (

@@ -86,8 +86,16 @@ class LiveTrader {
                 bot: 'Boosis Quant Bot',
                 strategy: this.strategy.name,
                 symbol: CONFIG.symbol,
+<<<<<<< Updated upstream
                 paperTrading: this.paperTrading,
                 balance: this.balance
+=======
+                paperTrading: !this.liveTrading,
+                balance: this.balance,
+                realBalance: this.realBalance,
+                equityHistory: this.equityHistory.slice(-50),
+                marketStatus: this.calculateMarketHealth()
+>>>>>>> Stashed changes
             });
         });
 
@@ -234,7 +242,74 @@ class LiveTrader {
         if (this.paperTrading) {
             this.executePaperTrade(signal);
         } else {
+<<<<<<< Updated upstream
             logger.warn('Real trading execution not implemented yet.');
+=======
+            // Paper trading is always the fallback if live is OFF
+            await this.executePaperTrade(signal);
+        }
+        this.recordEquitySnapshot(signal.price);
+    }
+
+    async executeRealTrade(signal) {
+        try {
+            logger.warn(`!!! EJECUTANDO ORDEN REAL EN BINANCE: ${signal.action} @ ${signal.price} !!!`);
+
+            // For now, we still calculate simulated quantity based on balance
+            // In a full implementation, we'd fetch balance from Binance first
+            const fee = 0.001;
+            let quantity = 0;
+
+            if (signal.action === 'BUY') {
+                const availableUsdt = parseFloat(this.realBalance?.find(b => b.asset === 'USDT')?.free || 0);
+                if (availableUsdt < 10) throw new Error('Balance insuficiente en Binance para comprar.');
+                quantity = (availableUsdt / signal.price) * (1 - fee);
+            } else {
+                const availableAsset = parseFloat(this.realBalance?.find(b => b.asset === 'BTC')?.free || 0);
+                if (availableAsset < 0.0001) throw new Error('Fondos de BTC insuficientes en Binance para vender.');
+                quantity = availableAsset;
+            }
+
+            // Dynamic precision based on Binance filters
+            const roundedQty = binanceService.formatQuantity(quantity);
+
+            const result = await binanceService.executeOrder(CONFIG.symbol, signal.action, roundedQty);
+
+            const executionPrice = result.fills ?
+                result.fills.reduce((sum, f) => sum + (parseFloat(f.price) * parseFloat(f.qty)), 0) / result.fills.reduce((sum, f) => sum + parseFloat(f.qty), 0) :
+                signal.price;
+
+            const slippage = ((executionPrice - signal.price) / signal.price) * 100;
+
+            const trade = {
+                symbol: CONFIG.symbol,
+                side: signal.action,
+                price: parseFloat(executionPrice.toFixed(2)),
+                expectedPrice: signal.price,
+                slippage: parseFloat(slippage.toFixed(4)),
+                amount: roundedQty,
+                timestamp: Date.now(),
+                type: 'REAL',
+                executionId: result.orderId,
+                reason: signal.reason,
+                latency: Date.now() - signal.timestamp
+            };
+
+            this.trades.push(trade);
+            await db.saveTrade(trade);
+
+            notifications.notifyTrade({
+                ...trade,
+                status: 'CONCRETADA EN BINANCE',
+                balanceUsdt: this.realBalance?.find(b => b.asset === 'USDT')?.free,
+                balanceAsset: this.realBalance?.find(b => b.asset === 'BTC')?.free
+            });
+
+            logger.success(`[LIVE] ${signal.action} ejecutado con ${trade.slippage}% de slippage.`);
+        } catch (error) {
+            logger.error(`FALLO CRÍTICO EN EJECUCIÓN REAL: ${error.message}`);
+            notifications.notifyAlert(`❌ ERROR EN BINANCE: No se pudo ejecutar ${signal.action}. Revisar búnker.`);
+>>>>>>> Stashed changes
         }
     }
 
@@ -278,6 +353,28 @@ class LiveTrader {
 
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
         }
+    }
+
+    calculateMarketHealth() {
+        if (this.candles.length < 20) return { status: 'UNKNOWN', volatility: 0 };
+
+        const historySlice = this.candles.slice(-20);
+        const prices = historySlice.map(c => parseFloat(c[4]));
+        const highs = historySlice.map(c => parseFloat(c[2]));
+        const lows = historySlice.map(c => parseFloat(c[3]));
+
+        const atr = TechnicalIndicators.calculateATR(highs, lows, prices, 14);
+        const currentPrice = prices[prices.length - 1];
+
+        if (!atr || !currentPrice) return { status: 'UNKNOWN', volatility: 0 };
+
+        const volatilityPercent = (atr / currentPrice) * 100;
+        const maxVol = this.strategy.maxVolatilityPercent || 1.5;
+
+        return {
+            status: volatilityPercent < maxVol ? 'SAFE' : 'VOLATILE',
+            volatility: volatilityPercent.toFixed(2)
+        };
     }
 }
 
