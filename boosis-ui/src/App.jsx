@@ -65,7 +65,11 @@ function App() {
           const formattedCandles = candlesRes.data.map(c => ({
             time: c.close_time ? new Date(parseInt(c.close_time)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '?',
             close: parseFloat(c.close) || 0,
-            open: parseFloat(c.open) || 0
+            open: parseFloat(c.open) || 0,
+            sma200: c.indicators?.sma200 || null,
+            bbUpper: c.indicators?.bb?.upper || null,
+            bbLower: c.indicators?.bb?.lower || null,
+            rsi: c.indicators?.rsi || null
           }));
           setCandles(formattedCandles);
         }
@@ -260,6 +264,13 @@ function App() {
             </div>
           </div>
 
+          <div className="stat-card mt-6" style={{ background: 'rgba(56, 139, 253, 0.05)' }}>
+            <div className="stat-label">Current RSI (14)</div>
+            <div className={`stat-value ${candles[candles.length - 1]?.rsi > 70 ? 'text-red-400' : candles[candles.length - 1]?.rsi < 30 ? 'text-green-400' : ''}`}>
+              {candles[candles.length - 1]?.rsi?.toFixed(2) || '--'}
+            </div>
+          </div>
+
           <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
             <div className="stat-label flex items-center gap-2 mb-2">
               <ShieldCheck size={14} /> Mode
@@ -310,6 +321,28 @@ function App() {
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4, fill: '#58a6ff' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="sma200"
+                  stroke="#f85149"
+                  strokeWidth={1}
+                  dot={false}
+                  strokeDasharray="5 5"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="bbUpper"
+                  stroke="#30363d"
+                  strokeWidth={1}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="bbLower"
+                  stroke="#30363d"
+                  strokeWidth={1}
+                  dot={false}
                 />
               </LineChart>
             </ResponsiveContainer>

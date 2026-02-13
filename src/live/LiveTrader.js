@@ -9,6 +9,7 @@ const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
 const db = require('../core/database');
+const TechnicalIndicators = require('../core/technical_indicators');
 
 // Configuration
 const CONFIG = {
@@ -43,7 +44,7 @@ class LiveTrader {
         this.app.use(express.json());
 
         // Middleware protector
-        const authMiddleware = (req, res, next) => {
+        const authMiddleware = async (req, res, next) => {
             // Permitir login sin token
             if (req.url === '/api/login' || req.originalUrl === '/api/login') {
                 return next();
@@ -52,7 +53,7 @@ class LiveTrader {
             const authHeader = req.headers.authorization || '';
             const token = authHeader.replace('Bearer ', '');
 
-            if (!auth.verifyToken(token)) {
+            if (!(await auth.verifyToken(token))) {
                 return res.status(401).json({ error: 'No autorizado' });
             }
 
@@ -69,9 +70,9 @@ class LiveTrader {
         this.app.use(express.static(path.join(__dirname, '../../public')));
 
         // Login Endpoint (NO protegido)
-        this.app.post('/api/login', (req, res) => {
+        this.app.post('/api/login', async (req, res) => {
             const { password } = req.body;
-            const token = auth.generateToken(password);
+            const token = await auth.generateToken(password);
 
             if (!token) {
                 return res.status(401).json({ error: 'Contraseña incorrecta' });
@@ -79,7 +80,6 @@ class LiveTrader {
 
             res.json({ token, expiresIn: '24h' });
         });
-
         // ENDPOINTS PROTEGIDOS
         this.app.get('/api/status', authMiddleware, (req, res) => {
             res.json({
@@ -95,17 +95,40 @@ class LiveTrader {
         this.app.get('/api/candles', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 100);
-                const candles = this.candles.slice(-limit).map(c => ({
-                    open_time: c[0],
-                    open: c[1],
-                    high: c[2],
-                    low: c[3],
-                    close: c[4],
-                    volume: c[5],
-                    close_time: c[6]
-                }));
+                const prices = this.candles.map(c => c[4]);
+
+                // Calculate indicators for the full history to ensure accuracy
+                const rsiValues = [];
+                const smaValues = [];
+                const bbValues = [];
+
+                // We use the professional TI library via our wrapper
+
+                // This is a bit heavy for a GET, ideally we'd cache these.
+                // For now, let's just send the last N candles with their indicators.
+                const candles = this.candles.slice(-limit).map((c, idx) => {
+                    const relativeIdx = this.candles.length - limit + idx;
+                    const historySlice = this.candles.slice(0, relativeIdx + 1);
+                    const slicePrices = historySlice.map(h => h[4]);
+
+                    return {
+                        open_time: c[0],
+                        open: c[1],
+                        high: c[2],
+                        low: c[3],
+                        close: c[4],
+                        volume: c[5],
+                        close_time: c[6],
+                        indicators: {
+                            rsi: TechnicalIndicators.calculateRSI(slicePrices, 14),
+                            sma200: TechnicalIndicators.calculateSMA(slicePrices, 200),
+                            bb: TechnicalIndicators.calculateBollingerBands(slicePrices, 20)
+                        }
+                    };
+                });
                 res.json(candles);
             } catch (error) {
+                logger.error(`API Candles Error: ${error.message}`);
                 res.status(400).json({ error: error.message });
             }
         });
@@ -157,9 +180,9 @@ class LiveTrader {
         logger.info('Fetching historical data...');
         try {
             // First, try loading from DB
-            const dbCandles = await db.getRecentCandles(CONFIG.symbol, 200);
+            const dbCandles = await db.getRecentCandles(CONFIG.symbol, 500);
 
-            if (dbCandles.length >= 100) {
+            if (dbCandles.length >= 400) {
                 this.candles = dbCandles;
                 logger.success(`Loaded ${this.candles.length} historical candles from Database.`);
                 return;
@@ -171,7 +194,7 @@ class LiveTrader {
                 params: {
                     symbol: CONFIG.symbol,
                     interval: '5m',
-                    limit: 200
+                    limit: 500
                 }
             });
 

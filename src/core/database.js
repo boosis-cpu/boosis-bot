@@ -63,6 +63,17 @@ class DatabaseManager {
                 ON CONFLICT (key) DO NOTHING;
             `);
 
+            // 4. Sessions Table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    expiry BIGINT NOT NULL
+                );
+            `);
+
+            // Cleanup expired sessions
+            await client.query('DELETE FROM sessions WHERE expiry < $1', [Date.now()]);
+
             console.log('[DB] Database ready.');
         } catch (err) {
             console.error('[DB] Error initializing database:', err);
