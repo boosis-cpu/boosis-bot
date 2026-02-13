@@ -34,6 +34,7 @@ class LiveTrader {
             usdt: 1000,
             asset: 0
         };
+        this.lastBuyPrice = 0;
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -162,10 +163,16 @@ class LiveTrader {
             // 3. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
             this.trades = await db.getRecentTrades(50);
-            const savedBalance = await db.getBotState('balance');
-            if (savedBalance) {
-                this.balance = savedBalance;
+            const savedState = await db.getBotState('balance');
+            if (savedState) {
+                this.balance = savedState;
                 logger.info(`Loaded balance from DB: ${JSON.stringify(this.balance)}`);
+            }
+
+            const savedPrice = await db.getBotState('lastBuyPrice');
+            if (savedPrice) {
+                this.lastBuyPrice = parseFloat(savedPrice);
+                logger.info(`Loaded lastBuyPrice from DB: ${this.lastBuyPrice}`);
             }
             logger.info(`Loaded ${this.trades.length} historical trades from Database.`);
 
@@ -286,12 +293,13 @@ class LiveTrader {
             });
 
             logger.info(`Candle closed: ${candle[4]} (Volume: ${candle[5]})`);
-            this.executeStrategy(candle);
+            const inPosition = this.balance.asset > 0.0001;
+            this.executeStrategy(candle, inPosition);
         }
     }
 
-    executeStrategy(latestCandle) {
-        const signal = this.strategy.onCandle(latestCandle, this.candles);
+    executeStrategy(latestCandle, inPosition) {
+        const signal = this.strategy.onCandle(latestCandle, this.candles, inPosition, this.lastBuyPrice);
 
         if (signal) {
             logger.info(`SIGNAL DETECTED: ${signal.action} @ ${signal.price} | ${signal.reason}`);
@@ -317,9 +325,11 @@ class LiveTrader {
             const amountAsset = (amountUsd / price) * (1 - fee);
             this.balance.asset += amountAsset;
             this.balance.usdt = 0;
+            this.lastBuyPrice = price;
 
-            // Persist balance
+            // Persist balance and price
             db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
+            db.setBotState('lastBuyPrice', this.lastBuyPrice).catch(err => logger.error(`Error saving lastBuyPrice: ${err.message}`));
 
             const trade = {
                 symbol: CONFIG.symbol,
@@ -327,7 +337,8 @@ class LiveTrader {
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                type: 'PAPER'
+                type: 'PAPER',
+                reason: signal.reason
             };
             this.trades.push(trade);
             db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
@@ -338,9 +349,11 @@ class LiveTrader {
             const amountUsd = (amountAsset * price) * (1 - fee);
             this.balance.usdt += amountUsd;
             this.balance.asset = 0;
+            this.lastBuyPrice = 0;
 
-            // Persist balance
+            // Persist balance and price
             db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
+            db.setBotState('lastBuyPrice', 0).catch(err => logger.error(`Error saving lastBuyPrice: ${err.message}`));
 
             const trade = {
                 symbol: CONFIG.symbol,
@@ -348,7 +361,8 @@ class LiveTrader {
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                type: 'PAPER'
+                type: 'PAPER',
+                reason: signal.reason
             };
             this.trades.push(trade);
             db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));

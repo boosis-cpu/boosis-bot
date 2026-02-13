@@ -367,7 +367,10 @@ function App() {
                     <span className={`badge ${trade.side === 'BUY' ? 'badge-green' : 'badge-red'}`}>
                       {trade.side}
                     </span>
-                    <span className="text-gray-300">{trade.symbol}</span>
+                    <div>
+                      <div className="text-white font-semibold">{trade.symbol}</div>
+                      <div className="text-xs text-gray-400">{trade.reason || 'Manual/Other'}</div>
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-white font-mono">${trade.price}</div>

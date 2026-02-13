@@ -5,17 +5,21 @@ const TechnicalIndicators = require('../core/technical_indicators');
 class BoosisTrend extends BaseStrategy {
     constructor(config = {}) {
         super('Boosis Trend Follower');
-        this.smaLong = config.smaLong || 200; // Major Trend
+        this.smaLong = config.smaLong || 200;
         this.rsiPeriod = config.rsiPeriod || 14;
         this.bbPeriod = config.bbPeriod || 20;
+
+        // Risk Management
+        this.stopLossPercent = config.stopLossPercent || 0.02; // 2% fixed stop loss
+        this.trailingStopPercent = config.trailingStopPercent || 0.015; // 1.5% trailing stop
+        this.highWaterMark = 0; // Highest price since buy
     }
 
-    onCandle(candle, history) {
-        const prices = history.map(c => parseFloat(c[4])); // Close prices
+    onCandle(candle, history, inPosition = false, entryPrice = 0) {
+        const prices = history.map(c => parseFloat(c[4]));
+        const currentPrice = parseFloat(candle[4]);
 
         if (prices.length < this.smaLong) return null;
-
-        const currentPrice = parseFloat(candle[4]);
 
         // --- INDICATORS ---
         const ma200 = TechnicalIndicators.calculateSMA(prices, this.smaLong);
@@ -27,19 +31,45 @@ class BoosisTrend extends BaseStrategy {
 
         const trendBullish = currentPrice > ma200;
 
-        // --- TRADING LOGIC (MULTI-SIGNAL) ---
+        // --- RISK MANAGEMENT LOGIC ---
+        if (inPosition) {
+            // Update High Water Mark
+            if (currentPrice > this.highWaterMark) {
+                this.highWaterMark = currentPrice;
+            }
 
-        // 🟢 BUY LOGIC: Trend Up + Not Overbought + Near BB Middle/Lower
-        if (trendBullish && rsi < 60 && currentPrice < bb.middle) {
+            // 1. Fixed Stop Loss
+            const stopLossPrice = entryPrice * (1 - this.stopLossPercent);
+            if (currentPrice <= stopLossPrice) {
+                this.highWaterMark = 0;
+                return { action: 'SELL', price: currentPrice, reason: `STOP LOSS TRIGGERED (${(this.stopLossPercent * 100).toFixed(1)}%)` };
+            }
+
+            // 2. Trailing Stop Loss
+            const trailingStopPrice = this.highWaterMark * (1 - this.trailingStopPercent);
+            if (currentPrice <= trailingStopPrice) {
+                this.highWaterMark = 0;
+                return { action: 'SELL', price: currentPrice, reason: `TRAILING STOP TRIGGERED` };
+            }
+        } else {
+            this.highWaterMark = 0;
+        }
+
+        // --- ENTRY/EXIT LOGIC (MULTI-SIGNAL) ---
+
+        // 🟢 BUY LOGIC: Trend Up + Not Overbought + Near BB Middle
+        if (!inPosition && trendBullish && rsi < 60 && currentPrice < bb.middle) {
+            this.highWaterMark = currentPrice;
             return {
                 action: 'BUY',
                 price: currentPrice,
-                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & Inside BB Bands`
+                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & Near BB Middle`
             };
         }
 
-        // 🔴 SELL LOGIC: Overbought OR MACD Weakening
-        if (rsi > 70 || (macd.histogram < 0 && macd.MACD < macd.signal)) {
+        // 🔴 SELL LOGIC: RSI Overbought OR MACD Crossover
+        if (inPosition && (rsi > 70 || (macd.histogram < 0 && macd.MACD < macd.signal))) {
+            this.highWaterMark = 0;
             return {
                 action: 'SELL',
                 price: currentPrice,

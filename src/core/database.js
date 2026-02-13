@@ -43,10 +43,11 @@ class DatabaseManager {
                     id SERIAL PRIMARY KEY,
                     symbol VARCHAR(20) NOT NULL,
                     side VARCHAR(10) NOT NULL,
-                    price NUMERIC NOT NULL,
-                    amount NUMERIC NOT NULL,
+                    price DECIMAL(20,8) NOT NULL,
+                    amount DECIMAL(20,8) NOT NULL,
                     timestamp BIGINT NOT NULL,
-                    type VARCHAR(20) NOT NULL -- PAPER or LIVE
+                    type VARCHAR(20) NOT NULL,
+                    reason TEXT
                 );
             `);
 
@@ -101,8 +102,8 @@ class DatabaseManager {
 
     async saveTrade(trade) {
         const query = `
-            INSERT INTO trades (symbol, side, price, amount, timestamp, type)
-            VALUES ($1, $2, $3, $4, $5, $6);
+            INSERT INTO trades (symbol, side, price, amount, timestamp, type, reason)
+            VALUES ($1, $2, $3, $4, $5, $6, $7);
         `;
         const values = [
             trade.symbol,
@@ -110,7 +111,8 @@ class DatabaseManager {
             trade.price,
             trade.amount,
             trade.timestamp,
-            trade.type || 'PAPER'
+            trade.type || 'PAPER',
+            trade.reason || null
         ];
         return this.pool.query(query, values);
     }
