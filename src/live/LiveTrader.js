@@ -17,8 +17,8 @@ const TechnicalIndicators = require('../core/technical_indicators'); // Added fo
 const CONFIG = {
     symbol: 'BTCUSDT',
     interval: '5m',
-    wsUrl: `wss://stream.binance.us:9443/ws/btcusdt@kline_5m`,
-    apiUrl: 'https://api.binance.us/api/v3',
+    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_5m`,
+    apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };
 

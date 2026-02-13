@@ -6,7 +6,7 @@ class BinanceService {
     constructor() {
         this.apiKey = process.env.BINANCE_API_KEY;
         this.apiSecret = process.env.BINANCE_SECRET;
-        this.baseUrl = 'https://api.binance.us/api/v3';
+        this.baseUrl = 'https://api.binance.com/api/v3';
 
         if (!this.apiKey || !this.apiSecret) {
             logger.warn('⚠️  Binance API credentials not configured. Real trading disabled.');
