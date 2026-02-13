@@ -1,14 +1,22 @@
 #!/usr/bin/expect -f
 set password "@Tony1022837069"
+set timeout 300
 
-# 1. Sync files
-spawn rsync -avz --exclude node_modules --exclude *.exp --exclude .git --exclude .DS_Store --exclude .env --delete ./ root@72.62.160.140:~/boosis-bot/
-expect "password:"
+spawn ssh root@72.62.160.140
+expect "*?assword:*"
 send "$password\r"
-expect eof
-
-# 2. Restart services
-spawn ssh root@72.62.160.140 "cd ~/boosis-bot && mkdir -p letsencrypt && touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json && docker compose up -d --build --remove-orphans"
-expect "password:"
-send "$password\r"
+expect "*#*"
+send "cd ~/boosis-bot\r"
+expect "*#*"
+send "git fetch origin main\r"
+expect "*#*"
+send "git checkout main\r"
+expect "*#*"
+send "git pull origin main\r"
+expect "*#*"
+send "docker compose down\r"
+expect "*#*"
+send "docker compose up -d --build\r"
+expect "*#*"
+send "exit\r"
 expect eof
