@@ -41,22 +41,12 @@ class LiveTrader {
         this.app.use(cors()); // Enable CORS for local development
         this.app.use(express.json());
 
-        // Login Endpoint
-        this.app.post('/api/login', (req, res) => {
-            const { password } = req.body;
-            const token = auth.generateToken(password);
-
-            if (!token) {
-                return res.status(401).json({ error: 'Contraseña incorrecta' });
-            }
-
-            res.json({ token, expiresIn: '24h' });
-        });
-
         // Middleware protector
         const authMiddleware = (req, res, next) => {
             // Permitir login sin token
-            if (req.path === '/api/login') return next();
+            if (req.url === '/api/login' || req.originalUrl === '/api/login') {
+                return next();
+            }
 
             const authHeader = req.headers.authorization || '';
             const token = authHeader.replace('Bearer ', '');
@@ -68,11 +58,6 @@ class LiveTrader {
             next();
         };
 
-        // Proteger endpoints críticos
-        this.app.use('/api/status', authMiddleware);
-        this.app.use('/api/candles', authMiddleware);
-        this.app.use('/api/trades', authMiddleware);
-
         // Middleware for API logging
         this.app.use((req, res, next) => {
             logger.debug(`API Request: ${req.method} ${req.url}`);
@@ -82,7 +67,20 @@ class LiveTrader {
         // Serve static files from React build
         this.app.use(express.static(path.join(__dirname, '../../public')));
 
-        this.app.get('/api/status', (req, res) => {
+        // Login Endpoint (NO protegido)
+        this.app.post('/api/login', (req, res) => {
+            const { password } = req.body;
+            const token = auth.generateToken(password);
+
+            if (!token) {
+                return res.status(401).json({ error: 'Contraseña incorrecta' });
+            }
+
+            res.json({ token, expiresIn: '24h' });
+        });
+
+        // ENDPOINTS PROTEGIDOS
+        this.app.get('/api/status', authMiddleware, (req, res) => {
             res.json({
                 status: 'online',
                 bot: 'Boosis Quant Bot',
@@ -93,7 +91,7 @@ class LiveTrader {
             });
         });
 
-        this.app.get('/api/candles', (req, res) => {
+        this.app.get('/api/candles', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 100);
                 const candles = this.candles.slice(-limit).map(c => ({
@@ -111,7 +109,7 @@ class LiveTrader {
             }
         });
 
-        this.app.get('/api/trades', (req, res) => {
+        this.app.get('/api/trades', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 50);
                 const trades = this.trades.slice(-limit).reverse();

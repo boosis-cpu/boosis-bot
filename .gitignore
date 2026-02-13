@@ -1,3 +1,23 @@
+node_modules/
 .env
 .env.local
 .env.production.local
+dist/
+build/
+letsencrypt/acme.json
+data/
+logs/
+backups/
+*.log
+*.sql
+.DS_Store
+server.log
+test_auth.sh
+test_week1_complete.sh
+check_docker_status.exp
+check_public_files.exp
+check_remote_code.exp
+test_api_protection.exp
+test_api_verbose.exp
+# setup_env.exp # User might want this
+# full_deploy.exp # User definitely wants this

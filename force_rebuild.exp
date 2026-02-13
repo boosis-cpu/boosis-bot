@@ -1,8 +1,32 @@
 #!/usr/bin/expect -f
 set password "@Tony1022837069"
-set timeout 120
+set timeout 60
 
-spawn ssh root@72.62.160.140 "cd ~/boosis-bot && docker compose down && docker compose build --no-cache && docker compose up -d"
-expect "*?assword:*"
+spawn ssh root@72.62.160.140
+expect "password:"
 send "$password\r"
+expect "*#*"
+
+send "cd ~/boosis-bot\r"
+expect "*#*"
+
+send "docker compose down\r"
+expect "*#*"
+
+send "docker rmi boosis-bot-boosis-bot 2>/dev/null || true\r"
+expect "*#*"
+
+send "docker compose build --no-cache\r"
+expect "*#*" timeout 60
+
+send "docker compose up -d\r"
+expect "*#*"
+
+send "docker compose logs -f --tail=20 boosis-bot\r"
+expect timeout 10
+
+send "\003"
+expect "*#*"
+
+send "exit\r"
 expect eof
