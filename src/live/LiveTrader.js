@@ -13,6 +13,7 @@ const TechnicalIndicators = require('../core/technical_indicators');
 const notifications = require('../core/notifications');
 const HealthChecker = require('../core/health');
 const backup = require('../../backup_db');
+const binanceService = require('../core/binance_service');
 
 // Configuration
 const CONFIG = {
@@ -42,6 +43,8 @@ class LiveTrader {
         this.lastMessageTime = Date.now();
         this.sosSent = false;
         this.equityHistory = []; // Track capital growth
+        this.liveTrading = process.env.LIVE_TRADING === 'true';
+        this.realBalance = [];
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -96,8 +99,9 @@ class LiveTrader {
                 bot: 'Boosis Quant Bot',
                 strategy: this.strategy.name,
                 symbol: CONFIG.symbol,
-                paperTrading: this.paperTrading,
+                paperTrading: !this.liveTrading,
                 balance: this.balance,
+                realBalance: this.realBalance,
                 equityHistory: this.equityHistory.slice(-50)
             });
         });
@@ -209,8 +213,12 @@ class LiveTrader {
 
             this.connectWebSocket();
 
-            // Schedule Backups (Every 24h)
+            // 5. Fetch Real Balance
+            await this.fetchRealBalance();
+
+            // 6. Schedule Backups and Balance Sync
             setInterval(() => backup(), 24 * 60 * 60 * 1000);
+            setInterval(() => this.fetchRealBalance(), 60000); // Sync balance every minute
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
         }
@@ -373,6 +381,18 @@ class LiveTrader {
             value: parseFloat(totalValue.toFixed(2))
         });
         if (this.equityHistory.length > 100) this.equityHistory.shift();
+    }
+
+    async fetchRealBalance() {
+        try {
+            const balances = await binanceService.getAccountBalance();
+            if (balances) {
+                this.realBalance = balances;
+                logger.info('Balance real de Binance sincronizado.');
+            }
+        } catch (error) {
+            logger.error(`Error sincronizando balance real: ${error.message}`);
+        }
     }
 }
 
