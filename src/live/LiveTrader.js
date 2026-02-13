@@ -1,3 +1,4 @@
+require('dotenv').config();
 const WebSocket = require('ws');
 const axios = require('axios');
 const path = require('path');
@@ -5,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
+const auth = require('../core/auth');
+const validators = require('../core/validators');
 
 // Configuration
 const CONFIG = {
@@ -38,6 +41,38 @@ class LiveTrader {
         this.app.use(cors()); // Enable CORS for local development
         this.app.use(express.json());
 
+        // Login Endpoint
+        this.app.post('/api/login', (req, res) => {
+            const { password } = req.body;
+            const token = auth.generateToken(password);
+
+            if (!token) {
+                return res.status(401).json({ error: 'Contraseña incorrecta' });
+            }
+
+            res.json({ token, expiresIn: '24h' });
+        });
+
+        // Middleware protector
+        const authMiddleware = (req, res, next) => {
+            // Permitir login sin token
+            if (req.path === '/api/login') return next();
+
+            const authHeader = req.headers.authorization || '';
+            const token = authHeader.replace('Bearer ', '');
+
+            if (!auth.verifyToken(token)) {
+                return res.status(401).json({ error: 'No autorizado' });
+            }
+
+            next();
+        };
+
+        // Proteger endpoints críticos
+        this.app.use('/api/status', authMiddleware);
+        this.app.use('/api/candles', authMiddleware);
+        this.app.use('/api/trades', authMiddleware);
+
         // Middleware for API logging
         this.app.use((req, res, next) => {
             logger.debug(`API Request: ${req.method} ${req.url}`);
@@ -59,22 +94,31 @@ class LiveTrader {
         });
 
         this.app.get('/api/candles', (req, res) => {
-            const limit = parseInt(req.query.limit) || 100;
-            const formatted = this.candles.slice(-limit).map(c => ({
-                open_time: c[0],
-                open: c[1],
-                high: c[2],
-                low: c[3],
-                close: c[4],
-                volume: c[5],
-                close_time: c[6]
-            }));
-            res.json(formatted);
+            try {
+                const limit = validators.validateLimit(req.query.limit || 100);
+                const candles = this.candles.slice(-limit).map(c => ({
+                    open_time: c[0],
+                    open: c[1],
+                    high: c[2],
+                    low: c[3],
+                    close: c[4],
+                    volume: c[5],
+                    close_time: c[6]
+                }));
+                res.json(candles);
+            } catch (error) {
+                res.status(400).json({ error: error.message });
+            }
         });
 
         this.app.get('/api/trades', (req, res) => {
-            const limit = parseInt(req.query.limit) || 50;
-            res.json(this.trades.slice(-limit).reverse());
+            try {
+                const limit = validators.validateLimit(req.query.limit || 50);
+                const trades = this.trades.slice(-limit).reverse();
+                res.json(trades);
+            } catch (error) {
+                res.status(400).json({ error: error.message });
+            }
         });
 
         // Serve React App for root

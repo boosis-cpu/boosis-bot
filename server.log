@@ -1,0 +1,14 @@
+
+> boosis-bot@1.0.0 start
+> node src/live/LiveTrader.js
+
+[dotenv@17.3.1] injecting env (1) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[11:50:51 AM] [INFO] Initializing Boosis Live Trader [Symbol: BTCUSDT, Strategy: Boosis Trend Follower]
+[11:50:51 AM] [INFO] Fetching historical data to warm up indicators...
+[11:50:51 AM] [SUCCESS] Web server listening on port 3000
+[11:50:51 AM] [SUCCESS] Loaded 100 historical candles.
+[11:50:52 AM] [SUCCESS] Connected to Binance WebSocket.
+[11:50:55 AM] [DEBUG] API Request: GET /api/status
+[11:50:55 AM] [DEBUG] API Request: GET /api/candles?limit=50
+[11:50:55 AM] [DEBUG] API Request: GET /api/candles?limit=9999
+[11:50:55 AM] [DEBUG] API Request: GET /api/candles?limit=-5

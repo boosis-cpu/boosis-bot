@@ -1,0 +1,22 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+set timeout 30
+
+spawn ssh root@72.62.160.140
+expect "*?assword:*"
+send "$password\r"
+expect "*#*"
+send "cd ~/boosis-bot\r"
+expect "*#*"
+send "cat > .env << 'EOF'\r"
+send "NODE_ENV=production\r"
+send "ADMIN_PASSWORD=BoosisSecure2026!\r"
+send "DB_HOST=db\r"
+send "DB_USER=boosis_admin\r"
+send "DB_PASS=boosis_secure_pass_2026\r"
+send "DB_NAME=boosis_db\r"
+send "LETSENCRYPT_EMAIL=tony@boosis.io\r"
+send "EOF\r"
+expect "*#*"
+send "exit\r"
+expect eof
