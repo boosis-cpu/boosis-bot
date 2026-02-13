@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, ShieldCheck, DollarSign, TrendingUp, AlertTriangle, Lock } from 'lucide-react'
+import { Activity, ShieldCheck, DollarSign, TrendingUp, AlertTriangle, Lock, Eye, EyeOff } from 'lucide-react'
 import './index.css'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   const [data, setData] = useState({
@@ -123,27 +124,46 @@ function App() {
           <h1 style={{ color: '#c9d1d9', marginBottom: '10px', fontSize: '24px' }}>Boosis Quant Bot</h1>
           <p style={{ color: '#8b949e', marginBottom: '30px' }}>Acceso Restringido</p>
 
-          <input
-            type="password"
-            placeholder="Contraseña de acceso"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') handleLogin();
-            }}
-            style={{
-              width: '100%',
-              padding: '12px',
-              marginBottom: '15px',
-              borderRadius: '6px',
-              border: '1px solid #30363d',
-              background: '#0d1117',
-              color: 'white',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-              outline: 'none'
-            }}
-          />
+          <div style={{ position: 'relative', marginBottom: '15px' }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Contraseña de acceso"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') handleLogin();
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                paddingRight: '45px',
+                borderRadius: '6px',
+                border: '1px solid #30363d',
+                background: '#0d1117',
+                color: 'white',
+                fontSize: '16px',
+                boxSizing: 'border-box',
+                outline: 'none'
+              }}
+            />
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: '#8b949e',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
 
           <button
             onClick={handleLogin}
