@@ -8,7 +8,7 @@ const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
-const db = require('../core/db'); // Added for executeRealTrade
+const db = require('../core/database'); // Fixed import path
 const notifications = require('../core/notifications'); // Added for executeRealTrade
 const binanceService = require('../core/binance'); // Added for executeRealTrade
 const TechnicalIndicators = require('../core/technical_indicators'); // Added for calculateMarketHealth
@@ -215,6 +215,10 @@ class LiveTrader {
             this.app.listen(CONFIG.port, () => {
                 logger.success(`Web server listening on port ${CONFIG.port}`);
             });
+
+            // Initialize Database
+            await db.connect();
+            await db.initSchema();
 
             // 1. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
