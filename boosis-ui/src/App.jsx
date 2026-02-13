@@ -61,8 +61,10 @@ function App() {
 
     setModal({
       show: true,
-      title: 'Confirmar Cambio de Sistema',
-      message: `Estas por cambiar al modo ${modeName}. ¿Estás seguro de continuar? Esto afectará la ejecución de órdenes inmediatamente.`,
+      title: newMode ? '🛑 ¡PELIGRO: DINERO REAL!' : 'Confirmar Cambio de Sistema',
+      message: newMode
+        ? `ESTÁS POR ENTRAR EN MODO DE TRADING REAL. El bot comenzará a usar tus fondos de BINANCE inmediatamente e CORRERÁS EL RIESGO DE PERDER DINERO REAL. ¿Estás absolutamente seguro de que la estrategia está lista?`
+        : `Estas por cambiar al modo ${modeName}. ¿Estás seguro de continuar? Esto afectará la ejecución de órdenes inmediatamente.`,
       type: newMode ? 'danger' : 'info',
       onConfirm: async () => {
         try {
@@ -377,10 +379,11 @@ function App() {
                 style={{
                   flex: 1, padding: '12px',
                   background: modal.type === 'danger' ? '#f85149' : '#2ea043',
-                  border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer'
+                  border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer',
+                  boxShadow: modal.type === 'danger' ? '0 0 15px rgba(248, 81, 73, 0.4)' : 'none'
                 }}
               >
-                Confirmar
+                {modal.type === 'danger' ? 'ACTIVAR TRADING REAL' : 'Confirmar'}
               </button>
             </div>
           </div>
