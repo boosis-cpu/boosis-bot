@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+set password "Hostinger@123"
+
+spawn rsync -avz --exclude 'node_modules' --exclude '*.exp' --exclude '.git' --exclude '.DS_Store' --exclude 'boosis-ui/node_modules' --delete ./ root@72.62.160.140:~/boosis-bot/
+
+expect "password:"
+sleep 1
+send "$password\r"
+expect eof

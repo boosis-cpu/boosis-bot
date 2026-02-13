@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const axios = require('axios');
 const path = require('path');
 const express = require('express');
+const cors = require('cors');
 const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
 
@@ -18,6 +19,7 @@ class LiveTrader {
     constructor() {
         this.strategy = new BoosisTrend();
         this.candles = [];
+        this.trades = []; // Store trades in memory for the dashboard
         this.ws = null;
         this.app = express();
 
@@ -33,7 +35,19 @@ class LiveTrader {
     }
 
     setupServer() {
-        this.app.get('/', (req, res) => {
+        this.app.use(cors()); // Enable CORS for local development
+        this.app.use(express.json());
+
+        // Middleware for API logging
+        this.app.use((req, res, next) => {
+            logger.debug(`API Request: ${req.method} ${req.url}`);
+            next();
+        });
+
+        // Serve static files from React build
+        this.app.use(express.static(path.join(__dirname, '../../public')));
+
+        this.app.get('/api/status', (req, res) => {
             res.json({
                 status: 'online',
                 bot: 'Boosis Quant Bot',
@@ -43,11 +57,35 @@ class LiveTrader {
                 balance: this.balance
             });
         });
+
+        this.app.get('/api/candles', (req, res) => {
+            const limit = parseInt(req.query.limit) || 100;
+            const formatted = this.candles.slice(-limit).map(c => ({
+                open_time: c[0],
+                open: c[1],
+                high: c[2],
+                low: c[3],
+                close: c[4],
+                volume: c[5],
+                close_time: c[6]
+            }));
+            res.json(formatted);
+        });
+
+        this.app.get('/api/trades', (req, res) => {
+            const limit = parseInt(req.query.limit) || 50;
+            res.json(this.trades.slice(-limit).reverse());
+        });
+
+        // Serve React App for root
+        this.app.get('/', (req, res) => {
+            res.sendFile(path.join(__dirname, '../../public', 'index.html'));
+        });
     }
 
     async start() {
         try {
-            // Start Web Server for Traefik
+            // Start Web Server
             this.app.listen(CONFIG.port, () => {
                 logger.success(`Web server listening on port ${CONFIG.port}`);
             });
@@ -161,18 +199,41 @@ class LiveTrader {
     executePaperTrade(signal) {
         const fee = 0.001; // 0.1% fee
         const price = signal.price;
+        const timestamp = Date.now();
 
         if (signal.action === 'BUY' && this.balance.usdt > 10) {
             const amountUsd = this.balance.usdt;
             const amountAsset = (amountUsd / price) * (1 - fee);
             this.balance.asset += amountAsset;
             this.balance.usdt = 0;
+
+            const trade = {
+                symbol: CONFIG.symbol,
+                side: 'BUY',
+                price: price,
+                amount: amountAsset,
+                timestamp: timestamp,
+                is_paper: true
+            };
+            this.trades.push(trade);
+
             logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
             const amountAsset = this.balance.asset;
             const amountUsd = (amountAsset * price) * (1 - fee);
             this.balance.usdt += amountUsd;
             this.balance.asset = 0;
+
+            const trade = {
+                symbol: CONFIG.symbol,
+                side: 'SELL',
+                price: price,
+                amount: amountAsset,
+                timestamp: timestamp,
+                is_paper: true
+            };
+            this.trades.push(trade);
+
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
         }
     }

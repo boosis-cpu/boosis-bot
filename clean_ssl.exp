@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+set timeout 60
+
+# Detener servicios
+spawn ssh root@72.62.160.140 "cd ~/boosis-bot && docker compose down"
+expect "*?assword:*"
+send "$password\r"
+expect eof
+
+# Eliminar certificado antiguo
+spawn ssh root@72.62.160.140 "rm -f ~/boosis-bot/letsencrypt/acme.json && touch ~/boosis-bot/letsencrypt/acme.json && chmod 600 ~/boosis-bot/letsencrypt/acme.json"
+expect "*?assword:*"
+send "$password\r"
+expect eof

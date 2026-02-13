@@ -1,0 +1,20 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+# Escape the @ symbol just in case, though usually quotes handle it
+set password "@Tony1022837069"
+
+spawn scp -r src/ root@72.62.160.140:~/boosis-bot/
+expect "password:"
+send "$password\r"
+expect eof
+
+spawn scp -r public/ root@72.62.160.140:~/boosis-bot/
+expect "password:"
+send "$password\r"
+expect eof
+
+spawn ssh root@72.62.160.140 "cd ~/boosis-bot && docker restart boosis-bot"
+expect "password:"
+send "$password\r"
+expect eof

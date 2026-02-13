@@ -11,5 +11,8 @@ RUN npm install --production
 # Copiar el resto del código
 COPY . .
 
-# Comando por defecto (puedes cambiarlo en el docker-compose)
-CMD ["npm", "start"]
+# Exponer el puerto del servidor
+EXPOSE 3000
+
+# Comando por defecto usando node directamente
+CMD ["node", "src/live/LiveTrader.js"]

@@ -16,28 +16,32 @@ function App() {
   const [trades, setTrades] = useState([])
   const [error, setError] = useState(null)
 
-  const apiUrl = 'https://boosis.io/api'; // Pointing to our VPS API
-  // const apiUrl = 'http://localhost:3000/api'; // Local dev mode
+  // Use relative path since we are served from the same origin
+  const apiUrl = '/api';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch Status
-        const statusRes = await axios.get('https://boosis.io/');
+        // Fetch Status from the correct API endpoint
+        const statusRes = await axios.get(`${apiUrl}/status`);
         setData(statusRes.data);
 
         // Fetch Candles
         const candlesRes = await axios.get(`${apiUrl}/candles?limit=50`);
-        const formattedCandles = candlesRes.data.map(c => ({
-          time: new Date(parseInt(c.close_time)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          close: parseFloat(c.close),
-          open: parseFloat(c.open)
-        }));
-        setCandles(formattedCandles);
+        if (Array.isArray(candlesRes.data)) {
+          const formattedCandles = candlesRes.data.map(c => ({
+            time: c.close_time ? new Date(parseInt(c.close_time)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '?',
+            close: parseFloat(c.close) || 0,
+            open: parseFloat(c.open) || 0
+          }));
+          setCandles(formattedCandles);
+        }
 
         // Fetch Trades
         const tradesRes = await axios.get(`${apiUrl}/trades?limit=10`);
-        setTrades(tradesRes.data);
+        if (Array.isArray(tradesRes.data)) {
+          setTrades(tradesRes.data);
+        }
 
         setError(null);
       } catch (err) {
@@ -52,6 +56,9 @@ function App() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
+  const totalBalance = data.balance ? (data.balance.usdt + (data.balance.asset * lastPrice)) : 0;
 
   return (
     <div className="dashboard-container">
@@ -88,18 +95,18 @@ function App() {
               <DollarSign size={14} /> Total Balance (USDT)
             </div>
             <div className="stat-value text-green-400">
-              ${(data.balance.usdt + (data.balance.asset * (candles[candles.length - 1]?.close || 0))).toFixed(2)}
+              ${totalBalance.toFixed(2)}
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <div className="stat-label">USDT Available</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>${data.balance.usdt.toFixed(2)}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>${(data.balance?.usdt || 0).toFixed(2)}</div>
             </div>
             <div>
               <div className="stat-label">BTC Asset</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{data.balance.asset.toFixed(4)}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{(data.balance?.asset || 0).toFixed(4)}</div>
             </div>
           </div>
 
@@ -127,7 +134,7 @@ function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h3>BTC/USDT Live Chart (5m)</h3>
             <div style={{ color: '#8b949e', fontSize: '0.9rem' }}>
-              Last Price: <span style={{ color: '#e6edf3', fontWeight: 600 }}>${candles[candles.length - 1]?.close.toFixed(2)}</span>
+              Last Price: <span style={{ color: '#e6edf3', fontWeight: 600 }}>${lastPrice.toFixed(2)}</span>
             </div>
           </div>
 

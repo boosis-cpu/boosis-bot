@@ -1,0 +1,7 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+set timeout 30
+spawn ssh root@72.62.160.140 "docker logs boosis-traefik --tail 50 | grep -i 'acme\|certificate\|error'"
+expect "*?assword:*"
+send "$password\r"
+expect eof
