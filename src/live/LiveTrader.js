@@ -8,6 +8,10 @@ const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
+const db = require('../core/db'); // Added for executeRealTrade
+const notifications = require('../core/notifications'); // Added for executeRealTrade
+const binanceService = require('../core/binance'); // Added for executeRealTrade
+const TechnicalIndicators = require('../core/technical_indicators'); // Added for calculateMarketHealth
 
 // Configuration
 const CONFIG = {
@@ -26,12 +30,18 @@ class LiveTrader {
         this.ws = null;
         this.app = express();
 
-        // Simulation mode for now (Paper Trading)
-        this.paperTrading = true;
+        // Trading State
+        this.liveTrading = process.env.LIVE_TRADING === 'true'; // Controlled by ENV
+        this.paperTrading = !this.liveTrading; // Default to paper if live is false
+
         this.balance = {
             usdt: 1000,
             asset: 0
         };
+
+        // Real Balance (cached)
+        this.realBalance = [];
+        this.equityHistory = [];
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -79,6 +89,26 @@ class LiveTrader {
             res.json({ token, expiresIn: '24h' });
         });
 
+        // Endpoint to toggle trading mode (protected)
+        this.app.post('/api/settings/trading-mode', authMiddleware, async (req, res) => {
+            const { live } = req.body;
+
+            // Update runtime state
+            this.liveTrading = live;
+            this.paperTrading = !live;
+
+            // In a real app, you might also update .env file or DB here
+            // For now, runtime switch is enough for the session
+
+            logger.warn(`TRADING MODE CHANGED: ${live ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
+
+            res.json({
+                success: true,
+                mode: live ? 'LIVE' : 'PAPER',
+                message: `Bot switched to ${live ? 'LIVE' : 'PAPER'} trading mode.`
+            });
+        });
+
         // ENDPOINTS PROTEGIDOS
         this.app.get('/api/status', authMiddleware, (req, res) => {
             res.json({
@@ -86,32 +116,78 @@ class LiveTrader {
                 bot: 'Boosis Quant Bot',
                 strategy: this.strategy.name,
                 symbol: CONFIG.symbol,
-<<<<<<< Updated upstream
-                paperTrading: this.paperTrading,
-                balance: this.balance
-=======
                 paperTrading: !this.liveTrading,
                 balance: this.balance,
                 realBalance: this.realBalance,
                 equityHistory: this.equityHistory.slice(-50),
                 marketStatus: this.calculateMarketHealth()
->>>>>>> Stashed changes
+            });
+        });
+
+        this.app.get('/api/health', (req, res) => {
+            const health = {
+                status: 'ACTIVE',
+                uptime: process.uptime(),
+                bot: {
+                    wsConnected: this.ws && this.ws.readyState === WebSocket.OPEN,
+                    candlesCount: this.candles.length,
+                    lastCandleTime: this.candles.length > 0 ? this.candles[this.candles.length - 1][6] : null
+                },
+                latency: {
+                    apiLatency: 45, // Placeholder or calculate real
+                    wsLatency: 28   // Placeholder
+                }
+            };
+            res.json(health);
+        });
+
+        this.app.get('/api/metrics', authMiddleware, (req, res) => {
+            // Calculate basic metrics from trade history
+            const winningTrades = this.trades.filter(t => (t.side === 'SELL' && t.price > t.entryPrice) || (t.side === 'BUY' && false)); // Simplified win logic
+            const winRate = this.trades.length > 0 ? ((winningTrades.length / (this.trades.length / 2)) * 100).toFixed(1) + '%' : '0%';
+
+            res.json({
+                profitFactor: '1.5', // Placeholder
+                winRate: winRate,
+                totalTrades: this.trades.length
             });
         });
 
         this.app.get('/api/candles', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 100);
-                const candles = this.candles.slice(-limit).map(c => ({
-                    open_time: c[0],
-                    open: c[1],
-                    high: c[2],
-                    low: c[3],
-                    close: c[4],
-                    volume: c[5],
-                    close_time: c[6]
-                }));
-                res.json(candles);
+
+                // Calculate indicators for frontend visualization
+                const historyPrices = this.candles.map(c => parseFloat(c[4]));
+                const rsi = TechnicalIndicators.calculateRSI(historyPrices, 14);
+                const sma200 = TechnicalIndicators.calculateSMA(historyPrices, 200);
+                const bb = TechnicalIndicators.calculateBollingerBands(historyPrices, 20, 2);
+
+                // Map candles with their indicator values at that point in time (simplified, using current calculation for last candle logic usually)
+                // For visualization, passing the latest calc is often enough or we'd need to calculate historical indicators
+                // Here we just pass raw candles + latest indicators for the current state
+
+                const candlesWithIndicators = this.candles.slice(-limit).map((c, i, arr) => {
+                    // Very simplified indicator attachment for chart
+                    // A real implementation would calculate indicators for EACH point in history
+                    // For now, just sending raw data
+                    return {
+                        open_time: c[0],
+                        open: c[1],
+                        high: c[2],
+                        low: c[3],
+                        close: c[4],
+                        volume: c[5],
+                        close_time: c[6],
+                        indicators: {
+                            rsi: i === arr.length - 1 ? rsi : null,
+                            sma200: i === arr.length - 1 ? sma200 : null,
+                            bb: i === arr.length - 1 ? bb : null
+                        }
+                    };
+                });
+
+                res.json(candlesWithIndicators);
             } catch (error) {
                 res.status(400).json({ error: error.message });
             }
@@ -143,10 +219,23 @@ class LiveTrader {
             // 1. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
 
-            // 2. Connect to WebSocket
+            // 2. Fetch Initial Balance (Real)
+            this.fetchRealBalance();
+            setInterval(() => this.fetchRealBalance(), 60000); // Refresh every minute
+
+            // 3. Connect to WebSocket
             this.connectWebSocket();
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
+        }
+    }
+
+    async fetchRealBalance() {
+        try {
+            const balances = await binanceService.getAccountBalance();
+            this.realBalance = balances;
+        } catch (error) {
+            logger.error(`Error obteniendo balance de Binance: ${error.message}`);
         }
     }
 
@@ -157,7 +246,7 @@ class LiveTrader {
                 params: {
                     symbol: CONFIG.symbol,
                     interval: '5m',
-                    limit: 100 // Enough for our strategy windows
+                    limit: 300 // Enough for SMA200 + buffer
                 }
             });
 
@@ -222,7 +311,7 @@ class LiveTrader {
         if (isCandleClosed) {
             // Add new candle to history and remove oldest
             this.candles.push(candle);
-            if (this.candles.length > 200) this.candles.shift(); // Keep size manageable
+            if (this.candles.length > 300) this.candles.shift(); // Keep size manageable for SMA200
 
             logger.info(`Candle closed: ${candle[4]} (Volume: ${candle[5]})`);
             this.executeStrategy(candle);
@@ -238,15 +327,12 @@ class LiveTrader {
         }
     }
 
-    executeTrade(signal) {
-        if (this.paperTrading) {
-            this.executePaperTrade(signal);
+    async executeTrade(signal) {
+        if (this.liveTrading) {
+            await this.executeRealTrade(signal);
         } else {
-<<<<<<< Updated upstream
-            logger.warn('Real trading execution not implemented yet.');
-=======
             // Paper trading is always the fallback if live is OFF
-            await this.executePaperTrade(signal);
+            this.executePaperTrade(signal);
         }
         this.recordEquitySnapshot(signal.price);
     }
@@ -309,7 +395,6 @@ class LiveTrader {
         } catch (error) {
             logger.error(`FALLO CRÍTICO EN EJECUCIÓN REAL: ${error.message}`);
             notifications.notifyAlert(`❌ ERROR EN BINANCE: No se pudo ejecutar ${signal.action}. Revisar búnker.`);
->>>>>>> Stashed changes
         }
     }
 
@@ -330,7 +415,8 @@ class LiveTrader {
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                is_paper: true
+                is_paper: true,
+                reason: signal.reason
             };
             this.trades.push(trade);
 
@@ -347,12 +433,19 @@ class LiveTrader {
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                is_paper: true
+                is_paper: true,
+                reason: signal.reason
             };
             this.trades.push(trade);
 
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
         }
+    }
+
+    recordEquitySnapshot(price) {
+        const equity = this.balance.usdt + (this.balance.asset * price);
+        this.equityHistory.push({ time: new Date().toLocaleTimeString(), value: parseFloat(equity.toFixed(2)) });
+        if (this.equityHistory.length > 50) this.equityHistory.shift();
     }
 
     calculateMarketHealth() {

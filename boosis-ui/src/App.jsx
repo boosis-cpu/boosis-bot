@@ -1,220 +1,161 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, ShieldCheck, DollarSign, TrendingUp, AlertTriangle, Lock, Eye, EyeOff } from 'lucide-react'
-import './index.css'
+import {
+  TrendingUp,
+  Activity,
+  ShieldCheck,
+  DollarSign,
+  AlertTriangle,
+  Zap,
+  Cpu,
+  RefreshCcw,
+  BarChart2,
+  Lock
+} from 'lucide-react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts'
+
+const apiUrl = '/api'
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState('');
-
+  const [password, setPassword] = useState('')
+  const [token, setToken] = useState(localStorage.getItem('boosis_token'))
   const [data, setData] = useState({
-    status: 'offline',
     bot: 'Loading...',
     balance: { usdt: 0, asset: 0 },
     strategy: '',
-<<<<<<< Updated upstream
-    paperTrading: false
-=======
     paperTrading: false,
     equityHistory: [],
     realBalance: [],
     marketStatus: { status: 'UNKNOWN', volatility: 0 }
->>>>>>> Stashed changes
   })
   const [candles, setCandles] = useState([])
   const [trades, setTrades] = useState([])
+  const [health, setHealth] = useState(null)
+  const [metrics, setMetrics] = useState({ profitFactor: '0', winRate: '0%', totalTrades: 0 })
   const [error, setError] = useState(null)
-
-  // Use relative path since we are served from the same origin
-  const apiUrl = '/api';
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' })
 
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      fetchData()
+      const interval = setInterval(fetchData, 5000)
+      return () => clearInterval(interval)
+    } else {
+      setLoading(false)
     }
-  }, [token]);
+  }, [token])
 
-  const handleLogin = async () => {
-    try {
-      const response = await axios.post(`${apiUrl}/login`, { password });
-      const newToken = response.data.token;
+  const toggleTradingMode = async () => {
+    const targetLive = !!data.paperTrading; // Si está en paper, el objetivo es live (true)
+    const modeName = targetLive ? 'REAL (LIVE)' : 'SIMULADO (PAPER)';
 
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setPassword('');
-      setLoginError('');
-    } catch (error) {
-      setLoginError('Contraseña incorrecta');
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken('');
-    setData(prev => ({ ...prev, status: 'offline' }));
-  };
-
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchData = async () => {
-      try {
-        // Fetch Status from the correct API endpoint
-        const statusRes = await axios.get(`${apiUrl}/status`);
-        setData(statusRes.data);
-
-        // Fetch Candles
-        const candlesRes = await axios.get(`${apiUrl}/candles?limit=50`);
-        if (Array.isArray(candlesRes.data)) {
-          const formattedCandles = candlesRes.data.map(c => ({
-            time: c.close_time ? new Date(parseInt(c.close_time)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '?',
-            close: parseFloat(c.close) || 0,
-            open: parseFloat(c.open) || 0
-          }));
-          setCandles(formattedCandles);
-        }
-
-        // Fetch Trades
-        const tradesRes = await axios.get(`${apiUrl}/trades?limit=10`);
-        if (Array.isArray(tradesRes.data)) {
-          setTrades(tradesRes.data);
-        }
-
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        if (err.response && err.response.status === 401) {
-          handleLogout(); // Token invalid/expired
-        } else {
-          setError("Failed to connect to Boosis Bot. Is it running?");
-          setData(prev => ({ ...prev, status: 'disconnected' }));
+    setModal({
+      show: true,
+      title: targetLive ? '🛑 ¡PELIGRO: DINERO REAL!' : 'Confirmar Cambio de Sistema',
+      message: targetLive
+        ? `ESTÁS POR ENTRAR EN MODO DE TRADING REAL. El bot comenzará a usar tus fondos de BINANCE inmediatamente e CORRERÁS EL RIESGO DE PERDER DINERO REAL. ¿Estás absolutamente seguro de que la estrategia está lista?`
+        : `Estas por cambiar al modo ${modeName}. ¿Estás seguro de continuar? Esto afectará la ejecución de órdenes inmediatamente.`,
+      type: targetLive ? 'danger' : 'info',
+      onConfirm: async () => {
+        try {
+          await axios.post(`${apiUrl}/settings/trading-mode`, { live: targetLive });
+          fetchData();
+          setModal({ ...modal, show: false });
+        } catch (err) {
+          setError('No se pudo cambiar el modo de trading.');
+          setModal({ ...modal, show: false });
         }
       }
-    };
-
-    // Poll every 5 seconds
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, [token]);
-
-  // LOGIN SCREEN
-  if (!token) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#0d1117',
-        color: '#c9d1d9',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif'
-      }}>
-        <div style={{
-          background: '#161b22',
-          padding: '40px',
-          borderRadius: '10px',
-          border: '1px solid #30363d',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-          maxWidth: '400px',
-          width: '100%',
-          textAlign: 'center'
-        }}>
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
-            <div style={{ background: 'rgba(56, 139, 253, 0.15)', padding: '15px', borderRadius: '50%' }}>
-              <Lock size={32} color="#58a6ff" />
-            </div>
-          </div>
-          <h1 style={{ color: '#c9d1d9', marginBottom: '10px', fontSize: '24px' }}>Boosis Quant Bot</h1>
-          <p style={{ color: '#8b949e', marginBottom: '30px' }}>Acceso Restringido</p>
-
-          <div style={{ position: 'relative', marginBottom: '15px' }}>
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Contraseña de acceso"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') handleLogin();
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                paddingRight: '45px',
-                borderRadius: '6px',
-                border: '1px solid #30363d',
-                background: '#0d1117',
-                color: 'white',
-                fontSize: '16px',
-                boxSizing: 'border-box',
-                outline: 'none'
-              }}
-            />
-            <button
-              onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: '#8b949e',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-
-          <button
-            onClick={handleLogin}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: '#238636',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              transition: 'background 0.2s'
-            }}
-          >
-            Iniciar Sesión
-          </button>
-
-          {loginError && (
-            <div style={{ marginTop: '15px', color: '#da3633', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-              <AlertTriangle size={14} /> {loginError}
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    });
   }
 
-  const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
-  const totalBalance = data.balance ? (data.balance.usdt + (data.balance.asset * lastPrice)) : 0;
+  const fetchData = async () => {
+    try {
+      const [statusRes, candlesRes, tradesRes, healthRes, metricsRes] = await Promise.all([
+        axios.get(`${apiUrl}/status`),
+        axios.get(`${apiUrl}/candles?limit=100`),
+        axios.get(`${apiUrl}/trades?limit=20`),
+        axios.get(`${apiUrl}/health`),
+        axios.get(`${apiUrl}/metrics`)
+      ])
+
+      setData(statusRes.data)
+      setCandles(candlesRes.data.map(c => ({
+        time: new Date(c.open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        close: c.close,
+        rsi: c.indicators.rsi,
+        sma200: c.indicators.sma200,
+        bbUpper: c.indicators.bb?.upper,
+        bbLower: c.indicators.bb?.lower
+      })))
+      setTrades(tradesRes.data)
+      setHealth(healthRes.data)
+      setMetrics(metricsRes.data)
+      setError(null)
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setToken(null)
+        localStorage.removeItem('boosis_token')
+      }
+      setError('Connection error with the bot. Retrying...')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    try {
+      const res = await axios.post(`${apiUrl}/login`, { password })
+      setToken(res.data.token)
+      localStorage.setItem('boosis_token', res.data.token)
+      setError(null)
+    } catch (err) {
+      setError('Contraseña incorrecta')
+    }
+  }
+
+  if (!token) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <form onSubmit={handleLogin} className="panel" style={{ width: '320px', textAlign: 'center' }}>
+          <Zap size={48} color="#58a6ff" style={{ margin: '0 auto 20px' }} />
+          <h1 style={{ marginBottom: '20px' }}>Boosis Quant Login</h1>
+          <input
+            type="password"
+            placeholder="Introduce tu contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0d1117', border: '1px solid #30363d', color: 'white', borderRadius: '6px' }}
+          />
+          <button type="submit" style={{ width: '100%', padding: '12px', background: '#2ea043', border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>
+            Acceder al Búnker
+          </button>
+          {error && <p style={{ color: '#f85149', marginTop: '15px', fontSize: '14px' }}>{error}</p>}
+        </form>
+      </div>
+    )
+  }
+
+  const lastPrice = candles[candles.length - 1]?.close || 0
+  const totalBalance = data.balance ? (data.balance.usdt + (data.balance.asset * lastPrice)) : 0
+  const realUsdt = parseFloat(data.realBalance?.find(b => b.asset === 'USDT')?.free || 0).toFixed(2)
+  const realBtc = parseFloat(data.realBalance?.find(b => b.asset === 'BTC')?.free || 0).toFixed(6)
 
   return (
     <div className="dashboard-container">
       <header className="header">
-<<<<<<< Updated upstream
-        <div>
-          <h1 style={{ marginBottom: '4px', fontSize: '1.5rem' }}>Boosis Quant Dashboard</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8b949e' }}>
-            <Activity size={16} />
-            <span>{data.bot}</span>
-            <span>•</span>
-            <span>{data.strategy}</span>
-=======
         <div className="flex items-center gap-4">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Zap color="#58a6ff" size={24} />
@@ -224,37 +165,35 @@ function App() {
             <div className={`pulse ${data.marketStatus?.status === 'SAFE' ? 'bg-green-500' : 'bg-red-500'}`}
               style={{ background: data.marketStatus?.status === 'SAFE' ? '#2ea043' : '#f85149' }} />
             <span>MERCADO: {data.marketStatus?.status === 'SAFE' ? 'SEGURO' : 'VOLÁTIL'} ({data.marketStatus?.volatility || 0}%)</span>
->>>>>>> Stashed changes
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div className={`status-badge ${data.status === 'online' ? '' : 'offline'}`}
-            style={{ color: data.status === 'online' ? '#2ea043' : '#da3633', background: data.status === 'online' ? 'rgba(46,160,67,0.15)' : 'rgba(218,54,51,0.15)' }}>
-            <div className="pulse" style={{ backgroundColor: 'currentColor' }}></div>
-            {data.status.toUpperCase()}
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div
+            onClick={toggleTradingMode}
+            className={`badge ${data.paperTrading ? 'badge-blue' : 'badge-red'}`}
+            style={{
+              cursor: 'pointer',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: '800',
+              letterSpacing: '0.5px',
+              transition: 'all 0.2s ease',
+              border: data.paperTrading ? '1px solid #388bfd' : '1px solid #f85149',
+              background: data.paperTrading ? 'rgba(56, 139, 253, 0.1)' : 'rgba(248, 81, 73, 0.1)',
+              color: data.paperTrading ? '#58a6ff' : '#ff7b72'
+            }}
+          >
+            {data.paperTrading ? 'OFFLINE (PAPER)' : '⚠️ ONLINE (LIVE)'}
           </div>
-
-          <button onClick={handleLogout} style={{
-            background: 'transparent',
-            border: '1px solid #30363d',
-            color: '#8b949e',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '12px'
-          }}>
-            Salir
+          <button onClick={() => { setToken(null); localStorage.removeItem('boosis_token'); }}
+            style={{ background: 'transparent', border: '1px solid #30363d', color: 'white', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+            Cerrar Sesión
           </button>
         </div>
       </header>
 
-<<<<<<< Updated upstream
-      {error && (
-        <div style={{ padding: '12px', background: 'rgba(218,54,51,0.1)', color: '#da3633', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <AlertTriangle size={20} />
-          {error}
-=======
       <div className="grid-layout">
         {/* TOP ROW: KEY METRICS */}
         <div className="metrics-row">
@@ -287,28 +226,8 @@ function App() {
             <div className="stat-label-tiny">Factor de Beneficio</div>
             <div className="stat-value-med">{metrics.profitFactor}</div>
           </div>
->>>>>>> Stashed changes
         </div>
-      )}
 
-<<<<<<< Updated upstream
-      <div className="grid">
-        {/* Sidebar Stats */}
-        <aside className="sidebar panel">
-          <div className="stat-card">
-            <div className="stat-label flex items-center gap-2">
-              <DollarSign size={14} /> Total Balance (USDT)
-            </div>
-            <div className="stat-value text-green-400">
-              ${totalBalance.toFixed(2)}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <div className="stat-small">
-              <div className="stat-label">USDT Available</div>
-              <div className="stat-value-small">${data.balance?.usdt?.toFixed(2) || '0.00'}</div>
-=======
         {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
         <aside className="sidebar-area panel">
           <h3 className="stat-label-tiny mb-3">Simulación de Wallet</h3>
@@ -342,23 +261,14 @@ function App() {
               <span style={{ color: health?.latency?.apiLatency > 500 ? '#f85149' : '#2ea043' }}>
                 {health?.latency?.apiLatency || '--'}ms
               </span>
->>>>>>> Stashed changes
             </div>
-            <div className="stat-small">
-              <div className="stat-label">BTC Asset</div>
-              <div className="stat-value-small">{data.balance?.asset?.toFixed(4) || '0.0000'}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <span style={{ color: '#8b949e' }}>WebSocket RTT</span>
+              <span style={{ color: health?.latency?.wsLatency > 300 ? '#f85149' : '#2ea043' }}>
+                {health?.latency?.wsLatency || '--'}ms
+              </span>
             </div>
           </div>
-<<<<<<< Updated upstream
-
-          <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
-            <div className="stat-label flex items-center gap-2 mb-2">
-              <ShieldCheck size={14} /> Mode
-            </div>
-            <div className="badge badge-blue">
-              {data.paperTrading ? 'PAPER TRADING' : 'LIVE TRADING'}
-            </div>
-=======
           <h3 className="stat-label-tiny mt-6 mb-3">Crecimiento de Capital</h3>
           <div style={{ height: '120px', width: '100%' }}>
             <ResponsiveContainer>
@@ -373,68 +283,31 @@ function App() {
                 <Tooltip hide />
               </AreaChart>
             </ResponsiveContainer>
->>>>>>> Stashed changes
           </div>
         </aside>
 
-        {/* Main Chart */}
-        <main className="chart-container panel">
+        {/* MAIN CHART AREA */}
+        <main className="main-chart-area panel">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              BTC/USDT Live Chart (5m)
-            </h2>
-            <div className="text-sm text-gray-400">
-              Last Price: <span className="text-white font-bold">${lastPrice.toFixed(2)}</span>
-            </div>
+            <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 5M LIVE</h2>
+            <div className="text-xl font-bold font-mono">${lastPrice.toFixed(2)}</div>
           </div>
-
-          <div style={{ width: '100%', height: '400px' }}>
+          <div className="chart-wrapper">
             <ResponsiveContainer>
               <LineChart data={candles}>
-                <XAxis
-                  dataKey="time"
-                  stroke="#8b949e"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  domain={['auto', 'auto']}
-                  stroke="#8b949e"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value.toFixed(0)}
-                />
+                <XAxis dataKey="time" hide />
+                <YAxis domain={['auto', 'auto']} hide />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '6px' }}
+                  contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #30363d' }}
                   itemStyle={{ color: '#c9d1d9' }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="close"
-                  stroke="#58a6ff"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: '#58a6ff' }}
-                />
+                <Line type="monotone" dataKey="close" stroke="#58a6ff" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="sma200" stroke="#f85149" strokeWidth={1} dot={false} strokeDasharray="3 3" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </main>
 
-<<<<<<< Updated upstream
-        {/* Activity Feed */}
-        <section className="activity-feed panel col-span-2">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp size={16} /> Recent Bot Activity
-          </h2>
-
-          <div className="space-y-3">
-            {trades.length === 0 ? (
-              <div style={{ color: '#8b949e', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
-                No trades executed yet. Waiting for signals...
-=======
         {/* ACTIVITY AREA */}
         <section className="activity-area panel">
           <h3 className="stat-label-tiny mb-4 flex items-center gap-2">
@@ -444,22 +317,30 @@ function App() {
             {trades.length === 0 ? (
               <div style={{ color: '#8b949e', fontSize: '11px', textAlign: 'center', padding: '20px' }}>
                 Esperando señales...
->>>>>>> Stashed changes
               </div>
             ) : (
-              trades.map((trade, i) => (
-                <div key={i} className="trade-item flex justify-between items-center p-3 bg-gray-800 rounded">
-                  <div className="flex items-center gap-3">
-                    <span className={`badge ${trade.side === 'BUY' ? 'badge-green' : 'badge-red'}`}>
-                      {trade.side}
-                    </span>
-                    <span className="text-gray-300">{trade.symbol}</span>
+              trades.slice(0, 15).map((trade, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '4px',
+                  borderLeft: `2px solid ${trade.side === 'BUY' ? '#3fb950' : '#f85149'}`
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} BTC</span>
+                    <span style={{ fontSize: '10px', color: '#8b949e' }}>{trade.reason || 'Trend'}</span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-white font-mono">${trade.price}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(parseInt(trade.timestamp)).toLocaleTimeString()}
-                    </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold' }}>${trade.price}</div>
+                    {trade.slippage && (
+                      <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
+                        Slip: {trade.slippage}%
+                      </div>
+                    )}
+                    <div style={{ fontSize: '9px', color: '#58a6ff' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                 </div>
               ))
@@ -467,6 +348,49 @@ function App() {
           </div>
         </section>
       </div>
+
+      {/* PREMIUM MODAL DIALOG */}
+      {modal.show && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, animation: 'fadeIn 0.2s ease'
+        }}>
+          <div className="panel" style={{
+            width: '400px', padding: '30px',
+            border: `1px solid ${modal.type === 'danger' ? '#f85149' : '#30363d'}`,
+            textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ marginBottom: '20px', color: modal.type === 'danger' ? '#f85149' : '#58a6ff' }}>
+              {modal.type === 'danger' ? <AlertTriangle size={48} style={{ margin: '0 auto' }} /> : <ShieldCheck size={48} style={{ margin: '0 auto' }} />}
+            </div>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>{modal.title}</h2>
+            <p style={{ color: '#8b949e', fontSize: '14px', lineHeight: '1.6', marginBottom: '30px' }}>
+              {modal.message}
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setModal({ ...modal, show: false })}
+                style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid #30363d', color: 'white', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={modal.onConfirm}
+                style={{
+                  flex: 1, padding: '12px',
+                  background: modal.type === 'danger' ? '#f85149' : '#2ea043',
+                  border: 'none', color: 'white', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer',
+                  boxShadow: modal.type === 'danger' ? '0 0 15px rgba(248, 81, 73, 0.4)' : 'none'
+                }}
+              >
+                {modal.type === 'danger' ? 'ACTIVAR TRADING REAL' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
