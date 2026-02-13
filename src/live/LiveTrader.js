@@ -38,6 +38,9 @@ class LiveTrader {
         };
         this.lastBuyPrice = 0;
         this.health = new HealthChecker(this);
+        this.lastMessageTime = Date.now();
+        this.sosSent = false;
+        this.equityHistory = []; // Track capital growth
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -84,6 +87,7 @@ class LiveTrader {
 
             res.json({ token, expiresIn: '24h' });
         });
+
         // ENDPOINTS PROTEGIDOS
         this.app.get('/api/status', authMiddleware, (req, res) => {
             res.json({
@@ -92,24 +96,15 @@ class LiveTrader {
                 strategy: this.strategy.name,
                 symbol: CONFIG.symbol,
                 paperTrading: this.paperTrading,
-                balance: this.balance
+                balance: this.balance,
+                equityHistory: this.equityHistory.slice(-50)
             });
         });
 
         this.app.get('/api/candles', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 100);
-                const prices = this.candles.map(c => c[4]);
 
-                // Calculate indicators for the full history to ensure accuracy
-                const rsiValues = [];
-                const smaValues = [];
-                const bbValues = [];
-
-                // We use the professional TI library via our wrapper
-
-                // This is a bit heavy for a GET, ideally we'd cache these.
-                // For now, let's just send the last N candles with their indicators.
                 const candles = this.candles.slice(-limit).map((c, idx) => {
                     const relativeIdx = this.candles.length - limit + idx;
                     const historySlice = this.candles.slice(0, relativeIdx + 1);
@@ -161,8 +156,6 @@ class LiveTrader {
             let grossLoss = 0;
             let wins = 0;
 
-            // Simplified metric calculation from paper trades
-            // In a real system, we'd compare sequential BUY/SELL pairs
             for (let i = 1; i < trades.length; i++) {
                 if (trades[i].side === 'SELL' && trades[i - 1].side === 'BUY') {
                     const profit = (trades[i].price - trades[i - 1].price) * trades[i - 1].amount;
@@ -175,7 +168,8 @@ class LiveTrader {
                 }
             }
 
-            const winRate = ((wins / (trades.length / 2)) * 100).toFixed(2);
+            const tradePairs = Math.floor(trades.length / 2);
+            const winRate = tradePairs > 0 ? ((wins / tradePairs) * 100).toFixed(2) : 0;
             const profitFactor = grossLoss === 0 ? grossProfit : (grossProfit / grossLoss).toFixed(2);
 
             res.json({
@@ -187,7 +181,6 @@ class LiveTrader {
             });
         });
 
-        // Serve React App for root
         this.app.get('/', (req, res) => {
             res.sendFile(path.join(__dirname, '../../public', 'index.html'));
         });
@@ -195,31 +188,24 @@ class LiveTrader {
 
     async start() {
         try {
-            // 1. Initialize Database
             await db.init();
-
-            // 2. Start Web Server
             this.app.listen(CONFIG.port, () => {
                 logger.success(`Web server listening on port ${CONFIG.port}`);
             });
 
-            // 3. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
             this.trades = await db.getRecentTrades(50);
+
             const savedState = await db.getBotState('balance');
-            if (savedState) {
-                this.balance = savedState;
-                logger.info(`Loaded balance from DB: ${JSON.stringify(this.balance)}`);
-            }
+            if (savedState) this.balance = savedState;
 
             const savedPrice = await db.getBotState('lastBuyPrice');
-            if (savedPrice) {
-                this.lastBuyPrice = parseFloat(savedPrice);
-                logger.info(`Loaded lastBuyPrice from DB: ${this.lastBuyPrice}`);
-            }
-            logger.info(`Loaded ${this.trades.length} historical trades from Database.`);
+            if (savedPrice) this.lastBuyPrice = parseFloat(savedPrice);
 
-            // 4. Connect to WebSocket
+            if (this.candles.length > 0) {
+                this.recordEquitySnapshot(this.candles[this.candles.length - 1][4]);
+            }
+
             this.connectWebSocket();
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
@@ -229,44 +215,27 @@ class LiveTrader {
     async loadHistoricalData() {
         logger.info('Fetching historical data...');
         try {
-            // First, try loading from DB
             const dbCandles = await db.getRecentCandles(CONFIG.symbol, 500);
-
             if (dbCandles.length >= 400) {
                 this.candles = dbCandles;
                 logger.success(`Loaded ${this.candles.length} historical candles from Database.`);
                 return;
             }
 
-            // If not enough in DB, fetch from API
-            logger.info('Not enough data in DB. Fetching from Binance API...');
             const response = await axios.get(`${CONFIG.apiUrl}/klines`, {
-                params: {
-                    symbol: CONFIG.symbol,
-                    interval: '5m',
-                    limit: 500
-                }
+                params: { symbol: CONFIG.symbol, interval: '5m', limit: 500 }
             });
 
             this.candles = response.data.map(k => [
-                k[0], // Open time
-                parseFloat(k[1]), // Open
-                parseFloat(k[2]), // High
-                parseFloat(k[3]), // Low
-                parseFloat(k[4]), // Close
-                parseFloat(k[5]), // Volume
-                k[6]  // Close time
+                k[0], parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4]), parseFloat(k[5]), k[6]
             ]);
 
-            // Save fetched candles to DB for future starts
             for (const candle of this.candles) {
                 await db.saveCandle(CONFIG.symbol, candle);
             }
-
-            logger.success(`Loaded ${this.candles.length} historical candles from API and saved to DB.`);
+            logger.success(`Loaded ${this.candles.length} historical candles from API.`);
         } catch (error) {
             logger.error(`Failed to load historical data: ${error.message}`);
-            // Don't throw, try to continue with empty history
         }
     }
 
@@ -278,32 +247,39 @@ class LiveTrader {
             logger.success('Connected to Binance WebSocket.');
             notifications.notifyAlert('Conectado a Binance WebSocket. Monitoreo Activo. 🚀');
 
-            // Start heartbeat
             heartbeatInterval = setInterval(() => {
-                if (this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.ping();
+                if (this.ws.readyState === WebSocket.OPEN) this.ws.ping();
+            }, 30000);
+
+            setInterval(() => {
+                const inactiveTime = (Date.now() - this.lastMessageTime) / 1000;
+                if (inactiveTime > 120 && !this.sosSent) {
+                    logger.error(`WATCHDOG: No data received for ${inactiveTime.toFixed(0)}s! Sending SOS.`);
+                    notifications.notifyAlert(`🚨 SOS: El bot no ha recibido datos en 2 minutos.`);
+                    this.sosSent = true;
                 }
-            }, 30000); // Every 30s
+            }, 60000);
         });
 
-        this.ws.on('pong', () => {
-            // Receipt of pong confirms connection health
-        });
+        this.ws.on('pong', () => { this.lastMessageTime = Date.now(); });
 
         this.ws.on('message', (data) => {
             try {
                 const message = JSON.parse(data);
-                if (message.e === 'kline') {
-                    this.handleKlineMessage(message.k);
+                this.lastMessageTime = Date.now();
+                if (this.sosSent) {
+                    this.sosSent = false;
+                    notifications.notifyAlert(`✅ SOS RESUELTO: Recibiendo datos nuevamente.`);
                 }
+                if (message.e === 'kline') this.handleKlineMessage(message.k);
             } catch (err) {
-                logger.error(`Error parsing WS message: ${err.message}`);
+                logger.error(`WS Error: ${err.message}`);
             }
         });
 
         this.ws.on('close', () => {
-            logger.warn('WebSocket connection closed. Reconnecting in 5s...');
             clearInterval(heartbeatInterval);
+            logger.warn('WebSocket closed. Reconnecting...');
             setTimeout(() => this.connectWebSocket(), 5000);
         });
 
@@ -313,122 +289,86 @@ class LiveTrader {
         });
     }
 
-    handleKlineMessage(kline) {
-        const isCandleClosed = kline.x;
-        const candle = [
-            kline.t,              // Open Time
-            parseFloat(kline.o), // Open
-            parseFloat(kline.h), // High
-            parseFloat(kline.l), // Low
-            parseFloat(kline.c), // Close
-            parseFloat(kline.v), // Volume
-            kline.T               // Close Time
-        ];
-
-        // Only process strategy logic when candle closes to avoid repainting
-        if (isCandleClosed) {
-            // Add new candle to history and remove oldest
+    async handleKlineMessage(kline) {
+        if (kline.x) {
+            const candle = [
+                kline.t, parseFloat(kline.o), parseFloat(kline.h), parseFloat(kline.l), parseFloat(kline.c), parseFloat(kline.v), kline.T
+            ];
             this.candles.push(candle);
-            if (this.candles.length > 500) this.candles.shift(); // Keep size manageable in memory
+            if (this.candles.length > 500) this.candles.shift();
 
-            // Persist closed candle to DB
-            db.saveCandle(CONFIG.symbol, candle).catch(err => {
-                logger.error(`Failed to persist candle to DB: ${err.message}`);
-            });
+            db.saveCandle(CONFIG.symbol, candle).catch(e => logger.error(`DB Save Error: ${e.message}`));
 
-            logger.info(`Candle closed: ${candle[4]} (Volume: ${candle[5]})`);
+            logger.info(`Candle closed: ${candle[4]}`);
             const inPosition = this.balance.asset > 0.0001;
-            this.executeStrategy(candle, inPosition);
+            await this.executeStrategy(candle, inPosition);
+            this.recordEquitySnapshot(candle[4]);
         }
     }
 
-    executeStrategy(latestCandle, inPosition) {
+    async executeStrategy(latestCandle, inPosition) {
         const signal = this.strategy.onCandle(latestCandle, this.candles, inPosition, this.lastBuyPrice);
-
         if (signal) {
-            logger.info(`SIGNAL DETECTED: ${signal.action} @ ${signal.price} | ${signal.reason}`);
-            this.executeTrade(signal);
+            logger.info(`SIGNAL: ${signal.action} @ ${signal.price}`);
+            await this.executeTrade(signal);
         }
     }
 
-    executeTrade(signal) {
+    async executeTrade(signal) {
         if (this.paperTrading) {
-            this.executePaperTrade(signal);
-        } else {
-            logger.warn('Real trading execution not implemented yet.');
+            await this.executePaperTrade(signal);
+            this.recordEquitySnapshot(signal.price);
         }
     }
 
-    executePaperTrade(signal) {
-        const fee = 0.001; // 0.1% fee
+    async executePaperTrade(signal) {
+        const fee = 0.001;
         const price = signal.price;
         const timestamp = Date.now();
 
         if (signal.action === 'BUY' && this.balance.usdt > 10) {
-            const amountUsd = this.balance.usdt;
-            const amountAsset = (amountUsd / price) * (1 - fee);
-            this.balance.asset += amountAsset;
+            const amountAsset = (this.balance.usdt / price) * (1 - fee);
+            this.balance.asset = amountAsset;
             this.balance.usdt = 0;
             this.lastBuyPrice = price;
 
-            // Persist balance and price
-            db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
-            db.setBotState('lastBuyPrice', this.lastBuyPrice).catch(err => logger.error(`Error saving lastBuyPrice: ${err.message}`));
+            await db.setBotState('balance', this.balance);
+            await db.setBotState('lastBuyPrice', this.lastBuyPrice);
 
-            const trade = {
-                symbol: CONFIG.symbol,
-                side: 'BUY',
-                price: price,
-                amount: amountAsset,
-                timestamp: timestamp,
-                type: 'PAPER',
-                reason: signal.reason
-            };
+            const trade = { symbol: CONFIG.symbol, side: 'BUY', price, amount: amountAsset, timestamp, type: 'PAPER', reason: signal.reason };
             this.trades.push(trade);
-            db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
+            await db.saveTrade(trade);
 
-            logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
-
-            notifications.notifyTrade({
-                ...trade,
-                balanceUsdt: this.balance.usdt,
-                balanceAsset: this.balance.asset
-            });
+            logger.success(`[PAPER] BOUGHT @ ${price}`);
+            notifications.notifyTrade({ ...trade, balanceUsdt: 0, balanceAsset: amountAsset });
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
-            const amountAsset = this.balance.asset;
-            const amountUsd = (amountAsset * price) * (1 - fee);
-            this.balance.usdt += amountUsd;
+            const amountUsd = (this.balance.asset * price) * (1 - fee);
+            this.balance.usdt = amountUsd;
             this.balance.asset = 0;
             this.lastBuyPrice = 0;
 
-            // Persist balance and price
-            db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
-            db.setBotState('lastBuyPrice', 0).catch(err => logger.error(`Error saving lastBuyPrice: ${err.message}`));
+            await db.setBotState('balance', this.balance);
+            await db.setBotState('lastBuyPrice', 0);
 
-            const trade = {
-                symbol: CONFIG.symbol,
-                side: 'SELL',
-                price: price,
-                amount: amountAsset,
-                timestamp: timestamp,
-                type: 'PAPER',
-                reason: signal.reason
-            };
+            const trade = { symbol: CONFIG.symbol, side: 'SELL', price, amount: amountUsd, timestamp, type: 'PAPER', reason: signal.reason };
             this.trades.push(trade);
-            db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
+            await db.saveTrade(trade);
 
-            logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
-
-            notifications.notifyTrade({
-                ...trade,
-                balanceUsdt: this.balance.usdt,
-                balanceAsset: this.balance.asset
-            });
+            logger.success(`[PAPER] SOLD @ ${price}`);
+            notifications.notifyTrade({ ...trade, balanceUsdt: amountUsd, balanceAsset: 0 });
         }
+    }
+
+    recordEquitySnapshot(currentPrice) {
+        const totalValue = this.balance.usdt + (this.balance.asset * currentPrice);
+        this.equityHistory.push({
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: parseFloat(totalValue.toFixed(2))
+        });
+        if (this.equityHistory.length > 100) this.equityHistory.shift();
     }
 }
 
-// Start the bot
 if (require.main === module) {
     const bot = new LiveTrader();
     bot.start();

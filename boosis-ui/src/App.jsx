@@ -15,7 +15,8 @@ function App() {
     bot: 'Loading...',
     balance: { usdt: 0, asset: 0 },
     strategy: '',
-    paperTrading: false
+    paperTrading: false,
+    equityHistory: []
   })
   const [candles, setCandles] = useState([])
   const [trades, setTrades] = useState([])
@@ -390,38 +391,44 @@ function App() {
           </div>
         </main>
 
-        {/* Activity Feed */}
-        <section className="activity-feed panel col-span-2">
+        {/* Activity Feed and Equity Chart */}
+        <section className="activity-feed panel">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <TrendingUp size={16} /> Recent Bot Activity
           </h2>
-
           <div className="space-y-3">
             {trades.length === 0 ? (
               <div style={{ color: '#8b949e', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>
                 No trades executed yet. Waiting for signals...
               </div>
             ) : (
-              trades.map((trade, i) => (
-                <div key={i} className="trade-item flex justify-between items-center p-3 bg-gray-800 rounded">
-                  <div className="flex items-center gap-3">
-                    <span className={`badge ${trade.side === 'BUY' ? 'badge-green' : 'badge-red'}`}>
-                      {trade.side}
-                    </span>
-                    <div>
-                      <div className="text-white font-semibold">{trade.symbol}</div>
-                      <div className="text-xs text-gray-400">{trade.reason || 'Manual/Other'}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-white font-mono">${trade.price}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(parseInt(trade.timestamp)).toLocaleTimeString()}
-                    </div>
-                  </div>
+              trades.slice(0, 5).map((trade, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                  <span style={{ color: trade.side === 'BUY' ? '#3fb950' : '#f85149' }}>{trade.side}</span>
+                  <span>${trade.price}</span>
+                  <span style={{ color: '#8b949e', fontSize: '11px' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString()}</span>
                 </div>
               ))
             )}
+          </div>
+        </section>
+
+        <section className="panel">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Activity size={16} /> Capital Growth (Equity)
+          </h2>
+          <div style={{ width: '100%', height: '200px' }}>
+            <ResponsiveContainer>
+              <LineChart data={data.equityHistory}>
+                <XAxis dataKey="time" hide />
+                <YAxis domain={['auto', 'auto']} hide />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#161b22', border: '1px solid #30363d' }}
+                  formatter={(value) => [`$${value}`, 'Capital']}
+                />
+                <Line type="monotone" dataKey="value" stroke="#3fb950" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </section>
       </div>
