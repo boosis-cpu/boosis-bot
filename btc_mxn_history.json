@@ -1,0 +1,802 @@
+[
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:35:44+0000",
+    "amount": "0.00085072",
+    "maker_side": "sell",
+    "price": "1155430",
+    "tid": 188987696
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:35:06+0000",
+    "amount": "0.00008594",
+    "maker_side": "sell",
+    "price": "1155710",
+    "tid": 188987671
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:34:28+0000",
+    "amount": "0.00016874",
+    "maker_side": "sell",
+    "price": "1155640",
+    "tid": 188987633
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:34:02+0000",
+    "amount": "0.00034881",
+    "maker_side": "sell",
+    "price": "1155270",
+    "tid": 188987621
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:33:01+0000",
+    "amount": "0.00214137",
+    "maker_side": "sell",
+    "price": "1154510",
+    "tid": 188987590
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:43+0000",
+    "amount": "0.00170528",
+    "maker_side": "sell",
+    "price": "1153910",
+    "tid": 188987576
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:36+0000",
+    "amount": "0.00327203",
+    "maker_side": "buy",
+    "price": "1152270",
+    "tid": 188987572
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:36+0000",
+    "amount": "0.00002603",
+    "maker_side": "buy",
+    "price": "1152510",
+    "tid": 188987571
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:36+0000",
+    "amount": "0.000026",
+    "maker_side": "buy",
+    "price": "1153510",
+    "tid": 188987569
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:36+0000",
+    "amount": "0.01733102",
+    "maker_side": "buy",
+    "price": "1154000",
+    "tid": 188987570
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:27+0000",
+    "amount": "0.00085077",
+    "maker_side": "sell",
+    "price": "1155500",
+    "tid": 188987564
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:32:23+0000",
+    "amount": "0.00014511",
+    "maker_side": "sell",
+    "price": "1155570",
+    "tid": 188987561
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:31:58+0000",
+    "amount": "0.00017042",
+    "maker_side": "sell",
+    "price": "1156130",
+    "tid": 188987550
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:31:50+0000",
+    "amount": "0.00255082",
+    "maker_side": "sell",
+    "price": "1156150",
+    "tid": 188987545
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:31:44+0000",
+    "amount": "0.00127579",
+    "maker_side": "sell",
+    "price": "1156020",
+    "tid": 188987540
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:29:56+0000",
+    "amount": "0.00053826",
+    "maker_side": "buy",
+    "price": "1153740",
+    "tid": 188987476
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:29:56+0000",
+    "amount": "0.00004332",
+    "maker_side": "buy",
+    "price": "1154010",
+    "tid": 188987475
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:29:56+0000",
+    "amount": "0.00002598",
+    "maker_side": "buy",
+    "price": "1154510",
+    "tid": 188987472
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:29:56+0000",
+    "amount": "0.00023982",
+    "maker_side": "buy",
+    "price": "1155030",
+    "tid": 188987473
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:29:56+0000",
+    "amount": "0.00002596",
+    "maker_side": "buy",
+    "price": "1155510",
+    "tid": 188987474
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:28:23+0000",
+    "amount": "0.00324650",
+    "maker_side": "sell",
+    "price": "1155910",
+    "tid": 188987447
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:27:07+0000",
+    "amount": "0.00008579",
+    "maker_side": "sell",
+    "price": "1156700",
+    "tid": 188987408
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:23:53+0000",
+    "amount": "0.00001277",
+    "maker_side": "sell",
+    "price": "1157370",
+    "tid": 188987278
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:23:36+0000",
+    "amount": "0.00050963",
+    "maker_side": "sell",
+    "price": "1157940",
+    "tid": 188987273
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:22:30+0000",
+    "amount": "0.00369948",
+    "maker_side": "buy",
+    "price": "1156550",
+    "tid": 188987234
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:19:35+0000",
+    "amount": "0.01606224",
+    "maker_side": "buy",
+    "price": "1155580",
+    "tid": 188987116
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:19:02+0000",
+    "amount": "0.00134482",
+    "maker_side": "buy",
+    "price": "1155970",
+    "tid": 188987103
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:19:02+0000",
+    "amount": "0.00002594",
+    "maker_side": "buy",
+    "price": "1156510",
+    "tid": 188987102
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:19:02+0000",
+    "amount": "0.00002591",
+    "maker_side": "buy",
+    "price": "1157510",
+    "tid": 188987100
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:19:02+0000",
+    "amount": "0.00000473",
+    "maker_side": "buy",
+    "price": "1158690",
+    "tid": 188987101
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:57+0000",
+    "amount": "0.00120000",
+    "maker_side": "buy",
+    "price": "1158690",
+    "tid": 188987093
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:56+0000",
+    "amount": "0.00742570",
+    "maker_side": "buy",
+    "price": "1158690",
+    "tid": 188987092
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:56+0000",
+    "amount": "0.0000043",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987091
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:55+0000",
+    "amount": "0.00192000",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987090
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:48+0000",
+    "amount": "0.00743000",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987086
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:37+0000",
+    "amount": "0.00136431",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987083
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:20+0000",
+    "amount": "0.00090363",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987068
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:18:19+0000",
+    "amount": "0.00090357",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987066
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:17:30+0000",
+    "amount": "0.05351853",
+    "maker_side": "buy",
+    "price": "1158710",
+    "tid": 188987004
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:17:30+0000",
+    "amount": "0.00086212",
+    "maker_side": "buy",
+    "price": "1159930",
+    "tid": 188987005
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:17:06+0000",
+    "amount": "0.00995476",
+    "maker_side": "buy",
+    "price": "1160250",
+    "tid": 188986988
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:17:04+0000",
+    "amount": "0.00291987",
+    "maker_side": "sell",
+    "price": "1162150",
+    "tid": 188986986
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:15:27+0000",
+    "amount": "0.00508501",
+    "maker_side": "sell",
+    "price": "1162060",
+    "tid": 188986924
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:15:19+0000",
+    "amount": "0.00042289",
+    "maker_side": "sell",
+    "price": "1162230",
+    "tid": 188986920
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:15:18+0000",
+    "amount": "0.00433390",
+    "maker_side": "buy",
+    "price": "1161370",
+    "tid": 188986919
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:15:13+0000",
+    "amount": "0.00016919",
+    "maker_side": "sell",
+    "price": "1162360",
+    "tid": 188986915
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:10:56+0000",
+    "amount": "0.00002542",
+    "maker_side": "sell",
+    "price": "1162420",
+    "tid": 188986736
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:10:55+0000",
+    "amount": "0.00084737",
+    "maker_side": "sell",
+    "price": "1162420",
+    "tid": 188986735
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:10:39+0000",
+    "amount": "0.00003383",
+    "maker_side": "sell",
+    "price": "1162450",
+    "tid": 188986711
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:07:59+0000",
+    "amount": "0.00338598",
+    "maker_side": "sell",
+    "price": "1162630",
+    "tid": 188986613
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:07:40+0000",
+    "amount": "0.00072825",
+    "maker_side": "sell",
+    "price": "1161260",
+    "tid": 188986603
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:07:11+0000",
+    "amount": "0.00423240",
+    "maker_side": "sell",
+    "price": "1161350",
+    "tid": 188986582
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:05:52+0000",
+    "amount": "0.00846160",
+    "maker_side": "sell",
+    "price": "1162410",
+    "tid": 188986535
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:05:34+0000",
+    "amount": "0.03386096",
+    "maker_side": "sell",
+    "price": "1161290",
+    "tid": 188986523
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:03:25+0000",
+    "amount": "0.00052978",
+    "maker_side": "sell",
+    "price": "1161750",
+    "tid": 188986445
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:00:59+0000",
+    "amount": "0.00436887",
+    "maker_side": "buy",
+    "price": "1160260",
+    "tid": 188986369
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T04:00:31+0000",
+    "amount": "0.01320020",
+    "maker_side": "sell",
+    "price": "1161780",
+    "tid": 188986355
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:59:10+0000",
+    "amount": "0.00000936",
+    "maker_side": "sell",
+    "price": "1162350",
+    "tid": 188986300
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:57:45+0000",
+    "amount": "0.00091102",
+    "maker_side": "sell",
+    "price": "1162050",
+    "tid": 188986248
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:57:45+0000",
+    "amount": "0.00002486",
+    "maker_side": "sell",
+    "price": "1161170",
+    "tid": 188986247
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:57:23+0000",
+    "amount": "0.00238365",
+    "maker_side": "sell",
+    "price": "1161170",
+    "tid": 188986240
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:57:18+0000",
+    "amount": "0.00017224",
+    "maker_side": "sell",
+    "price": "1161170",
+    "tid": 188986234
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:55:57+0000",
+    "amount": "0.00002114",
+    "maker_side": "sell",
+    "price": "1161130",
+    "tid": 188986187
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:55:27+0000",
+    "amount": "0.00034448",
+    "maker_side": "sell",
+    "price": "1161160",
+    "tid": 188986159
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:52:07+0000",
+    "amount": "0.00007374",
+    "maker_side": "buy",
+    "price": "1160120",
+    "tid": 188986037
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:51:11+0000",
+    "amount": "0.00004237",
+    "maker_side": "sell",
+    "price": "1160180",
+    "tid": 188985999
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:50:44+0000",
+    "amount": "0.00000932",
+    "maker_side": "sell",
+    "price": "1160490",
+    "tid": 188985989
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:50:38+0000",
+    "amount": "0.00021011",
+    "maker_side": "buy",
+    "price": "1159730",
+    "tid": 188985987
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:50:16+0000",
+    "amount": "0.00085307",
+    "maker_side": "sell",
+    "price": "1160510",
+    "tid": 188985964
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:50:15+0000",
+    "amount": "0.00008488",
+    "maker_side": "sell",
+    "price": "1160520",
+    "tid": 188985963
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:49:37+0000",
+    "amount": "0.00020511",
+    "maker_side": "sell",
+    "price": "1160700",
+    "tid": 188985951
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:49:10+0000",
+    "amount": "0.00125112",
+    "maker_side": "buy",
+    "price": "1159110",
+    "tid": 188985932
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:49:03+0000",
+    "amount": "0.00004233",
+    "maker_side": "sell",
+    "price": "1161130",
+    "tid": 188985931
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:46:53+0000",
+    "amount": "0.00012702",
+    "maker_side": "sell",
+    "price": "1160960",
+    "tid": 188985815
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:44:45+0000",
+    "amount": "0.00017391",
+    "maker_side": "buy",
+    "price": "1158860",
+    "tid": 188985722
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:44:05+0000",
+    "amount": "0.00147728",
+    "maker_side": "buy",
+    "price": "1159060",
+    "tid": 188985702
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:43:34+0000",
+    "amount": "0.00007060",
+    "maker_side": "sell",
+    "price": "1161050",
+    "tid": 188985679
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:43:18+0000",
+    "amount": "0.00019524",
+    "maker_side": "sell",
+    "price": "1160670",
+    "tid": 188985669
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:42:08+0000",
+    "amount": "0.00084722",
+    "maker_side": "sell",
+    "price": "1160300",
+    "tid": 188985618
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:38:59+0000",
+    "amount": "0.00011048",
+    "maker_side": "sell",
+    "price": "1159090",
+    "tid": 188985486
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:38:20+0000",
+    "amount": "0.00254948",
+    "maker_side": "sell",
+    "price": "1159040",
+    "tid": 188985463
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:36:26+0000",
+    "amount": "0.00169959",
+    "maker_side": "sell",
+    "price": "1159590",
+    "tid": 188985372
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:36:06+0000",
+    "amount": "0.00005099",
+    "maker_side": "sell",
+    "price": "1159010",
+    "tid": 188985363
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:31:29+0000",
+    "amount": "0.00424428",
+    "maker_side": "sell",
+    "price": "1158160",
+    "tid": 188985165
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:23:41+0000",
+    "amount": "0.00017535",
+    "maker_side": "buy",
+    "price": "1157660",
+    "tid": 188984844
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:23:41+0000",
+    "amount": "0.00008637",
+    "maker_side": "buy",
+    "price": "1157800",
+    "tid": 188984845
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:23:24+0000",
+    "amount": "0.00019136",
+    "maker_side": "buy",
+    "price": "1157960",
+    "tid": 188984839
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:23:03+0000",
+    "amount": "0.00042397",
+    "maker_side": "sell",
+    "price": "1160620",
+    "tid": 188984820
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:22:59+0000",
+    "amount": "0.00339179",
+    "maker_side": "sell",
+    "price": "1159340",
+    "tid": 188984817
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:20:39+0000",
+    "amount": "0.00200493",
+    "maker_side": "buy",
+    "price": "1157890",
+    "tid": 188984730
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:18:22+0000",
+    "amount": "0.00443100",
+    "maker_side": "buy",
+    "price": "1157860",
+    "tid": 188984610
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:17:00+0000",
+    "amount": "0.00004209",
+    "maker_side": "buy",
+    "price": "1160090",
+    "tid": 188984565
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:16:46+0000",
+    "amount": "0.02582600",
+    "maker_side": "sell",
+    "price": "1161620",
+    "tid": 188984555
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:47+0000",
+    "amount": "0.00017728",
+    "maker_side": "buy",
+    "price": "1159610",
+    "tid": 188984492
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:33+0000",
+    "amount": "0.00006110",
+    "maker_side": "buy",
+    "price": "1159490",
+    "tid": 188984487
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:14+0000",
+    "amount": "0.00037698",
+    "maker_side": "buy",
+    "price": "1157900",
+    "tid": 188984480
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:14+0000",
+    "amount": "0.00002589",
+    "maker_side": "buy",
+    "price": "1158510",
+    "tid": 188984479
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:14+0000",
+    "amount": "0.00002587",
+    "maker_side": "buy",
+    "price": "1159510",
+    "tid": 188984478
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:14+0000",
+    "amount": "0.00000948",
+    "maker_side": "buy",
+    "price": "1159750",
+    "tid": 188984477
+  },
+  {
+    "book": "btc_mxn",
+    "created_at": "2026-02-12T03:14:14+0000",
+    "amount": "0.00015255",
+    "maker_side": "buy",
+    "price": "1159890",
+    "tid": 188984476
+  }
+]

@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: boosis-traefik
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=tony@boosis.io"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      # - "8080:8080" # Dashboard
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik_net
+
+  boosis-bot:
+    build: .
+    container_name: boosis-bot
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_USER=boosis_admin
+      - DB_PASS=boosis_secure_pass_2026
+      - DB_NAME=boosis_db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - db
+    networks:
+      - traefik_net
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=boosis_traefik_net"
+      - "traefik.http.routers.boosis.rule=Host(`boosis.io`) || Host(`www.boosis.io`)"
+      - "traefik.http.routers.boosis.entrypoints=websecure"
+      - "traefik.http.routers.boosis.tls.certresolver=myresolver"
+      - "traefik.http.services.boosis.loadbalancer.server.port=3000"
+
+  db:
+    image: postgres:15-alpine
+    container_name: boosis-db
+    restart: always
+    environment:
+      - POSTGRES_USER=boosis_admin
+      - POSTGRES_PASSWORD=boosis_secure_pass_2026
+      - POSTGRES_DB=boosis_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+volumes:
+  postgres_data:
+
+
+networks:
+  traefik_net:
+    name: boosis_traefik_net
+    driver: bridge

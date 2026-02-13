@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+spawn ssh root@72.62.160.140 "docker logs boosis-bot --tail 50"
+expect "password:"
+send "$password\r"
+expect eof
