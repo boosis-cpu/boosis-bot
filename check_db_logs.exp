@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+set timeout 30
+
+spawn ssh root@72.62.160.140 "cd ~/boosis-bot && docker compose logs -f boosis-bot"
+expect "password:"
+send "$password\r"
+expect {
+    "\\\[DB\\\] Database ready." { puts "\nSUCCESS: Database initialized correctly!\n" }
+    "Error initializing database" { puts "\nFAILURE: DB connection failed.\n" }
+    timeout { puts "\nTIMEOUT: Checking logs further...\n" }
+}
+send "\003"
+expect eof

@@ -8,6 +8,7 @@ const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
+const db = require('../core/database');
 
 // Configuration
 const CONFIG = {
@@ -127,15 +128,25 @@ class LiveTrader {
 
     async start() {
         try {
-            // Start Web Server
+            // 1. Initialize Database
+            await db.init();
+
+            // 2. Start Web Server
             this.app.listen(CONFIG.port, () => {
                 logger.success(`Web server listening on port ${CONFIG.port}`);
             });
 
-            // 1. Initial Data Load (Bootstrap)
+            // 3. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
+            this.trades = await db.getRecentTrades(50);
+            const savedBalance = await db.getBotState('balance');
+            if (savedBalance) {
+                this.balance = savedBalance;
+                logger.info(`Loaded balance from DB: ${JSON.stringify(this.balance)}`);
+            }
+            logger.info(`Loaded ${this.trades.length} historical trades from Database.`);
 
-            // 2. Connect to WebSocket
+            // 4. Connect to WebSocket
             this.connectWebSocket();
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
@@ -143,13 +154,24 @@ class LiveTrader {
     }
 
     async loadHistoricalData() {
-        logger.info('Fetching historical data to warm up indicators...');
+        logger.info('Fetching historical data...');
         try {
+            // First, try loading from DB
+            const dbCandles = await db.getRecentCandles(CONFIG.symbol, 200);
+
+            if (dbCandles.length >= 100) {
+                this.candles = dbCandles;
+                logger.success(`Loaded ${this.candles.length} historical candles from Database.`);
+                return;
+            }
+
+            // If not enough in DB, fetch from API
+            logger.info('Not enough data in DB. Fetching from Binance API...');
             const response = await axios.get(`${CONFIG.apiUrl}/klines`, {
                 params: {
                     symbol: CONFIG.symbol,
                     interval: '5m',
-                    limit: 100 // Enough for our strategy windows
+                    limit: 200
                 }
             });
 
@@ -163,18 +185,35 @@ class LiveTrader {
                 k[6]  // Close time
             ]);
 
-            logger.success(`Loaded ${this.candles.length} historical candles.`);
+            // Save fetched candles to DB for future starts
+            for (const candle of this.candles) {
+                await db.saveCandle(CONFIG.symbol, candle);
+            }
+
+            logger.success(`Loaded ${this.candles.length} historical candles from API and saved to DB.`);
         } catch (error) {
             logger.error(`Failed to load historical data: ${error.message}`);
-            throw error;
+            // Don't throw, try to continue with empty history
         }
     }
 
     connectWebSocket() {
         this.ws = new WebSocket(CONFIG.wsUrl);
+        let heartbeatInterval;
 
         this.ws.on('open', () => {
             logger.success('Connected to Binance WebSocket.');
+
+            // Start heartbeat
+            heartbeatInterval = setInterval(() => {
+                if (this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.ping();
+                }
+            }, 30000); // Every 30s
+        });
+
+        this.ws.on('pong', () => {
+            // Receipt of pong confirms connection health
         });
 
         this.ws.on('message', (data) => {
@@ -190,11 +229,13 @@ class LiveTrader {
 
         this.ws.on('close', () => {
             logger.warn('WebSocket connection closed. Reconnecting in 5s...');
+            clearInterval(heartbeatInterval);
             setTimeout(() => this.connectWebSocket(), 5000);
         });
 
         this.ws.on('error', (err) => {
             logger.error(`WebSocket Error: ${err.message}`);
+            clearInterval(heartbeatInterval);
         });
     }
 
@@ -214,7 +255,12 @@ class LiveTrader {
         if (isCandleClosed) {
             // Add new candle to history and remove oldest
             this.candles.push(candle);
-            if (this.candles.length > 200) this.candles.shift(); // Keep size manageable
+            if (this.candles.length > 500) this.candles.shift(); // Keep size manageable in memory
+
+            // Persist closed candle to DB
+            db.saveCandle(CONFIG.symbol, candle).catch(err => {
+                logger.error(`Failed to persist candle to DB: ${err.message}`);
+            });
 
             logger.info(`Candle closed: ${candle[4]} (Volume: ${candle[5]})`);
             this.executeStrategy(candle);
@@ -249,15 +295,19 @@ class LiveTrader {
             this.balance.asset += amountAsset;
             this.balance.usdt = 0;
 
+            // Persist balance
+            db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
+
             const trade = {
                 symbol: CONFIG.symbol,
                 side: 'BUY',
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                is_paper: true
+                type: 'PAPER'
             };
             this.trades.push(trade);
+            db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
 
             logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
@@ -266,15 +316,19 @@ class LiveTrader {
             this.balance.usdt += amountUsd;
             this.balance.asset = 0;
 
+            // Persist balance
+            db.setBotState('balance', this.balance).catch(err => logger.error(`Error saving balance: ${err.message}`));
+
             const trade = {
                 symbol: CONFIG.symbol,
                 side: 'SELL',
                 price: price,
                 amount: amountAsset,
                 timestamp: timestamp,
-                is_paper: true
+                type: 'PAPER'
             };
             this.trades.push(trade);
+            db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
 
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
         }
