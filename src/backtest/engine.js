@@ -15,17 +15,18 @@ class BacktestEngine {
         let operations = [];
         let peakValue = this.initialCapital;
         let maxDrawdown = 0;
+        let lastBuyPrice = 0;
 
         candles.forEach((candle, index) => {
-            // Candle format: [time, open, high, low, close, volume]
             const closePrice = parseFloat(candle[4]);
             const time = new Date(candle[0]).toLocaleString();
+            const inPosition = wallet.asset > 0;
 
             // Update history for strategy
             history.push(candle);
 
-            // Get signal from strategy
-            const signal = strategy.onCandle(candle, history);
+            // Get signal from strategy - Pass inPosition and entryPrice
+            const signal = strategy.onCandle(candle, history, inPosition, lastBuyPrice);
 
             if (signal) {
                 // BUY LOGIC
@@ -35,6 +36,7 @@ class BacktestEngine {
 
                     wallet.asset = amountToBuy;
                     wallet.usdt = 0;
+                    lastBuyPrice = closePrice;
 
                     operations.push({
                         type: 'BUY',
@@ -51,6 +53,7 @@ class BacktestEngine {
 
                     wallet.usdt = grossSale - fee;
                     wallet.asset = 0;
+                    lastBuyPrice = 0;
 
                     operations.push({
                         type: 'SELL',

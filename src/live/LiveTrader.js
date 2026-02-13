@@ -10,6 +10,7 @@ const auth = require('../core/auth');
 const validators = require('../core/validators');
 const db = require('../core/database');
 const TechnicalIndicators = require('../core/technical_indicators');
+const notifications = require('../core/notifications');
 
 // Configuration
 const CONFIG = {
@@ -233,6 +234,7 @@ class LiveTrader {
 
         this.ws.on('open', () => {
             logger.success('Connected to Binance WebSocket.');
+            notifications.notifyAlert('Conectado a Binance WebSocket. Monitoreo Activo. 🚀');
 
             // Start heartbeat
             heartbeatInterval = setInterval(() => {
@@ -344,6 +346,12 @@ class LiveTrader {
             db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
 
             logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
+
+            notifications.notifyTrade({
+                ...trade,
+                balanceUsdt: this.balance.usdt,
+                balanceAsset: this.balance.asset
+            });
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
             const amountAsset = this.balance.asset;
             const amountUsd = (amountAsset * price) * (1 - fee);
@@ -368,6 +376,12 @@ class LiveTrader {
             db.saveTrade(trade).catch(err => logger.error(`DB Trade Error: ${err.message}`));
 
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
+
+            notifications.notifyTrade({
+                ...trade,
+                balanceUsdt: this.balance.usdt,
+                balanceAsset: this.balance.asset
+            });
         }
     }
 }

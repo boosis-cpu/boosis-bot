@@ -57,23 +57,24 @@ class BoosisTrend extends BaseStrategy {
 
         // --- ENTRY/EXIT LOGIC (MULTI-SIGNAL) ---
 
-        // 🟢 BUY LOGIC: Trend Up + Not Overbought + Near BB Middle
-        if (!inPosition && trendBullish && rsi < 60 && currentPrice < bb.middle) {
+        // 🟢 BUY LOGIC: Trend Up + Neutro/Oversold + Near BB Lower/Middle
+        if (!inPosition && trendBullish && rsi < 50 && currentPrice < bb.middle) {
             this.highWaterMark = currentPrice;
             return {
                 action: 'BUY',
                 price: currentPrice,
-                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & Near BB Middle`
+                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & Cheap Price`
             };
         }
 
-        // 🔴 SELL LOGIC: RSI Overbought OR MACD Crossover
-        if (inPosition && (rsi > 70 || (macd.histogram < 0 && macd.MACD < macd.signal))) {
+        // 🔴 SELL LOGIC: Extreme Overbought (Optional)
+        // Primary exit is now managed by Trailing Stop and Stop Loss above.
+        if (inPosition && rsi > 80) {
             this.highWaterMark = 0;
             return {
                 action: 'SELL',
                 price: currentPrice,
-                reason: `RSI Overbought (${rsi.toFixed(2)}) or MACD Crossover`
+                reason: `EXTREME RSI OVERBOUGHT (${rsi.toFixed(2)})`
             };
         }
 

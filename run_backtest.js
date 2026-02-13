@@ -8,7 +8,7 @@ const logger = require('./src/core/logger');
 const CONFIG = {
     symbol: 'BTCUSDT',
     interval: '5m',
-    limit: 1000,
+    limit: 2000,
     dataDir: './data'
 };
 
