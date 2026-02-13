@@ -12,6 +12,8 @@ class BoosisTrend extends BaseStrategy {
         // Risk Management
         this.stopLossPercent = config.stopLossPercent || 0.02; // 2% fixed stop loss
         this.trailingStopPercent = config.trailingStopPercent || 0.015; // 1.5% trailing stop
+        this.rsiBuyBound = config.rsiBuyBound || 30;
+        this.rsiSellBound = config.rsiSellBound || 80;
         this.highWaterMark = 0; // Highest price since buy
     }
 
@@ -60,7 +62,7 @@ class BoosisTrend extends BaseStrategy {
         // --- ENTRY/EXIT LOGIC (MULTI-SIGNAL) ---
 
         // 🟢 BUY LOGIC: Trend Up + Neutro/Oversold + Near BB Lower/Middle
-        if (!inPosition && trendBullish && rsi < 50 && currentPrice < bb.middle) {
+        if (!inPosition && trendBullish && rsi < this.rsiBuyBound && currentPrice < bb.middle) {
             this.highWaterMark = currentPrice;
             return {
                 action: 'BUY',
@@ -71,7 +73,7 @@ class BoosisTrend extends BaseStrategy {
 
         // 🔴 SELL LOGIC: Extreme Overbought (Optional)
         // Primary exit is now managed by Trailing Stop and Stop Loss above.
-        if (inPosition && rsi > 80) {
+        if (inPosition && rsi > this.rsiSellBound) {
             this.highWaterMark = 0;
             return {
                 action: 'SELL',
