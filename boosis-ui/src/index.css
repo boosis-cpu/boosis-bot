@@ -56,9 +56,17 @@ body {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .grid {
@@ -115,5 +123,34 @@ body {
   font-size: 0.875rem;
 }
 
-.trade-buy { color: var(--success); }
-.trade-sell { color: var(--danger); }
+.trade-buy {
+  color: var(--success);
+}
+
+.trade-sell {
+  color: var(--danger);
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    order: 2;
+  }
+
+  .chart-container {
+    order: 1;
+    height: 350px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}

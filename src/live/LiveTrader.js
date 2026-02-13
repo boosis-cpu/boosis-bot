@@ -12,6 +12,7 @@ const db = require('../core/database');
 const TechnicalIndicators = require('../core/technical_indicators');
 const notifications = require('../core/notifications');
 const HealthChecker = require('../core/health');
+const backup = require('../../backup_db');
 
 // Configuration
 const CONFIG = {
@@ -207,6 +208,9 @@ class LiveTrader {
             }
 
             this.connectWebSocket();
+
+            // Schedule Backups (Every 24h)
+            setInterval(() => backup(), 24 * 60 * 60 * 1000);
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
         }
@@ -340,7 +344,7 @@ class LiveTrader {
             await db.saveTrade(trade);
 
             logger.success(`[PAPER] BOUGHT @ ${price}`);
-            notifications.notifyTrade({ ...trade, balanceUsdt: 0, balanceAsset: amountAsset });
+            notifications.notifyTrade({ ...trade, balanceUsdt: this.balance.usdt, balanceAsset: this.balance.asset });
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
             const amountUsd = (this.balance.asset * price) * (1 - fee);
             this.balance.usdt = amountUsd;
@@ -355,8 +359,11 @@ class LiveTrader {
             await db.saveTrade(trade);
 
             logger.success(`[PAPER] SOLD @ ${price}`);
-            notifications.notifyTrade({ ...trade, balanceUsdt: amountUsd, balanceAsset: 0 });
+            notifications.notifyTrade({ ...trade, balanceUsdt: this.balance.usdt, balanceAsset: this.balance.asset });
         }
+
+        // Persist initial state if it's the first time
+        db.setBotState('balance', this.balance).catch(() => { });
     }
 
     recordEquitySnapshot(currentPrice) {
