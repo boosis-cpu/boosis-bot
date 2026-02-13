@@ -171,6 +171,15 @@ function App() {
             <div className="stat-label-tiny">Win Rate</div>
             <div className="stat-value-med">{metrics.winRate}</div>
           </div>
+          <div className="stat-card-compact" style={{ borderLeftColor: '#f0883e' }}>
+            <div className="stat-label-tiny">Avg Slippage</div>
+            <div className="stat-value-med">
+              {trades.length > 0 ?
+                (trades.reduce((sum, t) => sum + (t.slippage || 0), 0) / trades.filter(t => t.slippage).length || 0).toFixed(3) :
+                '0.00'
+              }%
+            </div>
+          </div>
           <div className="stat-card-compact" style={{ borderLeftColor: '#388bfd' }}>
             <div className="stat-label-tiny">Profit Factor</div>
             <div className="stat-value-med">{metrics.profitFactor}</div>
@@ -284,6 +293,11 @@ function App() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', fontWeight: 'bold' }}>${trade.price}</div>
+                    {trade.slippage && (
+                      <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
+                        Slip: {trade.slippage}%
+                      </div>
+                    )}
                     <div style={{ fontSize: '9px', color: '#58a6ff' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                 </div>

@@ -369,26 +369,42 @@ class LiveTrader {
                 quantity = availableAsset;
             }
 
-            // Aproximate Binance precision (BTC usually 5 or 6 decimals)
-            const roundedQty = parseFloat(quantity.toFixed(5));
+            // Dynamic precision based on Binance filters
+            const roundedQty = binanceService.formatQuantity(quantity);
 
             const result = await binanceService.executeOrder(CONFIG.symbol, signal.action, roundedQty);
+            stone
+            const executionPrice = result.fills ?
+                result.fills.reduce((sum, f) => sum + (parseFloat(f.price) * parseFloat(f.qty)), 0) / result.fills.reduce((sum, f) => sum + parseFloat(f.qty), 0) :
+                signal.price;
+
+            const slippage = ((executionPrice - signal.price) / signal.price) * 100;
 
             const trade = {
                 symbol: CONFIG.symbol,
                 side: signal.action,
-                price: signal.price,
+                price: parseFloat(executionPrice.toFixed(2)),
+                expectedPrice: signal.price,
+                slippage: parseFloat(slippage.toFixed(4)),
                 amount: roundedQty,
                 timestamp: Date.now(),
                 type: 'REAL',
                 executionId: result.orderId,
-                reason: signal.reason
+                reason: signal.reason,
+                latency: Date.now() - signal.timestamp
             };
 
             this.trades.push(trade);
             await db.saveTrade(trade);
-            notifications.notifyTrade({ ...trade, status: 'REAL EXECUTION SUCCESS' });
 
+            notifications.notifyTrade({
+                ...trade,
+                status: 'CONCRETADA EN BINANCE',
+                balanceUsdt: this.realBalance?.find(b => b.asset === 'USDT')?.free,
+                balanceAsset: this.realBalance?.find(b => b.asset === 'BTC')?.free
+            });
+
+            logger.success(`[LIVE] ${signal.action} ejecutado con ${trade.slippage}% de slippage.`);
         } catch (error) {
             logger.error(`FALLO CRÍTICO EN EJECUCIÓN REAL: ${error.message}`);
             notifications.notifyAlert(`❌ ERROR EN BINANCE: No se pudo ejecutar ${signal.action}. Revisar búnker.`);
