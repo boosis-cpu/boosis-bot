@@ -43,6 +43,7 @@ class LiveTrader {
         this.realBalance = [];
         this.totalBalanceUSD = 0;
         this.equityHistory = [];
+        this.emergencyStopped = false;
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -103,9 +104,15 @@ class LiveTrader {
             // Update runtime state
             this.liveTrading = live;
             this.paperTrading = !live;
+            this.emergencyStopped = false; // Reset stop flag on toggle
 
             // Persist to database
             await this.saveTradingMode();
+
+            // Reconnect if it was stopped
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                this.connectWebSocket();
+            }
 
             logger.warn(`TRADING MODE CHANGED: ${live ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
 
@@ -124,11 +131,12 @@ class LiveTrader {
                 // Force paper trading mode
                 this.liveTrading = false;
                 this.paperTrading = true;
+                this.emergencyStopped = true;
                 await this.saveTradingMode();
 
                 // Close WebSocket to stop receiving new data
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.close();
+                if (this.ws) {
+                    this.ws.terminate();
                 }
 
                 logger.error('🚨 EMERGENCY STOP ACTIVATED - All trading halted');
@@ -177,6 +185,7 @@ class LiveTrader {
                 realBalance: this.realBalance,
                 totalBalanceUSD: this.totalBalanceUSD,
                 equityHistory: this.equityHistory.slice(-50),
+                emergencyStopped: this.emergencyStopped,
                 marketStatus: this.calculateMarketHealth()
             });
         });
@@ -307,8 +316,15 @@ class LiveTrader {
                 hostname: os.hostname()
             });
 
+            // 4.5 Initial Equity Snapshot
+            const initialPrice = this.candles.length > 0 ? this.candles[this.candles.length - 1][4] : 0;
+            this.recordEquitySnapshot(initialPrice);
+
             // 5. Setup Daily Summary (Every 24h)
             setInterval(() => this.sendDailySummary(), 24 * 60 * 60 * 1000);
+
+            // 6. Telegram Interactive Commands
+            this.setupTelegramCommands();
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
             notifications.notifyError(err, 'Bot Startup');
@@ -426,6 +442,10 @@ class LiveTrader {
         });
 
         this.ws.on('close', () => {
+            if (this.emergencyStopped) {
+                logger.warn('WebSocket connection closed and Emergency Stop is ACTIVE. No reconnection.');
+                return;
+            }
             logger.warn('WebSocket connection closed. Reconnecting in 5s...');
             notifications.notifyAlert('⚠️ WebSocket de Binance desconectado. Reintentando en 5s...');
             setTimeout(() => this.connectWebSocket(), 5000);
@@ -448,6 +468,9 @@ class LiveTrader {
             parseFloat(kline.v), // Volume
             kline.T               // Close Time
         ];
+
+        // Record equity data points for the /chart command
+        this.recordEquitySnapshot(candle[4]);
 
         // Only process strategy logic when candle closes to avoid repainting
         if (isCandleClosed) {
@@ -628,18 +651,149 @@ class LiveTrader {
         if (recentTrades.length === 0) return;
 
         const winningTrades = recentTrades.filter(t => (t.side === 'SELL' && t.price > t.entryPrice));
-        const winRate = ((winningTrades.length / (recentTrades.length / 2)) * 100).toFixed(1);
 
+        // Calculate PnL (Net change in USD value)
         const currentPrice = this.candles.length > 0 ? parseFloat(this.candles[this.candles.length - 1][4]) : 0;
         const currentEquity = this.liveTrading ? this.totalBalanceUSD : (this.balance.usdt + (this.balance.asset * currentPrice));
+        const initialEquity = this.equityHistory.length > 0 ? this.equityHistory[0].value : currentEquity;
+        const pnlUSD = currentEquity - initialEquity;
+        const pnlPercent = initialEquity > 0 ? ((pnlUSD / initialEquity) * 100).toFixed(2) : '0.00';
 
         notifications.notifyDailySummary({
             totalTrades: recentTrades.length,
             winningTrades: winningTrades.length,
-            winRate: winRate,
-            pnl: 0, // Placeholder
+            winRate: ((winningTrades.length / (recentTrades.filter(t => t.side === 'SELL').length || 1)) * 100).toFixed(1),
+            pnl: `${pnlUSD > 0 ? '+' : ''}${pnlUSD.toFixed(2)} USD (${pnlPercent}%)`,
             balance: currentEquity
         });
+    }
+
+    setupTelegramCommands() {
+        notifications.onCommand(async (command) => {
+            logger.info(`Telegram command received: ${command}`);
+
+            switch (command) {
+                case '/test':
+                    await notifications.send('📡 **Prueba de Conexión Exitosa**\n\nEl bot está en línea y respondiendo correctamente.');
+                    break;
+
+                case '/status':
+                    const currentPrice = this.candles.length > 0 ? this.candles[this.candles.length - 1][4] : 'Cargando...';
+                    const mode = this.liveTrading ? '💰 LIVE' : '📝 PAPER';
+                    const balance = this.liveTrading ?
+                        `Real: $${this.totalBalanceUSD?.toFixed(2) || 0} USD` :
+                        `Simu: $${(this.balance.usdt + (this.balance.asset * currentPrice)).toFixed(2)} USD`;
+
+                    // Indicators
+                    const ind = this.strategy.lastIndicators || {};
+                    const market = this.calculateMarketHealth();
+
+                    let msg = `📊 **Estado de Boosis Bot**\n\n`;
+                    msg += `**Modo:** ${mode}\n`;
+                    msg += `**Precio BTC:** $${currentPrice}\n`;
+                    msg += `**Balance:** ${balance}\n\n`;
+
+                    msg += `**📈 Indicadores:**\n`;
+                    msg += `• RSI: ${ind.rsi || 'N/A'}\n`;
+                    msg += `• SMA 200: ${ind.sma200 || 'N/A'}\n`;
+                    msg += `• Volatilidad: ${market.volatility}% (${market.status})\n\n`;
+
+                    msg += `**💡 Estrategia:** ${this.strategy.name}\n`;
+                    msg += `**⏳ Uptime:** ${Math.floor(process.uptime() / 60)}m`;
+
+                    await notifications.send(msg);
+                    break;
+
+                case '/chart':
+                    if (this.equityHistory.length < 2) {
+                        await notifications.send('⚠️ No hay suficientes datos para generar el gráfico aún.');
+                        break;
+                    }
+
+                    await notifications.send('📊 Generando gráfico de rendimiento...');
+
+                    // Generate QuickChart URL
+                    const chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: this.equityHistory.map(h => h.time),
+                            datasets: [{
+                                label: 'Equity (USD)',
+                                data: this.equityHistory.map(h => h.value),
+                                borderColor: 'rgb(88, 166, 255)',
+                                backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            title: { display: true, text: 'Rendimiento Boosis Bot (Equity USD)' },
+                            scales: {
+                                yAxes: [{ ticks: { fontColor: '#8b949e' } }],
+                                xAxes: [{ ticks: { fontColor: '#8b949e' } }]
+                            }
+                        }
+                    };
+
+                    const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&bkg=white`;
+                    await notifications.sendPhoto(chartUrl, '📈 Evolución de tu capital en las últimas horas.');
+                    break;
+
+                case '/stop':
+                    await notifications.send('⚠️ Ejecutando Parada de Emergencia desde Telegram...');
+                    this.liveTrading = false;
+                    this.paperTrading = true;
+                    this.emergencyStopped = true;
+                    await this.saveTradingMode();
+                    if (this.ws) {
+                        this.ws.terminate();
+                    }
+                    logger.error('🚨 EMERGENCY STOP ACTIVATED via Telegram');
+                    await notifications.notifyAlert('🚨 **STOP CONFIRMADO**\n\nEl bot se ha detenido y desconectado del mercado.');
+                    break;
+
+                case '/start':
+                    await notifications.send('🔄 Reactivando sistema...');
+                    this.emergencyStopped = false;
+                    this.connectWebSocket();
+                    await notifications.send('✅ **SISTEMA REACTIVADO**\n\nEl bot está recibiendo datos de nuevo. Modo actual: PAPER.');
+                    break;
+
+                case '/live':
+                    this.liveTrading = true;
+                    this.paperTrading = false;
+                    await this.saveTradingMode();
+                    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) this.connectWebSocket();
+                    await notifications.send('⚠️ **ALERTA: MODO LIVE ACTIVADO**\n\nEl bot operará con DINERO REAL de Binance.');
+                    break;
+
+                case '/paper':
+                    this.liveTrading = false;
+                    this.paperTrading = true;
+                    await this.saveTradingMode();
+                    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) this.connectWebSocket();
+                    await notifications.send('📝 **MODO PAPER ACTIVADO**\n\nEl bot operará en simulación.');
+                    break;
+
+                case '/help':
+                    let help = `🕹️ **Comandos de Control:**\n\n`;
+                    help += `/test   - Probar si el bot responde.\n`;
+                    help += `/status - Ver indicadores, precio y balance.\n`;
+                    help += `/chart  - Ver gráfico de rendimiento.\n`;
+                    help += `/start  - Reactivar tras un /stop.\n`;
+                    help += `/live   - Pasar a DINERO REAL.\n`;
+                    help += `/paper  - Pasar a SIMULACIÓN.\n`;
+                    help += `/stop   - PARADA DE EMERGENCIA.\n`;
+                    help += `/help   - Ver esta lista.`;
+                    await notifications.send(help);
+                    break;
+
+                default:
+                    await notifications.send('❓ Comando no reconocido. Escribe /help para ver las opciones.');
+            }
+        });
+
+        notifications.startPolling();
     }
 }
 

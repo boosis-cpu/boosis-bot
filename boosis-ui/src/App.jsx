@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   DollarSign,
   AlertTriangle,
+  AlertOctagon,
   Zap,
   Cpu,
   RefreshCcw,
@@ -293,7 +294,42 @@ function App() {
   const realBtc = parseFloat(data.realBalance?.find(b => b.asset === 'BTC')?.free || 0).toFixed(6)
 
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${data.emergencyStopped ? 'system-stopped' : ''}`}>
+      {data.emergencyStopped && (
+        <div style={{
+          background: '#f85149',
+          color: 'white',
+          textAlign: 'center',
+          padding: '8px',
+          fontWeight: 'bold',
+          fontSize: '13px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+        }}>
+          <AlertOctagon size={18} />
+          <span>SISTEMA EN PARADA DE EMERGENCIA - TRADING DETENIDO</span>
+          <button
+            onClick={toggleTradingMode}
+            style={{
+              padding: '4px 12px',
+              background: 'white',
+              color: '#f85149',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '900',
+              fontSize: '11px',
+              textTransform: 'uppercase'
+            }}
+          >
+            Reanudar Operación
+          </button>
+        </div>
+      )}
       <header className="header">
         <div className="flex items-center gap-4">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -301,9 +337,11 @@ function App() {
             <h1 style={{ fontSize: '1.2rem', margin: 0 }}>Boosis <b>Quant</b></h1>
           </div>
           <div className="status-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className={`pulse ${data.marketStatus?.status === 'SAFE' ? 'bg-green-500' : 'bg-red-500'}`}
-              style={{ background: data.marketStatus?.status === 'SAFE' ? '#2ea043' : '#f85149' }} />
-            <span>MERCADO: {data.marketStatus?.status === 'SAFE' ? 'SEGURO' : 'VOLÁTIL'} ({data.marketStatus?.volatility || 0}%)</span>
+            <div className={`pulse ${data.marketStatus?.status === 'SAFE' && !data.emergencyStopped ? 'bg-green-500' : 'bg-red-500'}`}
+              style={{ background: data.marketStatus?.status === 'SAFE' && !data.emergencyStopped ? '#2ea043' : '#f85149' }} />
+            <span>
+              {data.emergencyStopped ? 'ESTADO: SISTEMA DETENIDO' : `MERCADO: ${data.marketStatus?.status === 'SAFE' ? 'SEGURO' : 'VOLÁTIL'} (${data.marketStatus?.volatility || 0}%)`}
+            </span>
           </div>
         </div>
 
@@ -321,16 +359,17 @@ function App() {
               transition: 'all 0.2s ease',
               border: data.paperTrading ? '1px solid #388bfd' : '1px solid #f85149',
               background: data.paperTrading ? 'rgba(56, 139, 253, 0.1)' : 'rgba(248, 81, 73, 0.1)',
-              color: data.paperTrading ? '#58a6ff' : '#ff7b72'
+              color: data.paperTrading ? '#58a6ff' : '#ff7b72',
+              opacity: data.emergencyStopped ? 0.6 : 1
             }}
           >
             {data.paperTrading ? 'OFFLINE (PAPER)' : '⚠️ ONLINE (LIVE)'}
           </div>
 
           <div
-            onClick={emergencyStop}
+            onClick={data.emergencyStopped ? null : emergencyStop}
             style={{
-              cursor: 'pointer',
+              cursor: data.emergencyStopped ? 'default' : 'pointer',
               padding: '6px 14px',
               borderRadius: '20px',
               fontSize: '11px',
@@ -338,15 +377,18 @@ function App() {
               letterSpacing: '0.5px',
               transition: 'all 0.2s ease',
               border: '1px solid #f85149',
-              background: '#b62324',
+              background: data.emergencyStopped ? '#f85149' : '#b62324',
               color: 'white',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
             }}
           >
-            <AlertTriangle size={14} color="white" />
-            PARADA DE EMERGENCIA
+            {data.emergencyStopped ? (
+              <><AlertOctagon size={14} /> SISTEMA DETENIDO</>
+            ) : (
+              <><AlertTriangle size={14} color="white" /> PARADA DE EMERGENCIA</>
+            )}
           </div>
           <button onClick={() => { setToken(null); localStorage.removeItem('boosis_token'); }}
             style={{ background: 'transparent', border: '1px solid #30363d', color: 'white', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>

@@ -118,6 +118,25 @@ class NotificationManager {
     }
 
     /**
+     * Envía una foto/gráfico a Telegram mediante URL
+     */
+    async sendPhoto(photoUrl, caption = '') {
+        try {
+            if (!this.telegramToken || !this.telegramChatId) return;
+            const url = `https://api.telegram.org/bot${this.telegramToken}/sendPhoto`;
+            await axios.post(url, {
+                chat_id: this.telegramChatId,
+                photo: photoUrl,
+                caption: caption,
+                parse_mode: 'Markdown'
+            });
+            logger.debug('Telegram photo sent');
+        } catch (error) {
+            logger.error(`Error enviando foto a Telegram: ${error.message}`);
+        }
+    }
+
+    /**
      * Notifica una alerta crítica
      */
     async notifyAlert(message) {
@@ -165,11 +184,68 @@ class NotificationManager {
     async notifyDailySummary(summary) {
         let message = `📊 **RESUMEN DIARIO**\n\n`;
         message += `**Trades:** ${summary.totalTrades}\n`;
-        message += `**Ganadores:** ${summary.winningTrades} (${summary.winRate}%)\n`;
-        message += `**P&L:** $${summary.pnl.toFixed(2)}\n`;
-        message += `**Balance:** $${summary.balance.toFixed(2)}\n`;
+        message += `**Ganadores:** ${summary.winningTrades} (${summary.winRate || 0}%)\n`;
 
-        await this.send(message, summary.pnl > 0 ? 'success' : 'warning');
+        const pnl = typeof summary.pnl === 'number' ? `$${summary.pnl.toFixed(2)}` : summary.pnl;
+        message += `**P&L:** ${pnl}\n`;
+        message += `**Balance:** $${parseFloat(summary.balance || 0).toFixed(2)}\n`;
+
+        await this.send(message, 'success');
+    }
+    /**
+     * Inicia el ciclo de escucha de mensajes (Long Polling)
+     */
+    startPolling() {
+        if (!this.telegramToken || !this.telegramChatId) return;
+
+        this.offset = 0;
+        this.isPolling = true;
+        logger.info('📡 Telegram Polling iniciado (escuchando comandos)');
+        this._poll();
+    }
+
+    async _poll() {
+        while (this.isPolling) {
+            try {
+                const url = `https://api.telegram.org/bot${this.telegramToken}/getUpdates?offset=${this.offset}&timeout=30`;
+                const response = await axios.get(url);
+                const updates = response.data.result;
+
+                for (const update of updates) {
+                    this.offset = update.update_id + 1;
+                    if (update.message && update.message.text) {
+                        const chatId = update.message.chat.id.toString();
+                        const text = update.message.text.trim();
+
+                        // Seguridad: Solo responder al Chat ID configurado en .env
+                        if (chatId === this.telegramChatId) {
+                            this._handleCommand(text);
+                        } else {
+                            logger.warn(`Intento de comando desde Chat ID no autorizado: ${chatId}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                // Si es un error de timeout de red, ignorar y reintentar
+                if (error.code !== 'ECONNABORTED') {
+                    logger.error(`Error en Telegram Polling: ${error.message}`);
+                    await new Promise(resolve => setTimeout(resolve, 5000)); // Esperar 5s antes de reintentar tras error real
+                }
+            }
+        }
+    }
+
+    _handleCommand(text) {
+        if (text.startsWith('/')) {
+            const command = text.split(' ')[0].toLowerCase();
+            if (this.commandHandler) {
+                this.commandHandler(command);
+            }
+        }
+    }
+
+    onCommand(callback) {
+        this.commandHandler = callback;
     }
 }
 

@@ -38,6 +38,16 @@ class BoosisTrend extends BaseStrategy {
                 // Safety check: ensure indicators were calculated
                 if (!smaLong || !rsi || !bb || !atr) return null;
 
+                // Save for status reporting
+                this.lastIndicators = {
+                        rsi: rsi.toFixed(2),
+                        sma200: smaLong.toFixed(2),
+                        bbUpper: bb.upper.toFixed(2),
+                        bbLower: bb.lower.toFixed(2),
+                        atr: atr.toFixed(2),
+                        volatility: ((atr / currentPrice) * 100).toFixed(2)
+                };
+
                 // --- TRADING LOGIC ---
                 const volatilityPercent = (atr / currentPrice) * 100;
                 const trendBullish = currentPrice > smaLong;
