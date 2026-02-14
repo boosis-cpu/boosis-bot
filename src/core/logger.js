@@ -22,13 +22,15 @@ class Logger extends EventEmitter {
             console.log(data);
         }
 
-        // Emit event for real-time streaming
-        this.emit('log', {
-            timestamp,
-            level: config.label,
-            message,
-            data
-        });
+        // Emit event for real-time streaming (Skip DEBUG logs to reduce noise)
+        if (level !== 'debug') {
+            this.emit('log', {
+                timestamp,
+                level: config.label,
+                message,
+                data
+            });
+        }
     }
 
     info(msg, data) { this.log('info', msg, data); }

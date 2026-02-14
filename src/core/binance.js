@@ -145,7 +145,7 @@ class BinanceService {
             });
             return parseFloat(response.data.price);
         } catch (error) {
-            logger.error(`Error obteniendo precio: ${error.message}`);
+            // logger.error(`Error obteniendo precio: ${error.message}`); // Silent fail, caller handles it
             throw error;
         }
     }
@@ -194,7 +194,7 @@ class BinanceService {
                             const btcUSD = await this.getCurrentPrice('BTCUSDT');
                             priceUSD = priceBTC * btcUSD;
                         } catch (error2) {
-                            logger.warn(`No se pudo obtener precio para ${balance.asset}`);
+                            logger.debug(`No se pudo obtener precio para ${balance.asset}`);
                             priceUSD = 0;
                         }
                     }

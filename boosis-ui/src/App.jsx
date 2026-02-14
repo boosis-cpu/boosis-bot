@@ -481,9 +481,9 @@ function App() {
             </div>
           </div>
           <h3 className="stat-label-tiny mt-6 mb-3">Crecimiento de Capital</h3>
-          <div style={{ height: '120px', width: '100%' }}>
+          <div style={{ height: '120px', width: '100%', minWidth: 0 }}>
             {data.equityHistory && data.equityHistory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={120}>
+              <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={data.equityHistory}>
                   <defs>
                     <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
@@ -509,9 +509,9 @@ function App() {
             <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 5M LIVE</h2>
             <div className="text-xl font-bold font-mono">${lastPrice.toFixed(2)}</div>
           </div>
-          <div className="chart-wrapper" style={{ height: '400px', width: '100%' }}>
+          <div className="chart-wrapper" style={{ height: '400px', width: '100%', minWidth: 0 }}>
             {candles && candles.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="99%" height="100%" minHeight={400} aspect={3}>
                 <LineChart data={candles}>
                   <XAxis dataKey="time" hide />
                   <YAxis domain={['auto', 'auto']} hide />
