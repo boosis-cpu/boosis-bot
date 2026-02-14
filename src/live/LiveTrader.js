@@ -449,13 +449,26 @@ class LiveTrader {
         // Implementation for real trades via binanceService.executeOrder...
     }
 
-    connectWebSocket() {
-        // Init Default Symbol
-        this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
+    async connectWebSocket() {
+        try {
+            // Load Active Pairs from DB
+            const res = await db.pool.query('SELECT symbol, strategy_name FROM active_trading_pairs WHERE is_active = true');
 
-        // Connect
-        wsManager.connect();
-        logger.success('[LiveTrader] ✅ WebSocket manager inicializado');
+            if (res.rows.length > 0) {
+                for (const row of res.rows) {
+                    this.addTradingPair(row.symbol, row.strategy_name);
+                }
+            } else {
+                // Fallback to default if no active pairs in DB
+                this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
+            }
+
+            // Connect
+            wsManager.connect();
+            logger.success('[LiveTrader] ✅ WebSocket manager inicializado con multi-activo');
+        } catch (error) {
+            logger.error(`Error inicializando WebSocket: ${error.message}`);
+        }
     }
 
     // --- HELPER METHODS ---
