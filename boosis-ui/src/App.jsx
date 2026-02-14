@@ -11,9 +11,9 @@ import {
   Cpu,
   RefreshCcw,
   BarChart2,
-  Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  FlaskConical
 } from 'lucide-react'
 import {
   LineChart,
@@ -25,6 +25,7 @@ import {
   AreaChart,
   Area
 } from 'recharts'
+import TheRefinery from './components/TheRefinery'
 
 const apiUrl = '/api'
 
@@ -49,6 +50,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false)
   const [modal, setModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' })
   const [activeTab, setActiveTab] = useState('logs')
+  const [mainTab, setMainTab] = useState('dashboard')
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
@@ -427,276 +429,327 @@ function App() {
         </div>
       </header>
 
-      <div className="grid-layout">
-        {/* TOP ROW: KEY METRICS */}
-        <div className="metrics-row">
-          <div className="stat-card-compact">
-            <div className="stat-label-tiny">Total Portfolio</div>
-            <div className="stat-value-med text-green-400">${totalBalance.toFixed(2)}</div>
-          </div>
-          <div className="stat-card-compact" style={{ borderLeftColor: '#ffa500' }}>
-            <div className="stat-label-tiny">Binance Real (USDT)</div>
-            <div className="stat-value-med" style={{ color: '#ffa500' }}>${realUsdt}</div>
-          </div>
-          <div className="stat-card-compact" style={{ borderLeftColor: '#9333ea' }}>
-            <div className="stat-label-tiny">Volatilidad (ATR)</div>
-            <div className="stat-value-med">{data.marketStatus?.volatility || '0.00'}%</div>
-          </div>
-          <div className="stat-card-compact" style={{ borderLeftColor: '#2ea043' }}>
-            <div className="stat-label-tiny">Tasa de Victoria</div>
-            <div className="stat-value-med">{metrics.winRate}</div>
-          </div>
-          <div className="stat-card-compact" style={{ borderLeftColor: '#f0883e' }}>
-            <div className="stat-label-tiny">Slippage Promedio</div>
-            <div className="stat-value-med">
-              {trades.length > 0 ?
-                (trades.reduce((sum, t) => sum + (t.slippage || 0), 0) / trades.filter(t => t.slippage).length || 0).toFixed(3) :
-                '0.00'
-              }%
-            </div>
-          </div>
-          <div className="stat-card-compact" style={{ borderLeftColor: '#388bfd' }}>
-            <div className="stat-label-tiny">Factor de Beneficio</div>
-            <div className="stat-value-med">{metrics.profitFactor}</div>
-          </div>
-        </div>
-
-        {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
-        <aside className="sidebar-area panel">
-          <h3 className="stat-label-tiny mb-3">Balance Real (Binance)</h3>
-          {data.realBalance && data.realBalance.length > 0 ? (
-            <div style={{ marginBottom: '20px' }}>
-              {/* Total Balance */}
-              <div style={{
-                background: 'rgba(56, 139, 253, 0.1)',
-                border: '1px solid rgba(56, 139, 253, 0.3)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '16px'
-              }}>
-                <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>BALANCE TOTAL ESTIMADO</div>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: '#58a6ff' }}>
-                  ${data.totalBalanceUSD ? data.totalBalanceUSD.toFixed(2) : '0.00'}
-                </div>
-                <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '2px' }}>USD</div>
-              </div>
-
-              {/* Individual Assets */}
-              <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '8px', fontWeight: '600' }}>MIS ACTIVOS</div>
-              {data.realBalance.map((asset, idx) => (
-                <div key={idx} style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  padding: '10px 0',
-                  borderBottom: idx < data.realBalance.length - 1 ? '1px solid #21262d' : 'none'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>{asset.asset}</span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>
-                      {asset.total.toFixed(asset.asset === 'USDT' ? 4 : 8)}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>
-                      ${asset.priceUSD ? asset.priceUSD.toFixed(asset.priceUSD > 1 ? 2 : 8) : '0.00'} USD
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#58a6ff', fontWeight: '600' }}>
-                      ≈ ${asset.valueUSD ? asset.valueUSD.toFixed(2) : '0.00'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '20px' }}>
-              Conectando a Binance...
-            </div>
-          )}
-
-          <h3 className="stat-label-tiny mb-3">Simulación de Wallet</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <span style={{ fontSize: '12px', color: '#8b949e' }}>USDT Disponible</span>
-            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>${data.balance?.usdt?.toFixed(2)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <span style={{ fontSize: '12px', color: '#8b949e' }}>Tenencia BTC</span>
-            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{data.balance?.asset?.toFixed(6)} BTC</span>
-          </div>
-
-          <h3 className="stat-label-tiny mb-3">Salud del Sistema</h3>
-          <div className="space-y-2">
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-              <span style={{ color: '#8b949e' }}>Uptime</span>
-              <span>{health ? `${Math.floor(health.uptime / 60)}m` : '--'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-              <span style={{ color: '#8b949e' }}>WebSocket</span>
-              <span style={{ color: health?.bot.wsConnected ? '#2ea043' : '#da3633' }}>
-                {health?.bot.wsConnected ? 'ACTIVO' : 'OFFLINE'}
-              </span>
-            </div>
-          </div>
-
-          <h3 className="stat-label-tiny mt-6 mb-3">Monitor de Latencia</h3>
-          <div className="space-y-2">
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-              <span style={{ color: '#8b949e' }}>Binance API</span>
-              <span style={{ color: health?.latency?.apiLatency > 500 ? '#f85149' : '#2ea043' }}>
-                {health?.latency?.apiLatency || '--'}ms
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-              <span style={{ color: '#8b949e' }}>WebSocket RTT</span>
-              <span style={{ color: health?.latency?.wsLatency > 300 ? '#f85149' : '#2ea043' }}>
-                {health?.latency?.wsLatency || '--'}ms
-              </span>
-            </div>
-          </div>
-          <h3 className="stat-label-tiny mt-6 mb-3">Crecimiento de Capital</h3>
-          <div style={{ height: '120px', width: '100%', minWidth: 0 }}>
-            {data.equityHistory && data.equityHistory.length > 0 ? (
-              <ResponsiveContainer width="99%" height="100%">
-                <AreaChart data={data.equityHistory}>
-                  <defs>
-                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2ea043" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2ea043" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area type="monotone" dataKey="value" stroke="#3fb950" fillOpacity={1} fill="url(#colorVal)" dot={false} />
-                  <Tooltip hide />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8b949e', fontSize: '11px' }}>
-                Sin datos de equity
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* MAIN CHART AREA */}
-        <main className="main-chart-area panel">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 5M LIVE</h2>
-            <div className="text-xl font-bold font-mono">${lastPrice.toFixed(2)}</div>
-          </div>
-          <div className="chart-wrapper" style={{ height: '400px', width: '100%', minWidth: 0 }}>
-            {candles && candles.length > 0 ? (
-              <ResponsiveContainer width="99%" height="100%" minHeight={400} aspect={3}>
-                <LineChart data={candles}>
-                  <XAxis dataKey="time" hide />
-                  <YAxis domain={['auto', 'auto']} hide />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #30363d' }}
-                    itemStyle={{ color: '#c9d1d9' }}
-                  />
-                  <Line type="monotone" dataKey="close" stroke="#58a6ff" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="sma200" stroke="#f85149" strokeWidth={1} dot={false} strokeDasharray="3 3" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8b949e' }}>
-                Cargando datos del mercado...
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* ACTIVITY AREA */}
-        {/* ACTIVITY AREA */}
-        <section className="activity-area panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', borderBottom: '1px solid #30363d', paddingBottom: '10px' }}>
-            <div
-              onClick={() => setActiveTab('logs')}
-              style={{
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: activeTab === 'logs' ? '#58a6ff' : '#8b949e',
-                borderBottom: activeTab === 'logs' ? '2px solid #58a6ff' : 'none',
-                paddingBottom: '4px'
-              }}
-            >
-              LOGS DEL SISTEMA
-            </div>
-            <div
-              onClick={() => setActiveTab('trades')}
-              style={{
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: activeTab === 'trades' ? '#58a6ff' : '#8b949e',
-                borderBottom: activeTab === 'trades' ? '2px solid #58a6ff' : 'none',
-                paddingBottom: '4px'
-              }}
-            >
-              TRADES ({trades.length})
-            </div>
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {activeTab === 'trades' ? (
-              <div className="space-y-2">
-                {trades.length === 0 ? (
-                  <div style={{ color: '#8b949e', fontSize: '11px', textAlign: 'center', padding: '20px' }}>
-                    Esperando señales...
-                  </div>
-                ) : (
-                  trades.slice(0, 50).map((trade, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px',
-                      background: 'rgba(255,255,255,0.02)',
-                      borderRadius: '4px',
-                      borderLeft: `2px solid ${trade.side === 'BUY' ? '#3fb950' : '#f85149'}`,
-                      marginBottom: '8px'
-                    }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} BTC</span>
-                        <span style={{ fontSize: '10px', color: '#8b949e' }}>{trade.reason || 'Trend'}</span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold' }}>${trade.price}</div>
-                        {trade.slippage && (
-                          <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
-                            Slip: {trade.slippage}%
-                          </div>
-                        )}
-                        <div style={{ fontSize: '9px', color: '#58a6ff' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : (
-              <div className="space-y-1" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                {logs.length === 0 ? (
-                  <div style={{ color: '#8b949e', textAlign: 'center', padding: '20px' }}>
-                    Conectando a logs...
-                  </div>
-                ) : (
-                  logs.map((log, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      gap: '8px',
-                      padding: '4px 0',
-                      borderBottom: '1px solid #21262d',
-                      color: log.level === 'ERROR' ? '#f85149' : log.level === 'WARN' ? '#d29922' : log.level === 'SUCCESS' ? '#2ea043' : '#e6edf3'
-                    }}>
-                      <span style={{ color: '#8b949e', minWidth: '60px' }}>{log.timestamp}</span>
-                      <span style={{ fontWeight: 'bold', minWidth: '50px' }}>[{log.level}]</span>
-                      <span>{log.message}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+      {/* Main Navigation Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '2px',
+        padding: '0 20px',
+        marginBottom: '-1px',
+        zIndex: 10
+      }}>
+        <button
+          onClick={() => setMainTab('dashboard')}
+          style={{
+            padding: '10px 20px',
+            background: mainTab === 'dashboard' ? '#0d1117' : 'transparent',
+            border: '1px solid #30363d',
+            borderBottom: mainTab === 'dashboard' ? 'none' : '1px solid #30363d',
+            color: mainTab === 'dashboard' ? '#58a6ff' : '#8b949e',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <BarChart2 size={16} /> Dashboard
+        </button>
+        <button
+          onClick={() => setMainTab('refinery')}
+          style={{
+            padding: '10px 20px',
+            background: mainTab === 'refinery' ? '#0d1117' : 'transparent',
+            border: '1px solid #30363d',
+            borderBottom: mainTab === 'refinery' ? 'none' : '1px solid #30363d',
+            color: mainTab === 'refinery' ? '#00ff88' : '#8b949e',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <FlaskConical size={16} /> The Refinery
+        </button>
       </div>
+
+      {mainTab === 'dashboard' ? (
+        <div className="grid-layout">
+          {/* TOP ROW: KEY METRICS */}
+          <div className="metrics-row">
+            <div className="stat-card-compact">
+              <div className="stat-label-tiny">Total Portfolio</div>
+              <div className="stat-value-med text-green-400">${totalBalance.toFixed(2)}</div>
+            </div>
+            <div className="stat-card-compact" style={{ borderLeftColor: '#ffa500' }}>
+              <div className="stat-label-tiny">Binance Real (USDT)</div>
+              <div className="stat-value-med" style={{ color: '#ffa500' }}>${realUsdt}</div>
+            </div>
+            <div className="stat-card-compact" style={{ borderLeftColor: '#9333ea' }}>
+              <div className="stat-label-tiny">Volatilidad (ATR)</div>
+              <div className="stat-value-med">{data.marketStatus?.volatility || '0.00'}%</div>
+            </div>
+            <div className="stat-card-compact" style={{ borderLeftColor: '#2ea043' }}>
+              <div className="stat-label-tiny">Tasa de Victoria</div>
+              <div className="stat-value-med">{metrics.winRate}</div>
+            </div>
+            <div className="stat-card-compact" style={{ borderLeftColor: '#f0883e' }}>
+              <div className="stat-label-tiny">Slippage Promedio</div>
+              <div className="stat-value-med">
+                {trades.length > 0 ?
+                  (trades.reduce((sum, t) => sum + (t.slippage || 0), 0) / trades.filter(t => t.slippage).length || 0).toFixed(3) :
+                  '0.00'
+                }%
+              </div>
+            </div>
+            <div className="stat-card-compact" style={{ borderLeftColor: '#388bfd' }}>
+              <div className="stat-label-tiny">Factor de Beneficio</div>
+              <div className="stat-value-med">{metrics.profitFactor}</div>
+            </div>
+          </div>
+
+          {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
+          <aside className="sidebar-area panel">
+            <h3 className="stat-label-tiny mb-3">Balance Real (Binance)</h3>
+            {data.realBalance && data.realBalance.length > 0 ? (
+              <div style={{ marginBottom: '20px' }}>
+                {/* Total Balance */}
+                <div style={{
+                  background: 'rgba(56, 139, 253, 0.1)',
+                  border: '1px solid rgba(56, 139, 253, 0.3)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>BALANCE TOTAL ESTIMADO</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#58a6ff' }}>
+                    ${data.totalBalanceUSD ? data.totalBalanceUSD.toFixed(2) : '0.00'}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '2px' }}>USD</div>
+                </div>
+
+                {/* Individual Assets */}
+                <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '8px', fontWeight: '600' }}>MIS ACTIVOS</div>
+                {data.realBalance.map((asset, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '10px 0',
+                    borderBottom: idx < data.realBalance.length - 1 ? '1px solid #21262d' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>{asset.asset}</span>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>
+                        {asset.total.toFixed(asset.asset === 'USDT' ? 4 : 8)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                        ${asset.priceUSD ? asset.priceUSD.toFixed(asset.priceUSD > 1 ? 2 : 8) : '0.00'} USD
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#58a6ff', fontWeight: '600' }}>
+                        ≈ ${asset.valueUSD ? asset.valueUSD.toFixed(2) : '0.00'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '20px' }}>
+                Conectando a Binance...
+              </div>
+            )}
+
+            <h3 className="stat-label-tiny mb-3">Simulación de Wallet</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>USDT Disponible</span>
+              <span style={{ fontSize: '12px', fontWeight: 'bold' }}>${data.balance?.usdt?.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>Tenencia BTC</span>
+              <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{data.balance?.asset?.toFixed(6)} BTC</span>
+            </div>
+
+            <h3 className="stat-label-tiny mb-3">Salud del Sistema</h3>
+            <div className="space-y-2">
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                <span style={{ color: '#8b949e' }}>Uptime</span>
+                <span>{health ? `${Math.floor(health.uptime / 60)}m` : '--'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                <span style={{ color: '#8b949e' }}>WebSocket</span>
+                <span style={{ color: health?.bot.wsConnected ? '#2ea043' : '#da3633' }}>
+                  {health?.bot.wsConnected ? 'ACTIVO' : 'OFFLINE'}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="stat-label-tiny mt-6 mb-3">Monitor de Latencia</h3>
+            <div className="space-y-2">
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                <span style={{ color: '#8b949e' }}>Binance API</span>
+                <span style={{ color: health?.latency?.apiLatency > 500 ? '#f85149' : '#2ea043' }}>
+                  {health?.latency?.apiLatency || '--'}ms
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                <span style={{ color: '#8b949e' }}>WebSocket RTT</span>
+                <span style={{ color: health?.latency?.wsLatency > 300 ? '#f85149' : '#2ea043' }}>
+                  {health?.latency?.wsLatency || '--'}ms
+                </span>
+              </div>
+            </div>
+            <h3 className="stat-label-tiny mt-6 mb-3">Crecimiento de Capital</h3>
+            <div style={{ height: '120px', width: '100%', minWidth: 0 }}>
+              {data.equityHistory && data.equityHistory.length > 0 ? (
+                <ResponsiveContainer width="99%" height="100%">
+                  <AreaChart data={data.equityHistory}>
+                    <defs>
+                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2ea043" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#2ea043" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="value" stroke="#3fb950" fillOpacity={1} fill="url(#colorVal)" dot={false} />
+                    <Tooltip hide />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8b949e', fontSize: '11px' }}>
+                  Sin datos de equity
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* MAIN CHART AREA */}
+          <main className="main-chart-area panel">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 5M LIVE</h2>
+              <div className="text-xl font-bold font-mono">${lastPrice.toFixed(2)}</div>
+            </div>
+            <div className="chart-wrapper" style={{ height: '400px', width: '100%', minWidth: 0 }}>
+              {candles && candles.length > 0 ? (
+                <ResponsiveContainer width="99%" height="100%" minHeight={400} aspect={3}>
+                  <LineChart data={candles}>
+                    <XAxis dataKey="time" hide />
+                    <YAxis domain={['auto', 'auto']} hide />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #30363d' }}
+                      itemStyle={{ color: '#c9d1d9' }}
+                    />
+                    <Line type="monotone" dataKey="close" stroke="#58a6ff" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="sma200" stroke="#f85149" strokeWidth={1} dot={false} strokeDasharray="3 3" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8b949e' }}>
+                  Cargando datos del mercado...
+                </div>
+              )}
+            </div>
+          </main>
+
+          {/* ACTIVITY AREA */}
+          <section className="activity-area panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', borderBottom: '1px solid #30363d', paddingBottom: '10px' }}>
+              <div
+                onClick={() => setActiveTab('logs')}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: activeTab === 'logs' ? '#58a6ff' : '#8b949e',
+                  borderBottom: activeTab === 'logs' ? '2px solid #58a6ff' : 'none',
+                  paddingBottom: '4px'
+                }}
+              >
+                LOGS DEL SISTEMA
+              </div>
+              <div
+                onClick={() => setActiveTab('trades')}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: activeTab === 'trades' ? '#58a6ff' : '#8b949e',
+                  borderBottom: activeTab === 'trades' ? '2px solid #58a6ff' : 'none',
+                  paddingBottom: '4px'
+                }}
+              >
+                TRADES ({trades.length})
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {activeTab === 'trades' ? (
+                <div className="space-y-2">
+                  {trades.length === 0 ? (
+                    <div style={{ color: '#8b949e', fontSize: '11px', textAlign: 'center', padding: '20px' }}>
+                      Esperando señales...
+                    </div>
+                  ) : (
+                    trades.slice(0, 50).map((trade, i) => (
+                      <div key={i} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: '4px',
+                        borderLeft: `2px solid ${trade.side === 'BUY' ? '#3fb950' : '#f85149'}`,
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} BTC</span>
+                          <span style={{ fontSize: '10px', color: '#8b949e' }}>{trade.reason || 'Trend'}</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 'bold' }}>${trade.price}</div>
+                          {trade.slippage && (
+                            <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
+                              Slip: {trade.slippage}%
+                            </div>
+                          )}
+                          <div style={{ fontSize: '9px', color: '#58a6ff' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                  {logs.length === 0 ? (
+                    <div style={{ color: '#8b949e', textAlign: 'center', padding: '20px' }}>
+                      Conectando a logs...
+                    </div>
+                  ) : (
+                    logs.map((log, i) => (
+                      <div key={i} style={{
+                        display: 'flex',
+                        gap: '8px',
+                        padding: '4px 0',
+                        borderBottom: '1px solid #21262d',
+                        color: log.level === 'ERROR' ? '#f85149' : log.level === 'WARN' ? '#d29922' : log.level === 'SUCCESS' ? '#2ea043' : '#e6edf3'
+                      }}>
+                        <span style={{ color: '#8b949e', minWidth: '60px' }}>{log.timestamp}</span>
+                        <span style={{ fontWeight: 'bold', minWidth: '50px' }}>[{log.level}]</span>
+                        <span>{log.message}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <TheRefinery token={token} />
+      )}
 
       {/* PREMIUM MODAL DIALOG */}
       {modal.show && (
