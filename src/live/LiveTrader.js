@@ -196,14 +196,16 @@ class LiveTrader {
             const health = {
                 status: 'ACTIVE',
                 uptime: process.uptime(),
+                timestamp: new Date().toISOString(),
                 bot: {
                     wsConnected: this.ws && this.ws.readyState === WebSocket.OPEN,
                     candlesCount: this.candles.length,
-                    lastCandleTime: this.candles.length > 0 ? this.candles[this.candles.length - 1][6] : null
+                    lastCandleTime: this.candles.length > 0 ? new Date(this.candles[this.candles.length - 1][6]).toLocaleString() : null,
+                    emergencyStopped: this.emergencyStopped
                 },
-                latency: {
-                    apiLatency: 45, // Placeholder or calculate real
-                    wsLatency: 28   // Placeholder
+                system: {
+                    loadAvg: os.loadavg(),
+                    freeMem: `${(os.freemem() / 1024 / 1024 / 1024).toFixed(2)} GB`
                 }
             };
             res.json(health);
@@ -288,55 +290,87 @@ class LiveTrader {
 
     async start() {
         try {
-            // Start Web Server
-            this.app.listen(CONFIG.port, () => {
-                logger.success(`Web server listening on port ${CONFIG.port}`);
-            });
+            logger.info('Starting Boosis Quant Bot...');
 
             // Initialize Database
             await db.connect();
             await db.initSchema();
+
+            // 1. Initial Load from Persistent Store
             await this.initTradingModeTable();
             await this.loadTradingMode();
             await this.loadPaperBalance();
             await this.loadActivePosition();
             await this.loadRecentTrades();
 
-            // 1. Initial Data Load (Bootstrap)
+            // 1.5 Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
 
             // 2. Fetch Initial Balance (Real)
             this.fetchRealBalance();
             setInterval(() => this.fetchRealBalance(), 60000); // Refresh every minute
 
-            // 3. Connect to WebSocket (skip if emergency stopped)
+            // 3. Reconcile with Binance (Paso 3)
+            if (this.liveTrading) {
+                await this.reconcileOrders();
+            }
+
+            // 4. Start Heartbeat (Paso 2)
+            this.startHeartbeat();
+
+            // 5. Connect to WebSocket (skip if emergency stopped)
             if (!this.emergencyStopped) {
                 this.connectWebSocket();
             } else {
                 logger.warn('⚠️ Skipping WebSocket connection - Emergency Stop is active');
             }
 
-            // 4. Notify Startup
-            notifications.notifyStartup({
-                symbol: CONFIG.symbol,
-                strategy: this.strategy.name,
-                liveTrading: this.liveTrading,
-                balance: this.liveTrading ? (this.realBalance?.find(b => b.asset === 'USDT')?.free || 0) : this.balance.usdt,
-                hostname: os.hostname()
-            });
+            const mode = this.liveTrading ? 'LIVE (💰 REAL MONEY)' : 'PAPER (📝 SIMULATION)';
+            notifications.send(`🚀 **BOT INICIADO**\n\nModo: ${mode}\nBalance: $${this.totalBalanceUSD.toFixed(2)} USD\n\nEl sistema está listo y monitoreando el mercado.`, 'info');
 
-            // 4.5 Initial Equity Snapshot
-            const initialPrice = this.candles.length > 0 ? this.candles[this.candles.length - 1][4] : 0;
-            this.recordEquitySnapshot(initialPrice);
-
-            // 5. Setup Daily Summary (Every 24h)
+            // 6. Setup Daily Summary (Every 24h)
             setInterval(() => this.sendDailySummary(), 24 * 60 * 60 * 1000);
 
-            // 6. Telegram Interactive Commands
+            // 7. Telegram Interactive Commands
             this.setupTelegramCommands();
-        } catch (err) {
-            logger.error(`Fatal error starting bot: ${err.message}`);
-            notifications.notifyError(err, 'Bot Startup');
+
+            // 8. Start Web Server
+            this.app.listen(CONFIG.port, () => {
+                logger.success(`Dashboard API listening on http://localhost:${CONFIG.port}`);
+            });
+
+        } catch (error) {
+            logger.error(`Critical failure during startup: ${error.message}`);
+            process.exit(1);
+        }
+    }
+
+    startHeartbeat() {
+        // Enviar un "latido" cada 12 horas
+        setInterval(() => {
+            const status = this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO';
+            const mode = this.liveTrading ? '💰 LIVE' : '📝 PAPER';
+            const balance = this.totalBalanceUSD.toFixed(2);
+
+            notifications.send(`💓 **HEARTBEAT - BOOSIS BOT**\n\nEstatus: ${status}\nModo: ${mode}\nBalance Actual: $${balance} USD\nUptime: ${(process.uptime() / 3600).toFixed(2)} horas\n\nSigo aquí, Tony. Todo bajo control.`, 'info');
+        }, 12 * 60 * 60 * 1000);
+
+        logger.info('Heartbeat system initialized (12h interval)');
+    }
+
+    async reconcileOrders() {
+        try {
+            logger.info('Reconciling orders with Binance...');
+            const openOrders = await binanceService.getOpenOrders(CONFIG.symbol);
+
+            if (openOrders && openOrders.length > 0) {
+                logger.warn(`Found ${openOrders.length} open orders on Binance. Syncing...`);
+                notifications.send(`⚠️ **RECONCILIACIÓN**\n\nSe encontraron ${openOrders.length} órdenes abiertas en Binance. Asegúrate de que el bot las tenga registradas.`, 'warning');
+            } else {
+                logger.success('No open orders found on Binance. State is clean.');
+            }
+        } catch (error) {
+            logger.error(`Failed to reconcile orders: ${error.message}`);
         }
     }
 

@@ -165,6 +165,18 @@ class BinanceService {
     }
 
     /**
+     * Obtiene órdenes abiertas para un símbolo
+     */
+    async getOpenOrders(symbol = 'BTCUSDT') {
+        try {
+            return await this._authenticatedRequest('/openOrders', { symbol });
+        } catch (error) {
+            logger.error(`Error obteniendo órdenes abiertas: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
      * Obtiene el balance enriquecido con precios en USD
      */
     async getEnrichedBalance() {

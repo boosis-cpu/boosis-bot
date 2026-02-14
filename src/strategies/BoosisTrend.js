@@ -8,6 +8,7 @@ class BoosisTrend extends BaseStrategy {
                 this.smaLong = config.smaLong || 200;
                 this.rsiPeriod = config.rsiPeriod || 14;
                 this.bbPeriod = config.bbPeriod || 20;
+                this.bbStdDev = config.bbStdDev || 2.5; // Optimized from 2.0
 
                 // Volatility & Risk Management
                 this.atrPeriod = config.atrPeriod || 14;
@@ -15,7 +16,7 @@ class BoosisTrend extends BaseStrategy {
 
                 // Strategy Configs
                 this.stopLossPercent = config.stopLossPercent || 0.02; // 2% fixed stop loss
-                this.rsiBuyBound = config.rsiBuyBound || 30;
+                this.rsiBuyBound = config.rsiBuyBound || 20; // Optimized from 30
                 this.rsiSellBound = config.rsiSellBound || 70;
         }
 
@@ -32,7 +33,7 @@ class BoosisTrend extends BaseStrategy {
                 // Calculate Indicators
                 const smaLong = TechnicalIndicators.calculateSMA(prices, this.smaLong);
                 const rsi = TechnicalIndicators.calculateRSI(prices, this.rsiPeriod);
-                const bb = TechnicalIndicators.calculateBollingerBands(prices, this.bbPeriod, 2);
+                const bb = TechnicalIndicators.calculateBollingerBands(prices, this.bbPeriod, this.bbStdDev);
                 const atr = TechnicalIndicators.calculateATR(highs, lows, prices, this.atrPeriod);
 
                 // Safety check: ensure indicators were calculated
