@@ -253,6 +253,34 @@ class LiveTrader {
             }
         });
 
+        // POST /api/refinery/backtest (REAL - no mock)
+        this.app.post('/api/refinery/backtest', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, params, period } = req.body;
+                if (!symbol || !params) return res.status(400).json({ error: 'symbol y params requeridos' });
+
+                const backtestEngine = require('../core/backtest-engine');
+                logger.info(`[API] Backtesting ${symbol} con período ${period || '1y'}`);
+
+                const results = await backtestEngine.runBacktest(symbol, params, period || '1y');
+                res.json({ status: 'ok', data: results });
+            } catch (error) {
+                logger.error(`[API] Error en backtest: ${error.message}`);
+                res.status(500).json({ error: error.message, status: 'failed' });
+            }
+        });
+
+        this.app.get('/api/refinery/history/:symbol', authMiddleware, async (req, res) => {
+            try {
+                const { symbol } = req.params;
+                const limit = req.query.limit || 10;
+                const history = await profileManager.getChangeHistory(symbol, limit);
+                res.json({ status: 'ok', symbol, history });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
         // --- MULTI-ASSET WEBSOCKET MANAGEMENT ---
         this.app.get('/api/websocket/status', authMiddleware, (req, res) => {
             res.json(wsManager.getStatus());

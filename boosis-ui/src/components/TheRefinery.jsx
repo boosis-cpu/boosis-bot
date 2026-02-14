@@ -1,5 +1,5 @@
 // boosis-ui/src/components/TheRefinery.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -14,11 +14,14 @@ export default function TheRefinery({ token }) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [savedProfiles, setSavedProfiles] = useState([]);
+    const [history, setHistory] = useState([]);
+    const backtestTimeoutRef = useRef(null);
 
     // Cargar perfil al cambiar símbolo
     useEffect(() => {
         loadProfile();
         loadProfiles();
+        loadHistory();
     }, [selectedSymbol]);
 
     const loadProfile = async () => {
@@ -50,6 +53,18 @@ export default function TheRefinery({ token }) {
         }
     };
 
+    const loadHistory = async () => {
+        try {
+            const response = await axios.get(
+                `/api/refinery/history/${selectedSymbol}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setHistory(response.data.history);
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    };
+
     const handleSliderChange = (field, value) => {
         const [group, subfield] = field.split('.');
         setFormData(prev => ({
@@ -59,6 +74,34 @@ export default function TheRefinery({ token }) {
                 [subfield]: parseFloat(value)
             }
         }));
+    };
+
+    const handleSliderChangeWithDebounce = useCallback((field, value) => {
+        handleSliderChange(field, value);
+
+        if (backtestTimeoutRef.current) {
+            clearTimeout(backtestTimeoutRef.current);
+        }
+
+        backtestTimeoutRef.current = setTimeout(() => {
+            handleBacktestInternal(field, value);
+        }, 1000);
+    }, [selectedSymbol, formData]);
+
+    const handleBacktestInternal = async (field, value) => {
+        // Necesitamos usar el formData actualizado, pero como setFormData es async, 
+        // pasamos el valor actual de forma manual para el backtest si es posible 
+        // o simplemente confiamos en el debounce lo suficiente.
+        // Una mejora sería calcular el nuevo objeto params aquí.
+        const [group, subfield] = field.split('.');
+        const updatedParams = {
+            ...formData,
+            [group]: {
+                ...formData[group],
+                [subfield]: parseFloat(value)
+            }
+        };
+        runRealBacktest(updatedParams);
     };
 
     const handleApply = async () => {
@@ -87,40 +130,44 @@ export default function TheRefinery({ token }) {
         }
     };
 
-    const handleBacktest = async () => {
+    const handleBacktest = () => {
+        runRealBacktest(formData);
+    };
+
+    const runRealBacktest = async (params) => {
         try {
             setLoading(true);
-            setMessage('⏳ Backtesting con nuevos parámetros...');
+            setMessage('⏳ Calculando backtest con datos reales...');
 
             const response = await axios.post(
                 '/api/refinery/backtest',
                 {
                     symbol: selectedSymbol,
-                    params: formData,
+                    params: params,
                     period: '1y'
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Simulación de datos de backtest (en ORDEN 6 será real)
+            const data = response.data.data;
+
             setBacktest({
-                winRate: 54,
-                sharpe: 1.45,
-                maxDD: -2.1,
-                profitFactor: 3.69,
-                equity: [
-                    { time: '0', value: 100 },
-                    { time: '1m', value: 102 },
-                    { time: '2m', value: 105 },
-                    { time: '3m', value: 103 },
-                    { time: '4m', value: 108 },
-                    { time: '5m', value: 112 },
-                ]
+                winRate: data.metrics.winRate,
+                sharpe: data.metrics.sharpe,
+                maxDD: data.metrics.maxDD,
+                profitFactor: data.metrics.profitFactor,
+                totalTrades: data.metrics.totalTrades,
+                roi: data.metrics.roi,
+                equity: data.equity.map(point => ({
+                    time: new Date(point.time).toLocaleDateString(),
+                    value: point.value
+                }))
             });
 
-            setMessage('✅ Backtest completado');
+            setMessage(`✅ Backtest completado: Win Rate ${data.metrics.winRate}% | ROI ${data.metrics.roi}%`);
         } catch (error) {
-            setMessage(`❌ Error backtesting`);
+            console.error('Backtest error:', error);
+            setMessage(`❌ Error backtesting: ${error.response?.data?.error || error.message}`);
         } finally {
             setLoading(false);
         }
@@ -200,7 +247,7 @@ export default function TheRefinery({ token }) {
                                 max="50"
                                 step="1"
                                 value={formData.rsi?.buy || 20}
-                                onChange={(e) => handleSliderChange('rsi.buy', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('rsi.buy', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.rsi?.buy || 20}</span>
@@ -216,7 +263,7 @@ export default function TheRefinery({ token }) {
                                 max="100"
                                 step="1"
                                 value={formData.rsi?.sell || 70}
-                                onChange={(e) => handleSliderChange('rsi.sell', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('rsi.sell', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.rsi?.sell || 70}</span>
@@ -233,7 +280,7 @@ export default function TheRefinery({ token }) {
                                 max="50"
                                 step="1"
                                 value={formData.ema?.short || 9}
-                                onChange={(e) => handleSliderChange('ema.short', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('ema.short', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.ema?.short || 9}</span>
@@ -249,7 +296,7 @@ export default function TheRefinery({ token }) {
                                 max="100"
                                 step="1"
                                 value={formData.ema?.long || 21}
-                                onChange={(e) => handleSliderChange('ema.long', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('ema.long', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.ema?.long || 21}</span>
@@ -265,7 +312,7 @@ export default function TheRefinery({ token }) {
                                 max="200"
                                 step="1"
                                 value={formData.ema?.trend || 50}
-                                onChange={(e) => handleSliderChange('ema.trend', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('ema.trend', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.ema?.trend || 50}</span>
@@ -282,7 +329,7 @@ export default function TheRefinery({ token }) {
                                 max="50"
                                 step="1"
                                 value={formData.bb?.period || 20}
-                                onChange={(e) => handleSliderChange('bb.period', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('bb.period', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.bb?.period || 20}</span>
@@ -298,7 +345,7 @@ export default function TheRefinery({ token }) {
                                 max="5"
                                 step="0.1"
                                 value={formData.bb?.stdDev || 2.5}
-                                onChange={(e) => handleSliderChange('bb.stdDev', e.target.value)}
+                                onChange={(e) => handleSliderChangeWithDebounce('bb.stdDev', e.target.value)}
                                 disabled={loading}
                             />
                             <span className="value">{formData.bb?.stdDev || 2.5}</span>
@@ -395,16 +442,15 @@ export default function TheRefinery({ token }) {
             <div className="history-panel">
                 <h3>📋 Historial de Cambios</h3>
                 <div className="history-list">
-                    <div className="history-item">
-                        <span className="date">14-02 14:30</span>
-                        <span className="change">RSI buy: 20 → 25</span>
-                        <span className="user">Antigravity</span>
-                    </div>
-                    <div className="history-item">
-                        <span className="date">14-02 14:25</span>
-                        <span className="change">EMA short: 9 → 12</span>
-                        <span className="user">System</span>
-                    </div>
+                    {history.length > 0 ? history.map((item, idx) => (
+                        <div key={idx} className="history-item">
+                            <span className="date">{new Date(item.changed_at).toLocaleString()}</span>
+                            <span className="change">{item.field_changed}: {item.new_value.length > 30 ? 'Params' : item.new_value}</span>
+                            <span className="user">{item.changed_by}</span>
+                        </div>
+                    )) : (
+                        <div className="empty-state">No hay historial de cambios</div>
+                    )}
                 </div>
             </div>
         </div>
