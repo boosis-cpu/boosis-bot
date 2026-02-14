@@ -181,7 +181,7 @@ Antes de activar **LIVE TRADING** con dinero real:
 
 ## 📊 RESUMEN EJECUTIVO
 
-### **Estado General:** 🚀 **98% COMPLETO**
+### **Estado General:** 🚀 **99% COMPLETO** (Rama: `feature/strategy-optimization`)
 
 **Fortalezas:**
 - ✅ Bot "Hablador": Te avisa de todo por Telegram.
@@ -190,7 +190,7 @@ Antes de activar **LIVE TRADING** con dinero real:
 - ✅ Motor de Backtesting profesional integrado.
 
 **Debilidades:**
-- ⚠️ La estrategia actual requiere optimización (Backtest: -18% anual).
+- ⚠️ Validación en curso: La nueva configuración (RSI 20 / BB 2.5) está siendo probada en Modo Paper para confirmar el Profit Factor > 3.0 observado en el Backtest.
 
 **Recomendación:**
 **ESTAMOS LISTOS.** El bot es técnicamente perfecto. Ahora solo falta ajustar los "ajustes" de la estrategia para que sea ganadora.

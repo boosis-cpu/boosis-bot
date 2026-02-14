@@ -31,6 +31,17 @@ class LiveTrader {
         this.ws = null;
         this.app = express();
 
+        // ⛔ SAFETY CHECK - PROTOCOLO TONY 13 FEB 2026
+        // Nunca remover ni bypassear este bloque.
+        this.tradingMode = process.env.TRADING_MODE || 'PAPER';
+        this.forcePaper = process.env.FORCE_PAPER_MODE !== 'false'; // Default to true
+
+        if (this.tradingMode === 'LIVE' && this.forcePaper) {
+            const errorMsg = '🚨 CRITICAL SECURITY BREACH: Bot attempted to start in LIVE mode while FORCE_PAPER is active.';
+            logger.error(errorMsg);
+            throw new Error(errorMsg);
+        }
+
         // Trading State - Will be loaded from DB
         this.liveTrading = false;
         this.paperTrading = true;
@@ -46,7 +57,7 @@ class LiveTrader {
         this.emergencyStopped = false;
         this.activePosition = null;
 
-        logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
+        logger.info(`Initializing Boosis Live Trader [Mode: ${this.tradingMode}] [Symbol: ${CONFIG.symbol}]`);
         this.setupServer();
     }
 
@@ -421,11 +432,25 @@ class LiveTrader {
 
             if (settings.live_trading) {
                 this.liveTrading = settings.live_trading === 'true';
+
+                // ⛔ SECONDARY SAFETY CHECK - PROTOCOLO TONY
+                if (this.liveTrading && this.forcePaper) {
+                    logger.error('🚨 UNAUTHORIZED LIVE MODE DETECTED IN DB - FORCING BACK TO PAPER');
+                    this.liveTrading = false;
+                    await this.saveTradingMode(); // Restore safety in DB
+                }
+
                 this.paperTrading = !this.liveTrading;
                 logger.info(`Trading Mode Loaded from DB: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
             } else {
                 // Si no existe en DB, usar el valor del .env como default
                 this.liveTrading = process.env.LIVE_TRADING === 'true';
+
+                // ⛔ SECONDARY SAFETY CHECK - PROTOCOLO TONY
+                if (this.liveTrading && this.forcePaper) {
+                    this.liveTrading = false;
+                }
+
                 this.paperTrading = !this.liveTrading;
                 await this.saveTradingMode(); // Guardar el default en DB
                 logger.info(`Trading Mode Initialized from ENV: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
