@@ -20,6 +20,30 @@ class BaseStrategy {
     checkSignal() {
         return null;
     }
+
+    /**
+     * Apply dynamic configuration
+     */
+    configure(profile) {
+        if (!profile) return;
+
+        if (profile.rsi) {
+            this.rsiBuyBound = profile.rsi.buy;
+            this.rsiSellBound = profile.rsi.sell;
+        }
+        if (profile.ema) {
+            this.emaShort = profile.ema.short;
+            this.emaLong = profile.ema.long;
+            this.emaTrend = profile.ema.trend;
+        }
+        if (profile.bb) {
+            this.bbPeriod = profile.bb.period;
+            this.bbStdDev = profile.bb.stdDev;
+        }
+        if (profile.stopLoss) {
+            this.stopLossPercent = profile.stopLoss;
+        }
+    }
 }
 
 module.exports = BaseStrategy;

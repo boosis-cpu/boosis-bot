@@ -2,11 +2,31 @@ const axios = require('axios');
 const crypto = require('crypto');
 const logger = require('./logger');
 
+const CredentialsManager = require('./credentials-manager');
+
 class BinanceService {
     constructor() {
-        this.apiKey = process.env.BINANCE_API_KEY;
-        this.apiSecret = process.env.BINANCE_SECRET;
+        this.apiKey = null;
+        this.apiSecret = null;
         this.baseUrl = 'https://api.binance.com/api/v3';
+    }
+
+    async initialize() {
+        try {
+            const hasCreds = await CredentialsManager.hasCredentials('binance');
+            if (hasCreds) {
+                const creds = await CredentialsManager.getCredentials('binance');
+                this.apiKey = creds.apiKey;
+                this.apiSecret = creds.apiSecret;
+                logger.info('[Binance] ✅ Credenciales cargadas desde BD (Encriptadas)');
+            } else {
+                logger.warn('[Binance] ⚠️  No hay credenciales en DB. Usando .env (Fallback)');
+                this.apiKey = process.env.BINANCE_API_KEY;
+                this.apiSecret = process.env.BINANCE_SECRET;
+            }
+        } catch (error) {
+            logger.error(`[Binance] Error inicializando credenciales: ${error.message}`);
+        }
 
         if (!this.apiKey || !this.apiSecret) {
             logger.warn('⚠️  Binance API credentials not configured. Real trading disabled.');

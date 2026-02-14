@@ -11,6 +11,7 @@ const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
 const db = require('../core/database');
+const credentialsManager = require('../core/credentials-manager');
 const notifications = require('../core/notifications');
 const binanceService = require('../core/binance');
 const TechnicalIndicators = require('../core/technical_indicators');
@@ -24,6 +25,9 @@ const CONFIG = {
     apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };
+
+const wsManager = require('../core/websocket-manager');
+const profileManager = require('../core/strategy-profile-manager');
 
 class LiveTrader {
     constructor() {
@@ -54,6 +58,12 @@ class LiveTrader {
         this.totalBalanceUSD = 0;
         this.equityHistory = [];
         this.emergencyStopped = false;
+
+        // Multi-Asset State
+        this.activePositions = new Map(); // symbol -> position
+        this.marketData = new Map(); // symbol -> { candles: [], strategy: instance }
+
+        // Legacy support (Primary Symbol)
         this.activePosition = null;
         this.lastBuyPrice = 0;
 
@@ -144,6 +154,46 @@ class LiveTrader {
             res.json(this.health.getStatus());
         });
 
+        // --- CREDENTIALS MANAGEMENT ---
+        this.app.post('/api/credentials/setup', authMiddleware, async (req, res) => {
+            // Solo permitir si NO hay credenciales ya, a menos que se pase force=true
+            // O simplemente permitir sobreescribir (seguridad básica: authMiddleware requerido)
+            try {
+                const { apiKey, apiSecret } = req.body;
+                if (!apiKey || !apiSecret) {
+                    return res.status(400).json({ error: 'apiKey and apiSecret required' });
+                }
+                await credentialsManager.saveCredentials('binance', apiKey, apiSecret);
+                // Recargar en memoria
+                await binanceService.initialize();
+                res.json({ message: 'Credenciales guardadas y encriptadas', status: 'ok' });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.get('/api/credentials/test', authMiddleware, async (req, res) => {
+            try {
+                const has = await credentialsManager.hasCredentials('binance');
+                if (!has) return res.json({ status: 'no_credentials_in_db' });
+
+                // Check in memory
+                if (!binanceService.apiKey) {
+                    return res.json({ status: 'error', message: 'Credentials in DB but not loaded in service' });
+                }
+
+                // Intentar conectar
+                const balance = await binanceService.getAccountBalance();
+                if (balance) {
+                    res.json({ status: 'ok', message: 'Credenciales funcionan', balance: balance.length });
+                } else {
+                    res.status(500).json({ status: 'error', message: 'Fallo al obtener balance' });
+                }
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
         this.app.get('/api/candles', authMiddleware, (req, res) => {
             try {
                 const limit = validators.validateLimit(req.query.limit || 100);
@@ -160,13 +210,83 @@ class LiveTrader {
             const trades = await db.getRecentTrades(50);
             res.json(trades);
         });
+
+        // --- THE REFINERY: STRATEGY PROFILES ---
+        this.app.get('/api/refinery/profiles', authMiddleware, (req, res) => {
+            const profiles = profileManager.listProfiles();
+            res.json({ status: 'ok', count: profiles.length, profiles });
+        });
+
+        this.app.get('/api/refinery/profile/:symbol', authMiddleware, (req, res) => {
+            const { symbol } = req.params;
+            const profile = profileManager.getProfile(symbol);
+            res.json({ status: 'ok', symbol, profile });
+        });
+
+        this.app.post('/api/refinery/profile/update', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, params } = req.body;
+                if (!symbol || !params) return res.status(400).json({ error: 'symbol y params requeridos' });
+
+                const profileId = await profileManager.upsertProfile(symbol, params);
+
+                // Live Reload
+                const profile = profileManager.getProfile(symbol);
+                if (this.marketData.has(symbol)) {
+                    // Update existing strategy instance
+                    const context = this.marketData.get(symbol);
+                    if (context.strategy) {
+                        context.strategy.configure(profile);
+                        logger.info(`[Refinery] ✅ Estrategia para ${symbol} reconfigurada en caliente.`);
+                    }
+                }
+
+                // Audit Log
+                await db.pool.query(`
+                  INSERT INTO strategy_changes (symbol, action, field_changed, new_value, changed_by)
+                  VALUES ($1, $2, $3, $4, $5)
+                `, [symbol, 'PROFILE_UPDATED', 'all_parameters', JSON.stringify(params), 'API']);
+
+                res.json({ status: 'ok', message: `Perfil actualizado: ${symbol}`, profileId });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // --- MULTI-ASSET WEBSOCKET MANAGEMENT ---
+        this.app.get('/api/websocket/status', authMiddleware, (req, res) => {
+            res.json(wsManager.getStatus());
+        });
+
+        this.app.post('/api/trading/pair/add', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, strategy } = req.body;
+                if (!symbol || !strategy) return res.status(400).json({ error: 'symbol y strategy requeridos' });
+                this.addTradingPair(symbol, strategy);
+                res.json({ status: 'ok', message: `Par ${symbol} agregado`, symbol, strategy });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.delete('/api/trading/pair/remove', authMiddleware, async (req, res) => {
+            try {
+                const { symbol } = req.body;
+                if (!symbol) return res.status(400).json({ error: 'symbol requerido' });
+                this.removeTradingPair(symbol);
+                res.json({ status: 'ok', message: `Par ${symbol} removido` });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
     }
 
     async start() {
         try {
             logger.info('Starting Boosis Quant Bot...');
             await db.connect();
-            await db.initSchema();
+            await schema.init(db.pool);
+            await binanceService.initialize();
 
             await this.loadTradingMode();
             await this.loadPaperBalance();
@@ -193,78 +313,162 @@ class LiveTrader {
         }
     }
 
-    async handleKlineMessage(kline) {
+    async handleKlineMessage(kline, symbol = CONFIG.symbol, strategy = null) {
         if (kline.x) { // Candle closed
             const candle = [
                 kline.t, parseFloat(kline.o), parseFloat(kline.h), parseFloat(kline.l), parseFloat(kline.c), parseFloat(kline.v), kline.T
             ];
-            this.candles.push(candle);
-            if (this.candles.length > 500) this.candles.shift();
 
-            this.lastMessageTime = Date.now();
-            this.sosSent = false;
+            // Manage Context per Symbol
+            if (!this.marketData.has(symbol)) {
+                this.marketData.set(symbol, { candles: [], strategy: strategy || this.strategy });
+            }
+            const context = this.marketData.get(symbol);
+            context.candles.push(candle);
+            if (context.candles.length > 500) context.candles.shift();
 
-            db.saveCandle(CONFIG.symbol, candle).catch(e => logger.error(`DB Save Error: ${e.message}`));
+            // Legacy Sync (for Dashboard) if Primary Symbol
+            if (symbol === CONFIG.symbol) {
+                this.candles = context.candles;
+                this.lastMessageTime = Date.now();
+                this.sosSent = false;
+                logger.info(`Candle closed [${symbol}]: ${candle[4]}`);
+            } else {
+                logger.debug(`Candle closed [${symbol}]: ${candle[4]}`);
+            }
 
-            logger.info(`Candle closed: ${candle[4]}`);
-            const inPosition = this.activePosition !== null;
-            await this.executeStrategy(candle, inPosition);
+            db.saveCandle(symbol, candle).catch(e => logger.error(`DB Save Error: ${e.message}`));
+
+            const pos = this.activePositions.get(symbol) || null;
+            if (symbol === CONFIG.symbol) this.activePosition = pos; // Sync legacy
+
+            await this.executeStrategy(symbol, candle, context.candles, context.strategy, pos);
         }
     }
 
-    async executeStrategy(latestCandle, inPosition) {
-        const signal = this.strategy.onCandle(latestCandle, this.candles, inPosition, this.lastBuyPrice);
+    async executeStrategy(symbol, latestCandle, history, strategy, position) {
+        const entryPrice = position ? position.entryPrice : 0;
+        const inPosition = !!position;
+
+        const signal = strategy.onCandle(latestCandle, history, inPosition, entryPrice);
+
         if (signal) {
-            logger.info(`SIGNAL: ${signal.action} @ ${signal.price} [Reason: ${signal.reason}]`);
-            await this.executeTrade(signal);
+            logger.info(`SIGNAL [${symbol}]: ${signal.action} @ ${signal.price} [Reason: ${signal.reason}]`);
+            await this.executeTrade(symbol, signal, position);
         }
     }
 
-    async executeTrade(signal) {
+    async executeTrade(symbol, signal, position) {
         if (this.liveTrading) {
-            await this.executeRealTrade(signal);
+            await this.executeRealTrade(symbol, signal, position);
         } else {
-            await this.executePaperTrade(signal);
+            await this.executePaperTrade(symbol, signal, position);
         }
     }
 
-    async executePaperTrade(signal) {
+    async executePaperTrade(symbol, signal, position) {
         const fee = 0.001;
         if (signal.action === 'BUY') {
-            const amount = (this.balance.usdt / signal.price) * (1 - fee);
-            this.balance.asset = amount;
-            this.balance.usdt = 0;
-            this.lastBuyPrice = signal.price;
-            this.activePosition = { symbol: CONFIG.symbol, side: 'BUY', entryPrice: signal.price, amount, isPaper: true, timestamp: Date.now() };
-            await this.saveActivePosition(this.activePosition);
+            // Simple allocation logic: Use all USDT balance for now (refined in future)
+            const amountUsdt = this.balance.usdt;
+            if (amountUsdt < 10) return; // Min trade
+
+            const amountAsset = (amountUsdt / signal.price) * (1 - fee);
+
+            // Deduct USDT (Global Balance)
+            this.balance.usdt -= amountUsdt;
+            // We need to track asset balance per symbol ideally, but for now simple swap
+            // In a real multi-asset paper wallet, 'this.balance' would need key 'ETH' etc.
+            // keeping it simple for BTC-only compatible logic:
+            if (symbol === CONFIG.symbol) this.balance.asset += amountAsset;
+
+            const newPos = {
+                symbol: symbol,
+                side: 'BUY',
+                entryPrice: signal.price,
+                amount: amountAsset,
+                isPaper: true,
+                timestamp: Date.now()
+            };
+
+            this.activePositions.set(symbol, newPos);
+            if (symbol === CONFIG.symbol) {
+                this.lastBuyPrice = signal.price;
+                this.activePosition = newPos;
+            }
+
+            await this.saveActivePosition(newPos);
         } else {
-            const usdtReceived = (this.balance.asset * signal.price) * (1 - fee);
-            this.balance.usdt = usdtReceived;
-            this.balance.asset = 0;
-            this.activePosition = null;
-            await this.clearActivePosition();
+            // SELL
+            if (!position) return;
+            const usdtReceived = (position.amount * signal.price) * (1 - fee);
+            this.balance.usdt += usdtReceived;
+
+            if (symbol === CONFIG.symbol) this.balance.asset = 0;
+
+            this.activePositions.delete(symbol);
+            if (symbol === CONFIG.symbol) this.activePosition = null;
+
+            await this.clearActivePosition(symbol);
         }
         await this.savePaperBalance();
-        db.saveTrade({ ...signal, symbol: CONFIG.symbol, type: 'PAPER', amount: this.activePosition?.amount || 0 });
-        notifications.notifyTrade({ ...signal, symbol: CONFIG.symbol, type: 'PAPER', amount: 0 });
+        db.saveTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: 0 }); // Todo: fix amount
+        notifications.notifyTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: 0 });
     }
 
-    async executeRealTrade(signal) {
-        logger.warn(`!!! EXECUTING REAL TRADE: ${signal.action} !!!`);
+    async executeRealTrade(symbol, signal, position) {
+        logger.warn(`!!! EXECUTING REAL TRADE [${symbol}]: ${signal.action} !!!`);
         // Implementation for real trades via binanceService.executeOrder...
     }
 
     connectWebSocket() {
-        this.ws = new WebSocket(CONFIG.wsUrl);
-        this.ws.on('open', () => logger.success('Connected to Binance WebSocket.'));
-        this.ws.on('message', (data) => {
-            const msg = JSON.parse(data);
-            if (msg.e === 'kline') this.handleKlineMessage(msg.k);
+        // Init Default Symbol
+        this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
+
+        // Connect
+        wsManager.connect();
+        logger.success('[LiveTrader] ✅ WebSocket manager inicializado');
+    }
+
+    // --- HELPER METHODS ---
+
+    addTradingPair(symbol, strategyName) {
+        // Load profile first (will return default if not exists)
+        const profile = profileManager.getProfile(symbol);
+
+        // If strategyName passed explicitly, override default
+        const effectiveStrategyName = strategyName || profile.strategy || 'BoosisTrend';
+
+        const strategy = this._createStrategyWithProfile(effectiveStrategyName, profile);
+
+        // Setup context
+        if (!this.marketData.has(symbol)) {
+            this.marketData.set(symbol, { candles: [], strategy });
+        }
+
+        wsManager.addSymbol(symbol, (klineData) => {
+            if (klineData.k.x) {
+                this.handleKlineMessage(klineData.k, symbol, strategy);
+            }
         });
-        this.ws.on('close', () => {
-            logger.warn('WebSocket closed. Reconnecting...');
-            setTimeout(() => this.connectWebSocket(), 5000);
-        });
+        logger.info(`[LiveTrader] ✅ Pair agregado: ${symbol} con ${effectiveStrategyName}`);
+    }
+
+    _createStrategyWithProfile(strategyName, profile) {
+        try {
+            const StrategyClass = require(`../strategies/${strategyName}`);
+            const strategy = new StrategyClass();
+            strategy.configure(profile);
+            return strategy;
+        } catch (e) {
+            logger.error(`Error loading strategy ${strategyName}: ${e.message}`);
+            return new BoosisTrend(); // Fallback
+        }
+    }
+
+    // Deprecated simple loader
+    _loadStrategy(name) {
+        return this._createStrategyWithProfile(name, {});
     }
 
     startHeartbeat() {
@@ -323,9 +527,9 @@ class LiveTrader {
         await db.pool.query('INSERT INTO active_position (symbol, side, entry_price, amount, is_paper, timestamp) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (symbol) DO UPDATE SET side = $2, entry_price = $3, amount = $4, is_paper = $5, timestamp = $6', [pos.symbol, pos.side, pos.entryPrice, pos.amount, pos.isPaper, pos.timestamp]);
     }
 
-    async clearActivePosition() {
-        await db.pool.query('DELETE FROM active_position WHERE symbol = $1', [CONFIG.symbol]);
-        this.activePosition = null;
+    async clearActivePosition(symbol) {
+        await db.pool.query('DELETE FROM active_position WHERE symbol = $1', [symbol || CONFIG.symbol]);
+        if (symbol === CONFIG.symbol) this.activePosition = null;
     }
 
     async loadHistoricalData() {
@@ -334,3 +538,11 @@ class LiveTrader {
 }
 
 module.exports = LiveTrader;
+
+if (require.main === module) {
+    const trader = new LiveTrader();
+    trader.start().catch(err => {
+        console.error('Fatal error starting trader:', err);
+        process.exit(1);
+    });
+}

@@ -17,6 +17,10 @@ class DatabaseManager {
         });
     }
 
+    async connect() {
+        return this.pool.connect();
+    }
+
     async init() {
         const client = await this.pool.connect();
         try {
