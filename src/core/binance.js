@@ -163,6 +163,62 @@ class BinanceService {
             return false;
         }
     }
+
+    /**
+     * Obtiene el balance enriquecido con precios en USD
+     */
+    async getEnrichedBalance() {
+        try {
+            const balances = await this.getAccountBalance();
+
+            // Obtener precios de todos los activos
+            const enrichedBalances = await Promise.all(
+                balances.map(async (balance) => {
+                    let priceUSD = 0;
+                    let symbol = '';
+
+                    try {
+                        // Si ya es USDT, el precio es 1
+                        if (balance.asset === 'USDT') {
+                            priceUSD = 1;
+                        } else {
+                            // Intentar obtener precio contra USDT
+                            symbol = `${balance.asset}USDT`;
+                            priceUSD = await this.getCurrentPrice(symbol);
+                        }
+                    } catch (error) {
+                        // Si no existe el par contra USDT, intentar contra BTC
+                        try {
+                            symbol = `${balance.asset}BTC`;
+                            const priceBTC = await this.getCurrentPrice(symbol);
+                            const btcUSD = await this.getCurrentPrice('BTCUSDT');
+                            priceUSD = priceBTC * btcUSD;
+                        } catch (error2) {
+                            logger.warn(`No se pudo obtener precio para ${balance.asset}`);
+                            priceUSD = 0;
+                        }
+                    }
+
+                    return {
+                        ...balance,
+                        priceUSD,
+                        valueUSD: balance.total * priceUSD
+                    };
+                })
+            );
+
+            // Calcular total en USD
+            const totalUSD = enrichedBalances.reduce((sum, b) => sum + b.valueUSD, 0);
+
+            return {
+                balances: enrichedBalances,
+                totalUSD
+            };
+        } catch (error) {
+            logger.error(`Error obteniendo balance enriquecido: ${error.message}`);
+            throw error;
+        }
+    }
 }
 
 module.exports = new BinanceService();

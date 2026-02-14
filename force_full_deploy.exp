@@ -1,0 +1,22 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+
+# 1. Sync files
+spawn rsync -avz --exclude node_modules --exclude *.exp --exclude .git --exclude .DS_Store --exclude .env --delete ./ root@72.62.160.140:~/boosis-bot/
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}
+
+# 2. Force Rebuild and Restart
+spawn ssh root@72.62.160.140 "cd ~/boosis-bot && docker compose down && docker compose build --no-cache && docker compose up -d"
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

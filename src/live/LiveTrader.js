@@ -30,10 +30,9 @@ class LiveTrader {
         this.ws = null;
         this.app = express();
 
-        // Trading State
-        this.liveTrading = process.env.LIVE_TRADING === 'true'; // Controlled by ENV
-        this.paperTrading = !this.liveTrading; // Default to paper if live is false
-
+        // Trading State - Will be loaded from DB
+        this.liveTrading = false;
+        this.paperTrading = true;
         this.balance = {
             usdt: 1000,
             asset: 0
@@ -41,6 +40,7 @@ class LiveTrader {
 
         // Real Balance (cached)
         this.realBalance = [];
+        this.totalBalanceUSD = 0;
         this.equityHistory = [];
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
@@ -52,16 +52,22 @@ class LiveTrader {
         this.app.use(express.json());
 
         // Middleware protector
-        const authMiddleware = (req, res, next) => {
+        const authMiddleware = async (req, res, next) => {
             // Permitir login sin token
             if (req.url === '/api/login' || req.originalUrl === '/api/login') {
                 return next();
             }
 
             const authHeader = req.headers.authorization || '';
-            const token = authHeader.replace('Bearer ', '');
+            let token = authHeader.replace('Bearer ', '');
 
-            if (!auth.verifyToken(token)) {
+            // Fallback for SSE which cannot send headers easily
+            if (!token && req.query.token) {
+                token = req.query.token;
+            }
+
+            const isValid = await auth.verifyToken(token);
+            if (!isValid) {
                 return res.status(401).json({ error: 'No autorizado' });
             }
 
@@ -78,9 +84,9 @@ class LiveTrader {
         this.app.use(express.static(path.join(__dirname, '../../public')));
 
         // Login Endpoint (NO protegido)
-        this.app.post('/api/login', (req, res) => {
+        this.app.post('/api/login', async (req, res) => {
             const { password } = req.body;
-            const token = auth.generateToken(password);
+            const token = await auth.generateToken(password);
 
             if (!token) {
                 return res.status(401).json({ error: 'Contraseña incorrecta' });
@@ -97,8 +103,8 @@ class LiveTrader {
             this.liveTrading = live;
             this.paperTrading = !live;
 
-            // In a real app, you might also update .env file or DB here
-            // For now, runtime switch is enough for the session
+            // Persist to database
+            await this.saveTradingMode();
 
             logger.warn(`TRADING MODE CHANGED: ${live ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
 
@@ -109,16 +115,63 @@ class LiveTrader {
             });
         });
 
+        // Emergency Stop Endpoint
+        this.app.post('/api/emergency-stop', authMiddleware, async (req, res) => {
+            try {
+                // Force paper trading mode
+                this.liveTrading = false;
+                this.paperTrading = true;
+                await this.saveTradingMode();
+
+                // Close WebSocket to stop receiving new data
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.close();
+                }
+
+                logger.error('🚨 EMERGENCY STOP ACTIVATED - All trading halted');
+
+                res.json({
+                    success: true,
+                    message: 'Emergency stop activated. Bot switched to PAPER mode and WebSocket closed.'
+                });
+            } catch (error) {
+                logger.error(`Error in emergency stop: ${error.message}`);
+                res.status(500).json({ error: 'Failed to execute emergency stop' });
+            }
+        });
+
         // ENDPOINTS PROTEGIDOS
+        // Logs Stream Endpoint (SSE)
+        this.app.get('/api/logs/stream', authMiddleware, (req, res) => {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.flushHeaders(); // flush the headers to establish SSE with client
+
+            const onLog = (log) => {
+                res.write(`data: ${JSON.stringify(log)}\n\n`);
+            };
+
+            // Subscribe to logger events
+            logger.on('log', onLog);
+
+            // Cleanup on client disconnect
+            req.on('close', () => {
+                logger.off('log', onLog);
+            });
+        });
+
         this.app.get('/api/status', authMiddleware, (req, res) => {
             res.json({
                 status: 'online',
                 bot: 'Boosis Quant Bot',
                 strategy: this.strategy.name,
                 symbol: CONFIG.symbol,
+                liveTrading: this.liveTrading,
                 paperTrading: !this.liveTrading,
                 balance: this.balance,
                 realBalance: this.realBalance,
+                totalBalanceUSD: this.totalBalanceUSD,
                 equityHistory: this.equityHistory.slice(-50),
                 marketStatus: this.calculateMarketHealth()
             });
@@ -159,9 +212,9 @@ class LiveTrader {
 
                 // Calculate indicators for frontend visualization
                 const historyPrices = this.candles.map(c => parseFloat(c[4]));
-                const rsi = TechnicalIndicators.calculateRSI(historyPrices, 14);
-                const sma200 = TechnicalIndicators.calculateSMA(historyPrices, 200);
-                const bb = TechnicalIndicators.calculateBollingerBands(historyPrices, 20, 2);
+                const rsi = historyPrices.length >= 14 ? TechnicalIndicators.calculateRSI(historyPrices, 14) : null;
+                const sma200 = historyPrices.length >= 200 ? TechnicalIndicators.calculateSMA(historyPrices, 200) : null;
+                const bb = historyPrices.length >= 20 ? TechnicalIndicators.calculateBollingerBands(historyPrices, 20, 2) : null;
 
                 // Map candles with their indicator values at that point in time (simplified, using current calculation for last candle logic usually)
                 // For visualization, passing the latest calc is often enough or we'd need to calculate historical indicators
@@ -189,6 +242,7 @@ class LiveTrader {
 
                 res.json(candlesWithIndicators);
             } catch (error) {
+                logger.error(`Error in /api/candles: ${error.message}`);
                 res.status(400).json({ error: error.message });
             }
         });
@@ -203,9 +257,17 @@ class LiveTrader {
             }
         });
 
-        // Serve React App for root
-        this.app.get('/', (req, res) => {
-            res.sendFile(path.join(__dirname, '../../public', 'index.html'));
+        // Serve React App (SPA)
+        const distPath = path.join(__dirname, '../../boosis-ui/dist');
+        this.app.use(express.static(distPath));
+
+        this.app.get(/(.*)/, (req, res) => {
+            // If not API, serve index.html for client-side routing
+            if (!req.path.startsWith('/api')) {
+                res.sendFile(path.join(distPath, 'index.html'));
+            } else {
+                res.status(404).json({ error: 'Endpoint not found' });
+            }
         });
     }
 
@@ -219,6 +281,8 @@ class LiveTrader {
             // Initialize Database
             await db.connect();
             await db.initSchema();
+            await this.initTradingModeTable();
+            await this.loadTradingMode();
 
             // 1. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
@@ -236,10 +300,65 @@ class LiveTrader {
 
     async fetchRealBalance() {
         try {
-            const balances = await binanceService.getAccountBalance();
-            this.realBalance = balances;
+            const enrichedData = await binanceService.getEnrichedBalance();
+            this.realBalance = enrichedData.balances;
+            this.totalBalanceUSD = enrichedData.totalUSD;
         } catch (error) {
             logger.error(`Error obteniendo balance de Binance: ${error.message}`);
+        }
+    }
+
+    async initTradingModeTable() {
+        try {
+            await db.pool.query(`
+                CREATE TABLE IF NOT EXISTS trading_settings (
+                    key VARCHAR(50) PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+        } catch (error) {
+            logger.error(`Error inicializando tabla de configuración: ${error.message}`);
+        }
+    }
+
+    async loadTradingMode() {
+        try {
+            const result = await db.pool.query(
+                'SELECT value FROM trading_settings WHERE key = $1',
+                ['live_trading']
+            );
+
+            if (result.rows.length > 0) {
+                this.liveTrading = result.rows[0].value === 'true';
+                this.paperTrading = !this.liveTrading;
+                logger.info(`Trading Mode Loaded from DB: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
+            } else {
+                // Si no existe en DB, usar el valor del .env como default
+                this.liveTrading = process.env.LIVE_TRADING === 'true';
+                this.paperTrading = !this.liveTrading;
+                await this.saveTradingMode(); // Guardar el default en DB
+                logger.info(`Trading Mode Initialized from ENV: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
+            }
+        } catch (error) {
+            logger.error(`Error cargando modo de trading: ${error.message}`);
+            // Fallback al .env si hay error
+            this.liveTrading = process.env.LIVE_TRADING === 'true';
+            this.paperTrading = !this.liveTrading;
+        }
+    }
+
+    async saveTradingMode() {
+        try {
+            await db.pool.query(`
+                INSERT INTO trading_settings (key, value, updated_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (key) DO UPDATE
+                SET value = $2, updated_at = CURRENT_TIMESTAMP
+            `, ['live_trading', this.liveTrading.toString()]);
+            logger.success(`Trading mode saved to database: ${this.liveTrading ? 'LIVE' : 'PAPER'}`);
+        } catch (error) {
+            logger.error(`Error guardando modo de trading: ${error.message}`);
         }
     }
 

@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+spawn ssh root@72.62.160.140 "docker exec -i boosis-db psql -U boosis_admin -d boosis_db -c \"CREATE TABLE IF NOT EXISTS candles (id SERIAL PRIMARY KEY, symbol VARCHAR(20) NOT NULL, interval VARCHAR(10) NOT NULL, open_time BIGINT NOT NULL, close_time BIGINT NOT NULL, open NUMERIC NOT NULL, high NUMERIC NOT NULL, low NUMERIC NOT NULL, close NUMERIC NOT NULL, volume NUMERIC NOT NULL, UNIQUE(symbol, interval, open_time));\""
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

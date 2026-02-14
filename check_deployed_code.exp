@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set password "@Tony1022837069"
+spawn ssh root@72.62.160.140 "docker exec boosis-bot cat src/core/database.js | grep 'CREATE TABLE IF NOT EXISTS candles'"
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

@@ -9,7 +9,11 @@ COPY package*.json ./
 RUN npm install --production
 
 # Copiar el resto del código
+# Copiar el resto del código
 COPY . .
+
+# Build Frontend (Removed - relying on COPY . . for pre-built assets)
+
 
 # Exponer el puerto del servidor
 EXPOSE 3000
