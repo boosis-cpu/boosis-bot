@@ -133,6 +133,7 @@ class NotificationManager {
         message += `**Modo:** ${config.liveTrading ? '💰 LIVE TRADING' : '📝 PAPER TRADING'}\n`;
         message += `**Símbolo:** ${config.symbol}\n`;
         message += `**Estrategia:** ${config.strategy}\n`;
+        message += `**Saldo Inicial:** $${parseFloat(config.balance || 0).toFixed(2)} USDT\n`;
         message += `**Servidor:** ${config.hostname || 'Local'}\n`;
 
         await this.send(message, 'success');

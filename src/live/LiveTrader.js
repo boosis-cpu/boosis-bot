@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const axios = require('axios');
 const path = require('path');
 const express = require('express');
+const os = require('os');
 const cors = require('cors');
 const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
@@ -108,6 +109,8 @@ class LiveTrader {
 
             logger.warn(`TRADING MODE CHANGED: ${live ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
 
+            notifications.send(`🔄 **TRADING MODE CHANGED**\n\nEl bot ahora opera en modo: ${live ? '💰 LIVE (REAL MONEY)' : '📝 PAPER (SIMULATION)'}`, 'warning');
+
             res.json({
                 success: true,
                 mode: live ? 'LIVE' : 'PAPER',
@@ -129,6 +132,7 @@ class LiveTrader {
                 }
 
                 logger.error('🚨 EMERGENCY STOP ACTIVATED - All trading halted');
+                notifications.notifyAlert('🚨 **EMERGENCY STOP ACTIVATED**\n\nEl bot ha detenido todas las operaciones y cerrado la conexión con el mercado. Revisa el dashboard para reanudar manualmente.');
 
                 res.json({
                     success: true,
@@ -293,8 +297,21 @@ class LiveTrader {
 
             // 3. Connect to WebSocket
             this.connectWebSocket();
+
+            // 4. Notify Startup
+            notifications.notifyStartup({
+                symbol: CONFIG.symbol,
+                strategy: this.strategy.name,
+                liveTrading: this.liveTrading,
+                balance: this.liveTrading ? (this.realBalance?.find(b => b.asset === 'USDT')?.free || 0) : this.balance.usdt,
+                hostname: os.hostname()
+            });
+
+            // 5. Setup Daily Summary (Every 24h)
+            setInterval(() => this.sendDailySummary(), 24 * 60 * 60 * 1000);
         } catch (err) {
             logger.error(`Fatal error starting bot: ${err.message}`);
+            notifications.notifyError(err, 'Bot Startup');
         }
     }
 
@@ -410,11 +427,13 @@ class LiveTrader {
 
         this.ws.on('close', () => {
             logger.warn('WebSocket connection closed. Reconnecting in 5s...');
+            notifications.notifyAlert('⚠️ WebSocket de Binance desconectado. Reintentando en 5s...');
             setTimeout(() => this.connectWebSocket(), 5000);
         });
 
         this.ws.on('error', (err) => {
             logger.error(`WebSocket Error: ${err.message}`);
+            notifications.notifyError(err, 'WebSocket Connection');
         });
     }
 
@@ -542,8 +561,14 @@ class LiveTrader {
                 reason: signal.reason
             };
             this.trades.push(trade);
+            notifications.notifyTrade({ ...trade, type: 'PAPER' });
 
             logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
+
+            // Low balance alert (Paper)
+            if (this.balance.usdt < 10) {
+                notifications.notifyAlert(`⚠️ **BALANCE BAJO (PAPER)**: Solo quedan $${this.balance.usdt.toFixed(2)} USDT.`);
+            }
         } else if (signal.action === 'SELL' && this.balance.asset > 0.0001) {
             const amountAsset = this.balance.asset;
             const amountUsd = (amountAsset * price) * (1 - fee);
@@ -560,6 +585,7 @@ class LiveTrader {
                 reason: signal.reason
             };
             this.trades.push(trade);
+            notifications.notifyTrade({ ...trade, type: 'PAPER' });
 
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
         }
@@ -591,6 +617,29 @@ class LiveTrader {
             status: volatilityPercent < maxVol ? 'SAFE' : 'VOLATILE',
             volatility: volatilityPercent.toFixed(2)
         };
+    }
+
+    sendDailySummary() {
+        if (!this.trades || this.trades.length === 0) return;
+
+        const last24h = Date.now() - (24 * 60 * 60 * 1000);
+        const recentTrades = this.trades.filter(t => t.timestamp > last24h);
+
+        if (recentTrades.length === 0) return;
+
+        const winningTrades = recentTrades.filter(t => (t.side === 'SELL' && t.price > t.entryPrice));
+        const winRate = ((winningTrades.length / (recentTrades.length / 2)) * 100).toFixed(1);
+
+        const currentPrice = this.candles.length > 0 ? parseFloat(this.candles[this.candles.length - 1][4]) : 0;
+        const currentEquity = this.liveTrading ? this.totalBalanceUSD : (this.balance.usdt + (this.balance.asset * currentPrice));
+
+        notifications.notifyDailySummary({
+            totalTrades: recentTrades.length,
+            winningTrades: winningTrades.length,
+            winRate: winRate,
+            pnl: 0, // Placeholder
+            balance: currentEquity
+        });
     }
 }
 
