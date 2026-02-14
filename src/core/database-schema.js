@@ -108,6 +108,14 @@ const DatabaseSchema = {
       )
     `);
 
+    // 9. Tabla: sessions
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        expiry BIGINT NOT NULL
+      )
+    `);
+
     console.log('[DB] ✅ Esquema actualizado para Phase 8');
   }
 };

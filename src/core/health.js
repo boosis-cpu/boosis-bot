@@ -1,5 +1,5 @@
 const os = require('os');
-const logger = require('./logger');
+const wsManager = require('./websocket-manager');
 
 class HealthChecker {
     constructor(trader) {
@@ -10,6 +10,7 @@ class HealthChecker {
     getStatus() {
         const memoryUsage = process.memoryUsage();
         const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+        const wsStatus = wsManager.getStatus();
 
         const health = {
             status: 'HEALTHY',
@@ -25,10 +26,11 @@ class HealthChecker {
                 heapTotal: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2) + ' MB'
             },
             bot: {
-                wsConnected: this.trader.ws && this.trader.ws.readyState === 1, // 1 = OPEN
+                wsConnected: wsStatus.isConnected,
                 candlesInBuffer: this.trader.candles.length,
                 tradesCount: this.trader.trades.length,
-                symbol: this.trader.symbol || 'BTCUSDT'
+                symbol: this.trader.symbol || 'BTCUSDT',
+                activePairs: wsStatus.activeSymbols
             }
         };
 

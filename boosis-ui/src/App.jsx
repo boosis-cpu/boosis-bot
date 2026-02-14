@@ -26,6 +26,7 @@ import {
   Area
 } from 'recharts'
 import TheRefinery from './components/TheRefinery'
+import MultiPairDashboard from './components/MultiPairDashboard'
 
 const apiUrl = '/api'
 
@@ -36,7 +37,7 @@ function App() {
     bot: 'Loading...',
     balance: { usdt: 0, asset: 0 },
     strategy: '',
-    paperTrading: false,
+    paperTrading: true, // Default a true por seguridad
     equityHistory: [],
     realBalance: [],
     marketStatus: { status: 'UNKNOWN', volatility: 0 }
@@ -135,38 +136,48 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [statusRes, candlesRes, tradesRes, healthRes, metricsRes] = await Promise.all([
-        axios.get(`${apiUrl}/status`),
-        axios.get(`${apiUrl}/candles?limit=100`),
-        axios.get(`${apiUrl}/trades?limit=20`),
-        axios.get(`${apiUrl}/health`),
-        axios.get(`${apiUrl}/metrics`)
-      ])
+      // 1. Requerido: Status
+      const statusRes = await axios.get(`${apiUrl}/status`);
+      setData(statusRes.data);
 
-      setData(statusRes.data)
-      setCandles(candlesRes.data.map(c => ({
-        time: new Date(c.open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        close: c.close,
-        rsi: c.indicators.rsi,
-        sma200: c.indicators.sma200,
-        bbUpper: c.indicators.bb?.upper,
-        bbLower: c.indicators.bb?.lower
-      })))
-      setTrades(tradesRes.data)
-      setHealth(healthRes.data)
-      setMetrics(metricsRes.data)
-      setError(null)
+      // 2. Opcionales (si fallan, el dashboard sigue funcionando)
+      try {
+        const [candlesRes, tradesRes, healthRes, metricsRes] = await Promise.all([
+          axios.get(`${apiUrl}/candles?limit=100`),
+          axios.get(`${apiUrl}/trades?limit=20`),
+          axios.get(`${apiUrl}/health`),
+          axios.get(`${apiUrl}/metrics`)
+        ]);
+
+        if (candlesRes.data) {
+          setCandles(candlesRes.data.map(c => ({
+            time: new Date(c.open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            close: c.close,
+            rsi: c.indicators?.rsi,
+            sma200: c.indicators?.sma200,
+            bbUpper: c.indicators?.bb?.upper,
+            bbLower: c.indicators?.bb?.lower
+          })));
+        }
+        if (tradesRes.data) setTrades(tradesRes.data);
+        if (healthRes.data) setHealth(healthRes.data);
+        if (metricsRes.data) setMetrics(metricsRes.data);
+      } catch (subErr) {
+        console.warn('Fallo en datos secundarios:', subErr.message);
+      }
+
+      setError(null);
     } catch (err) {
       if (err.response?.status === 401) {
-        setToken(null)
-        localStorage.removeItem('boosis_token')
+        setToken(null);
+        localStorage.removeItem('boosis_token');
       } else {
-        setError('Error de conexión con el bot. Reintentando...')
+        setError('Error de conexión con el bot. Reintentando...');
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -475,6 +486,25 @@ function App() {
         >
           <FlaskConical size={16} /> The Refinery
         </button>
+        <button
+          onClick={() => setMainTab('multi')}
+          style={{
+            padding: '10px 20px',
+            background: mainTab === 'multi' ? '#0d1117' : 'transparent',
+            border: '1px solid #30363d',
+            borderBottom: mainTab === 'multi' ? 'none' : '1px solid #30363d',
+            color: mainTab === 'multi' ? '#00ffff' : '#8b949e',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <BarChart2 size={16} /> Multi-Activo
+        </button>
       </div>
 
       {mainTab === 'dashboard' ? (
@@ -747,9 +777,11 @@ function App() {
             </div>
           </section>
         </div>
-      ) : (
+      ) : mainTab === 'refinery' ? (
         <TheRefinery token={token} />
-      )}
+      ) : mainTab === 'multi' ? (
+        <MultiPairDashboard token={token} />
+      ) : null}
 
       {/* PREMIUM MODAL DIALOG */}
       {modal.show && (

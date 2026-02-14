@@ -1,3 +1,4 @@
+require('dotenv').config();
 const db = require('./src/core/database');
 const schema = require('./src/core/database-schema');
 const profileManager = require('./src/core/strategy-profile-manager');

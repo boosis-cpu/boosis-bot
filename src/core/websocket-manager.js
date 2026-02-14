@@ -153,11 +153,8 @@ class WebSocketManager {
     // PASO 7: Extraer símbolo del stream
     _extractSymbolFromStream(stream) {
         // stream = "btcusdt@kline_5m"
-        const match = stream.match(/^([a-z]+)@/i);
-        if (match) {
-            return match[1].toUpperCase() + 'USDT'; // btc → BTCUSDT
-        }
-        return null;
+        const parts = stream.split('@');
+        return parts[0].toUpperCase(); // "btcusdt" -> "BTCUSDT"
     }
 
     // PASO 8: Desconectar
