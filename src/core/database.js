@@ -1,105 +1,164 @@
 const { Pool } = require('pg');
-const logger = require('./logger');
 
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASS,
-    port: 5432,
-});
+class DatabaseManager {
+    constructor() {
+        this.pool = new Pool({
+            host: process.env.DB_HOST || 'localhost',
+            user: process.env.DB_USER || 'boosis_admin',
+            password: process.env.DB_PASS || 'boosis_secure_pass_2024',
+            database: process.env.DB_NAME || 'boosis_db',
+            port: parseInt(process.env.DB_PORT || '5432'),
+            // SSL is usually needed for remote connections, but within Docker it's not strictly necessary
+            // unless configured. For now we keep it simple since we're in the same network.
+        });
 
-async function connect() {
-    try {
-        const client = await pool.connect();
-        logger.success('Database connected successfully');
-        client.release();
-        return true;
-    } catch (err) {
-        logger.error(`Database connection failed: ${err.message}`);
-        return false;
+        this.pool.on('error', (err) => {
+            console.error('[DB] Unexpected error on idle client', err);
+        });
     }
-}
 
-async function initSchema() {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+    async init() {
+        const client = await this.pool.connect();
+        try {
+            console.log('[DB] Initializing database tables...');
 
-        // Create candles table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS candles (
-                id SERIAL PRIMARY KEY,
-                symbol VARCHAR(20) NOT NULL,
-                interval VARCHAR(10) NOT NULL,
-                open_time BIGINT NOT NULL,
-                close_time BIGINT NOT NULL,
-                open NUMERIC NOT NULL,
-                high NUMERIC NOT NULL,
-                low NUMERIC NOT NULL,
-                close NUMERIC NOT NULL,
-                volume NUMERIC NOT NULL,
-                UNIQUE(symbol, interval, open_time)
-            );
-        `);
+            // 1. Candles Table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS candles (
+                    symbol VARCHAR(20) NOT NULL,
+                    open_time BIGINT NOT NULL,
+                    open NUMERIC NOT NULL,
+                    high NUMERIC NOT NULL,
+                    low NUMERIC NOT NULL,
+                    close NUMERIC NOT NULL,
+                    volume NUMERIC NOT NULL,
+                    close_time BIGINT NOT NULL,
+                    PRIMARY KEY (symbol, open_time)
+                );
+            `);
 
-        // Create trades table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS trades (
-                id SERIAL PRIMARY KEY,
-                symbol VARCHAR(20) NOT NULL,
-                strategy VARCHAR(50) NOT NULL,
-                side VARCHAR(10) NOT NULL,
-                price NUMERIC NOT NULL,
-                amount NUMERIC NOT NULL,
-                timestamp BIGINT NOT NULL,
-                is_paper BOOLEAN DEFAULT FALSE
-            );
-        `);
+            // 2. Trades Table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS trades (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    side VARCHAR(10) NOT NULL,
+                    price DECIMAL(20,8) NOT NULL,
+                    amount DECIMAL(20,8) NOT NULL,
+                    timestamp BIGINT NOT NULL,
+                    type VARCHAR(20) NOT NULL,
+                    reason TEXT
+                );
+            `);
 
-        await client.query('COMMIT');
-        logger.success('Database schema initialized');
-    } catch (err) {
-        await client.query('ROLLBACK');
-        logger.error(`Failed to initialize schema: ${err.message}`);
-        throw err;
-    } finally {
-        client.release();
+            // 3. Bot State Table (Balance, Config)
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS bot_state (
+                    key VARCHAR(50) PRIMARY KEY,
+                    value JSONB NOT NULL
+                );
+
+                -- Initial balance if not exists
+                INSERT INTO bot_state (key, value) 
+                VALUES ('balance', '{"usdt": 1000, "asset": 0}'::jsonb)
+                ON CONFLICT (key) DO NOTHING;
+            `);
+
+            // 4. Sessions Table
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    expiry BIGINT NOT NULL
+                );
+            `);
+
+            // Cleanup expired sessions
+            await client.query('DELETE FROM sessions WHERE expiry < $1', [Date.now()]);
+
+            console.log('[DB] Database ready.');
+        } catch (err) {
+            console.error('[DB] Error initializing database:', err);
+            throw err;
+        } finally {
+            client.release();
+        }
     }
-}
 
-async function saveCandle(candleData) {
-    const { symbol, interval, openTime, closeTime, open, high, low, close, volume } = candleData;
-    try {
-        await pool.query(
-            `INSERT INTO candles (symbol, interval, open_time, close_time, open, high, low, close, volume)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (symbol, interval, open_time) DO NOTHING`,
-            [symbol, interval, openTime, closeTime, open, high, low, close, volume]
+    async saveCandle(symbol, candle) {
+        const query = `
+            INSERT INTO candles (symbol, open_time, open, high, low, close, volume, close_time)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (symbol, open_time) DO UPDATE SET
+                open = EXCLUDED.open,
+                high = EXCLUDED.high,
+                low = EXCLUDED.low,
+                close = EXCLUDED.close,
+                volume = EXCLUDED.volume,
+                close_time = EXCLUDED.close_time;
+        `;
+        const values = [symbol, ...candle];
+        return this.pool.query(query, values);
+    }
+
+    async saveTrade(trade) {
+        const query = `
+            INSERT INTO trades (symbol, side, price, amount, timestamp, type, reason)
+            VALUES ($1, $2, $3, $4, $5, $6, $7);
+        `;
+        const values = [
+            trade.symbol,
+            trade.side,
+            trade.price,
+            trade.amount,
+            trade.timestamp,
+            trade.type || 'PAPER',
+            trade.reason || null
+        ];
+        return this.pool.query(query, values);
+    }
+
+    async getRecentCandles(symbol, limit = 500) {
+        const query = `
+            SELECT open_time, open, high, low, close, volume, close_time
+            FROM candles
+            WHERE symbol = $1
+            ORDER BY open_time DESC
+            LIMIT $2;
+        `;
+        const res = await this.pool.query(query, [symbol, limit]);
+        // Convert back to array format used by indicators
+        return res.rows.reverse().map(r => [
+            parseInt(r.open_time),
+            parseFloat(r.open),
+            parseFloat(r.high),
+            parseFloat(r.low),
+            parseFloat(r.close),
+            parseFloat(r.volume),
+            parseInt(r.close_time)
+        ]);
+    }
+
+    async getRecentTrades(limit = 50) {
+        const query = `
+            SELECT * FROM trades
+            ORDER BY timestamp DESC
+            LIMIT $1;
+        `;
+        const res = await this.pool.query(query, [limit]);
+        return res.rows;
+    }
+
+    async getBotState(key) {
+        const res = await this.pool.query('SELECT value FROM bot_state WHERE key = $1', [key]);
+        return res.rows.length ? res.rows[0].value : null;
+    }
+
+    async setBotState(key, value) {
+        return this.pool.query(
+            'INSERT INTO bot_state (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+            [key, JSON.stringify(value)]
         );
-    } catch (err) {
-        logger.error(`Error saving candle: ${err.message}`);
     }
 }
 
-async function saveTrade(tradeData) {
-    const { symbol, strategy, side, price, amount, timestamp, isPaper } = tradeData;
-    try {
-        await pool.query(
-            `INSERT INTO trades (symbol, strategy, side, price, amount, timestamp, is_paper)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [symbol, strategy, side, price, amount, timestamp, isPaper]
-        );
-        logger.success(`Trade saved to DB: ${side} ${symbol} @ ${price}`);
-    } catch (err) {
-        logger.error(`Error saving trade: ${err.message}`);
-    }
-}
-
-module.exports = {
-    pool,
-    connect,
-    initSchema,
-    saveCandle,
-    saveTrade
-};
+module.exports = new DatabaseManager();

@@ -3,78 +3,86 @@ const BaseStrategy = require('./BaseStrategy');
 const TechnicalIndicators = require('../core/technical_indicators');
 
 class BoosisTrend extends BaseStrategy {
-        constructor(config = {}) {
-                super('Boosis Trend Follower');
-                this.smaLong = config.smaLong || 200;
-                this.rsiPeriod = config.rsiPeriod || 14;
-                this.bbPeriod = config.bbPeriod || 20;
-                this.bbStdDev = config.bbStdDev || 2.5; // Optimized from 2.0
+    constructor(config = {}) {
+        super('Boosis Trend Follower');
+        this.smaLong = config.smaLong || 200;
+        this.rsiPeriod = config.rsiPeriod || 14;
+        this.bbPeriod = config.bbPeriod || 20;
+        this.bbStdDev = config.bbStdDev || 2.5; // Optimized from Backtest
 
-                // Volatility & Risk Management
-                this.atrPeriod = config.atrPeriod || 14;
-                this.maxVolatilityPercent = config.maxVolatilityPercent || 1.5; // Max 1.5% candle movement allowed
+        // Risk Management
+        this.stopLossPercent = config.stopLossPercent || 0.02; // 2% fixed stop loss
+        this.trailingStopPercent = config.trailingStopPercent || 0.015; // 1.5% trailing stop
+        this.rsiBuyBound = config.rsiBuyBound || 20; // Optimized from Backtest
+        this.rsiSellBound = config.rsiSellBound || 70; // Optimized from Backtest
+        this.highWaterMark = 0; // Highest price since buy
+    }
 
-                // Strategy Configs
-                this.stopLossPercent = config.stopLossPercent || 0.02; // 2% fixed stop loss
-                this.rsiBuyBound = config.rsiBuyBound || 20; // Optimized from 30
-                this.rsiSellBound = config.rsiSellBound || 70;
+    onCandle(candle, history, inPosition = false, entryPrice = 0) {
+        // Optimization: only take what we need
+        const historySlice = history.slice(-300);
+        const prices = historySlice.map(c => parseFloat(c[4]));
+        const currentPrice = parseFloat(candle[4]);
+
+        if (prices.length < this.smaLong) return null;
+
+        // --- INDICATORS ---
+        const ma200 = TechnicalIndicators.calculateSMA(prices, this.smaLong);
+        const rsi = TechnicalIndicators.calculateRSI(prices, this.rsiPeriod);
+        const bb = TechnicalIndicators.calculateBollingerBands(prices, this.bbPeriod, this.bbStdDev);
+
+        if (!ma200 || !rsi || !bb) return null;
+
+        const trendBullish = currentPrice > ma200;
+
+        // --- RISK MANAGEMENT LOGIC ---
+        if (inPosition) {
+            // Update High Water Mark
+            if (currentPrice > this.highWaterMark) {
+                this.highWaterMark = currentPrice;
+            }
+
+            // 1. Fixed Stop Loss
+            const stopLossPrice = entryPrice * (1 - this.stopLossPercent);
+            if (currentPrice <= stopLossPrice) {
+                this.highWaterMark = 0;
+                return { action: 'SELL', price: currentPrice, reason: `STOP LOSS TRIGGERED (${(this.stopLossPercent * 100).toFixed(1)}%)` };
+            }
+
+            // 2. Trailing Stop Loss
+            const trailingStopPrice = this.highWaterMark * (1 - this.trailingStopPercent);
+            if (currentPrice <= trailingStopPrice) {
+                this.highWaterMark = 0;
+                return { action: 'SELL', price: currentPrice, reason: `TRAILING STOP TRIGGERED` };
+            }
+        } else {
+            this.highWaterMark = 0;
         }
 
-        onCandle(candle, history) {
-                const prices = history.map(c => parseFloat(c[4])); // Close prices
-                const highs = history.map(c => parseFloat(c[2]));
-                const lows = history.map(c => parseFloat(c[3]));
+        // --- ENTRY/EXIT LOGIC (MULTI-SIGNAL) ---
 
-                // Need enough history for calculations
-                if (prices.length < this.smaLong) return null;
-
-                const currentPrice = parseFloat(candle[4]);
-
-                // Calculate Indicators
-                const smaLong = TechnicalIndicators.calculateSMA(prices, this.smaLong);
-                const rsi = TechnicalIndicators.calculateRSI(prices, this.rsiPeriod);
-                const bb = TechnicalIndicators.calculateBollingerBands(prices, this.bbPeriod, this.bbStdDev);
-                const atr = TechnicalIndicators.calculateATR(highs, lows, prices, this.atrPeriod);
-
-                // Safety check: ensure indicators were calculated
-                if (!smaLong || !rsi || !bb || !atr) return null;
-
-                // Save for status reporting
-                this.lastIndicators = {
-                        rsi: rsi.toFixed(2),
-                        sma200: smaLong.toFixed(2),
-                        bbUpper: bb.upper.toFixed(2),
-                        bbLower: bb.lower.toFixed(2),
-                        atr: atr.toFixed(2),
-                        volatility: ((atr / currentPrice) * 100).toFixed(2)
-                };
-
-                // --- TRADING LOGIC ---
-                const volatilityPercent = (atr / currentPrice) * 100;
-                const trendBullish = currentPrice > smaLong;
-
-                // 🟢 BUY SIGNAL
-                // Rule: Bullish Trend + RSI Oversold + Price near lower BB
-                if (trendBullish && rsi < this.rsiBuyBound && currentPrice < bb.lower && volatilityPercent < this.maxVolatilityPercent) {
-                        return {
-                                action: 'BUY',
-                                price: currentPrice,
-                                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & Lower BB Break`
-                        };
-                }
-
-                // 🔴 SELL SIGNAL
-                // Rule: RSI Overbought OR Trend Reversal
-                if (rsi > this.rsiSellBound) {
-                        return { action: 'SELL', price: currentPrice, reason: `RSI Overbought (${rsi.toFixed(2)})` };
-                }
-
-                if (currentPrice < smaLong * 0.995) { // Small buffer for noise
-                        return { action: 'SELL', price: currentPrice, reason: `Trend Reversal (Below SMA200)` };
-                }
-
-                return null; // Hold
+        // 🟢 BUY LOGIC: Trend Up + Oversold + Near BB Lower
+        if (!inPosition && trendBullish && rsi < this.rsiBuyBound && currentPrice < bb.lower) {
+            this.highWaterMark = currentPrice;
+            return {
+                action: 'BUY',
+                price: currentPrice,
+                reason: `Bullish Trend & RSI ${rsi.toFixed(2)} & BB Lower Break`
+            };
         }
+
+        // 🔴 SELL LOGIC: Extreme Overbought
+        if (inPosition && rsi > this.rsiSellBound) {
+            this.highWaterMark = 0;
+            return {
+                action: 'SELL',
+                price: currentPrice,
+                reason: `EXTREME RSI OVERBOUGHT (${rsi.toFixed(2)})`
+            };
+        }
+
+        return null;
+    }
 }
 
 module.exports = BoosisTrend;

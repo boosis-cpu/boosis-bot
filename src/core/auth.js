@@ -1,42 +1,13 @@
+
 const crypto = require('crypto');
-const { Pool } = require('pg');
+const db = require('./database');
 
 class SimpleAuth {
     constructor() {
         this.adminPassword = process.env.ADMIN_PASSWORD;
 
         if (!this.adminPassword) {
-            throw new Error('ERROR: ADMIN_PASSWORD no configurado en .env');
-        }
-
-        // Conexión a PostgreSQL para persistir tokens
-        this.pool = new Pool({
-            user: process.env.DB_USER,
-            host: process.env.DB_HOST,
-            database: process.env.DB_NAME,
-            password: process.env.DB_PASS,
-            port: process.env.DB_PORT || 5432,
-        });
-
-        this._initDatabase();
-    }
-
-    async _initDatabase() {
-        try {
-            // Crear tabla de tokens si no existe
-            await this.pool.query(`
-                CREATE TABLE IF NOT EXISTS auth_tokens (
-                    token VARCHAR(64) PRIMARY KEY,
-                    expiry BIGINT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_expiry ON auth_tokens(expiry);
-            `);
-
-            // Limpiar tokens expirados al iniciar
-            await this.pool.query('DELETE FROM auth_tokens WHERE expiry < $1', [Date.now()]);
-        } catch (error) {
-            console.error('Error inicializando tabla de tokens:', error.message);
+            console.error('ERROR: ADMIN_PASSWORD no configurado en .env');
         }
     }
 
@@ -49,9 +20,9 @@ class SimpleAuth {
         const expiry = Date.now() + (24 * 60 * 60 * 1000); // 24 horas
 
         try {
-            // Guardar token en base de datos
-            await this.pool.query(
-                'INSERT INTO auth_tokens (token, expiry) VALUES ($1, $2) ON CONFLICT (token) DO UPDATE SET expiry = $2',
+            // Guardar token en base de datos (Using 'sessions' table as per origin/main)
+            await db.pool.query(
+                'INSERT INTO sessions (token, expiry) VALUES ($1, $2) ON CONFLICT (token) DO UPDATE SET expiry = $2',
                 [token, expiry]
             );
             return token;
@@ -62,9 +33,11 @@ class SimpleAuth {
     }
 
     async verifyToken(token) {
+        if (!token) return false;
+
         try {
-            const result = await this.pool.query(
-                'SELECT expiry FROM auth_tokens WHERE token = $1',
+            const result = await db.pool.query(
+                'SELECT expiry FROM sessions WHERE token = $1',
                 [token]
             );
 
@@ -74,7 +47,7 @@ class SimpleAuth {
 
             if (Date.now() > expiry) {
                 // Token expirado, eliminarlo
-                await this.pool.query('DELETE FROM auth_tokens WHERE token = $1', [token]);
+                await this.revokeToken(token);
                 return false;
             }
 
@@ -87,7 +60,7 @@ class SimpleAuth {
 
     async revokeToken(token) {
         try {
-            await this.pool.query('DELETE FROM auth_tokens WHERE token = $1', [token]);
+            await db.pool.query('DELETE FROM sessions WHERE token = $1', [token]);
             return true;
         } catch (error) {
             console.error('Error revocando token:', error.message);
@@ -97,7 +70,7 @@ class SimpleAuth {
 
     async cleanExpiredTokens() {
         try {
-            await this.pool.query('DELETE FROM auth_tokens WHERE expiry < $1', [Date.now()]);
+            await db.pool.query('DELETE FROM sessions WHERE expiry < $1', [Date.now()]);
         } catch (error) {
             console.error('Error limpiando tokens expirados:', error.message);
         }
