@@ -330,6 +330,36 @@ function App() {
           </button>
         </div>
       )}
+
+      {data.activePosition && !data.emergencyStopped && (
+        <div style={{
+          background: '#238636',
+          color: 'white',
+          textAlign: 'center',
+          padding: '6px',
+          fontWeight: 'bold',
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '15px',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <TrendingUp size={16} />
+            <span>POSICIÓN ACTIVA: {data.activePosition.side}</span>
+          </div>
+          <span>Entrada: ${data.activePosition.entryPrice.toFixed(2)}</span>
+          <span style={{
+            background: 'rgba(0,0,0,0.2)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            color: (lastPrice - data.activePosition.entryPrice) >= 0 ? '#aff5b4' : '#ff9b9b'
+          }}>
+            PnL: {(((lastPrice - data.activePosition.entryPrice) / data.activePosition.entryPrice) * 100).toFixed(2)}%
+          </span>
+        </div>
+      )}
       <header className="header">
         <div className="flex items-center gap-4">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

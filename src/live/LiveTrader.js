@@ -44,6 +44,7 @@ class LiveTrader {
         this.totalBalanceUSD = 0;
         this.equityHistory = [];
         this.emergencyStopped = false;
+        this.activePosition = null;
 
         logger.info(`Initializing Boosis Live Trader [Symbol: ${CONFIG.symbol}, Strategy: ${this.strategy.name}]`);
         this.setupServer();
@@ -186,6 +187,7 @@ class LiveTrader {
                 totalBalanceUSD: this.totalBalanceUSD,
                 equityHistory: this.equityHistory.slice(-50),
                 emergencyStopped: this.emergencyStopped,
+                activePosition: this.activePosition,
                 marketStatus: this.calculateMarketHealth()
             });
         });
@@ -296,6 +298,9 @@ class LiveTrader {
             await db.initSchema();
             await this.initTradingModeTable();
             await this.loadTradingMode();
+            await this.loadPaperBalance();
+            await this.loadActivePosition();
+            await this.loadRecentTrades();
 
             // 1. Initial Data Load (Bootstrap)
             await this.loadHistoricalData();
@@ -304,8 +309,12 @@ class LiveTrader {
             this.fetchRealBalance();
             setInterval(() => this.fetchRealBalance(), 60000); // Refresh every minute
 
-            // 3. Connect to WebSocket
-            this.connectWebSocket();
+            // 3. Connect to WebSocket (skip if emergency stopped)
+            if (!this.emergencyStopped) {
+                this.connectWebSocket();
+            } else {
+                logger.warn('⚠️ Skipping WebSocket connection - Emergency Stop is active');
+            }
 
             // 4. Notify Startup
             notifications.notifyStartup({
@@ -349,6 +358,15 @@ class LiveTrader {
                     value TEXT NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE TABLE IF NOT EXISTS active_position (
+                    symbol VARCHAR(20) PRIMARY KEY,
+                    side VARCHAR(10) NOT NULL,
+                    entry_price DECIMAL NOT NULL,
+                    amount DECIMAL NOT NULL,
+                    is_paper BOOLEAN NOT NULL,
+                    timestamp BIGINT NOT NULL
+                );
             `);
         } catch (error) {
             logger.error(`Error inicializando tabla de configuración: ${error.message}`);
@@ -358,12 +376,17 @@ class LiveTrader {
     async loadTradingMode() {
         try {
             const result = await db.pool.query(
-                'SELECT value FROM trading_settings WHERE key = $1',
-                ['live_trading']
+                'SELECT key, value FROM trading_settings WHERE key IN ($1, $2)',
+                ['live_trading', 'emergency_stopped']
             );
 
-            if (result.rows.length > 0) {
-                this.liveTrading = result.rows[0].value === 'true';
+            const settings = {};
+            result.rows.forEach(row => {
+                settings[row.key] = row.value;
+            });
+
+            if (settings.live_trading) {
+                this.liveTrading = settings.live_trading === 'true';
                 this.paperTrading = !this.liveTrading;
                 logger.info(`Trading Mode Loaded from DB: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
             } else {
@@ -372,6 +395,14 @@ class LiveTrader {
                 this.paperTrading = !this.liveTrading;
                 await this.saveTradingMode(); // Guardar el default en DB
                 logger.info(`Trading Mode Initialized from ENV: ${this.liveTrading ? 'LIVE (REAL MONEY)' : 'PAPER (SIMULATION)'}`);
+            }
+
+            // Load emergency stop state
+            if (settings.emergency_stopped) {
+                this.emergencyStopped = settings.emergency_stopped === 'true';
+                if (this.emergencyStopped) {
+                    logger.warn('⚠️ EMERGENCY STOP STATE RESTORED - Bot will not auto-connect to market');
+                }
             }
         } catch (error) {
             logger.error(`Error cargando modo de trading: ${error.message}`);
@@ -389,9 +420,110 @@ class LiveTrader {
                 ON CONFLICT (key) DO UPDATE
                 SET value = $2, updated_at = CURRENT_TIMESTAMP
             `, ['live_trading', this.liveTrading.toString()]);
+
+            await db.pool.query(`
+                INSERT INTO trading_settings (key, value, updated_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (key) DO UPDATE
+                SET value = $2, updated_at = CURRENT_TIMESTAMP
+            `, ['emergency_stopped', this.emergencyStopped.toString()]);
+
             logger.success(`Trading mode saved to database: ${this.liveTrading ? 'LIVE' : 'PAPER'}`);
         } catch (error) {
             logger.error(`Error guardando modo de trading: ${error.message}`);
+        }
+    }
+
+    async saveActivePosition(position) {
+        try {
+            await db.pool.query(`
+                INSERT INTO active_position (symbol, side, entry_price, amount, is_paper, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (symbol) DO UPDATE
+                SET side = $2, entry_price = $3, amount = $4, is_paper = $5, timestamp = $6
+            `, [
+                position.symbol,
+                position.side,
+                position.entryPrice,
+                position.amount,
+                position.isPaper,
+                position.timestamp
+            ]);
+            this.activePosition = position; // Update memory
+            logger.success(`Active position [${position.side}] saved to database.`);
+        } catch (error) {
+            logger.error(`Error saving active position: ${error.message}`);
+        }
+    }
+
+    async clearActivePosition() {
+        try {
+            await db.pool.query('DELETE FROM active_position WHERE symbol = $1', [CONFIG.symbol]);
+            this.activePosition = null; // Update memory
+            logger.info('Active position cleared from database.');
+        } catch (error) {
+            logger.error(`Error clearing active position: ${error.message}`);
+        }
+    }
+
+    async loadActivePosition() {
+        try {
+            const result = await db.pool.query('SELECT * FROM active_position WHERE symbol = $1', [CONFIG.symbol]);
+            if (result.rows.length > 0) {
+                const row = result.rows[0];
+                const position = {
+                    symbol: row.symbol,
+                    side: row.side,
+                    entryPrice: parseFloat(row.entry_price),
+                    amount: parseFloat(row.amount),
+                    isPaper: row.is_paper,
+                    timestamp: parseInt(row.timestamp)
+                };
+
+                this.activePosition = position; // Maintain in-memory tracking
+
+                // Restore internal state
+                if (position.isPaper) {
+                    this.balance.asset = position.amount;
+                    this.balance.usdt = 0;
+                }
+
+                logger.warn(`RECOVERY: Found active [${position.isPaper ? 'PAPER' : 'REAL'}] position: ${position.side} @ ${position.entryPrice}`);
+                return position;
+            }
+            return null;
+        } catch (error) {
+            logger.error(`Error loading active position: ${error.message}`);
+            return null;
+        }
+    }
+
+    async savePaperBalance() {
+        try {
+            await db.pool.query(`
+                INSERT INTO trading_settings (key, value, updated_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (key) DO UPDATE
+                SET value = $2, updated_at = CURRENT_TIMESTAMP
+            `, ['paper_balance', JSON.stringify(this.balance)]);
+            logger.debug('Paper balance saved to database');
+        } catch (error) {
+            logger.error(`Error saving paper balance: ${error.message}`);
+        }
+    }
+
+    async loadPaperBalance() {
+        try {
+            const result = await db.pool.query(
+                'SELECT value FROM trading_settings WHERE key = $1',
+                ['paper_balance']
+            );
+            if (result.rows.length > 0) {
+                this.balance = JSON.parse(result.rows[0].value);
+                logger.info(`Paper balance restored: $${this.balance.usdt.toFixed(2)} USDT + ${this.balance.asset.toFixed(6)} BTC`);
+            }
+        } catch (error) {
+            logger.error(`Error loading paper balance: ${error.message}`);
         }
     }
 
@@ -497,7 +629,7 @@ class LiveTrader {
             await this.executeRealTrade(signal);
         } else {
             // Paper trading is always the fallback if live is OFF
-            this.executePaperTrade(signal);
+            await this.executePaperTrade(signal);
         }
         this.recordEquitySnapshot(signal.price);
     }
@@ -549,6 +681,20 @@ class LiveTrader {
             this.trades.push(trade);
             await db.saveTrade(trade);
 
+            // Persist State
+            if (signal.action === 'BUY') {
+                await this.saveActivePosition({
+                    symbol: CONFIG.symbol,
+                    side: 'LONG',
+                    entryPrice: trade.price,
+                    amount: trade.amount,
+                    isPaper: false,
+                    timestamp: trade.timestamp
+                });
+            } else {
+                await this.clearActivePosition();
+            }
+
             notifications.notifyTrade({
                 ...trade,
                 status: 'CONCRETADA EN BINANCE',
@@ -563,7 +709,7 @@ class LiveTrader {
         }
     }
 
-    executePaperTrade(signal) {
+    async executePaperTrade(signal) {
         const fee = 0.001; // 0.1% fee
         const price = signal.price;
         const timestamp = Date.now();
@@ -586,7 +732,20 @@ class LiveTrader {
             this.trades.push(trade);
             notifications.notifyTrade({ ...trade, type: 'PAPER' });
 
+            // Persist State (Paper)
+            await this.saveActivePosition({
+                symbol: CONFIG.symbol,
+                side: 'LONG',
+                entryPrice: price,
+                amount: amountAsset,
+                isPaper: true,
+                timestamp: timestamp
+            });
+
             logger.success(`[PAPER TRADE] BOUGHT ${amountAsset.toFixed(6)} BTC @ ${price}. Portfolio Value: ~$${(amountAsset * price).toFixed(2)}`);
+
+            // Save paper balance
+            await this.savePaperBalance();
 
             // Low balance alert (Paper)
             if (this.balance.usdt < 10) {
@@ -610,7 +769,36 @@ class LiveTrader {
             this.trades.push(trade);
             notifications.notifyTrade({ ...trade, type: 'PAPER' });
 
+            // Clear State (Paper)
+            await this.clearActivePosition();
+
+            // Save paper balance
+            await this.savePaperBalance();
+
             logger.success(`[PAPER TRADE] SOLD ${amountAsset.toFixed(6)} BTC @ ${price}. New Balance: $${this.balance.usdt.toFixed(2)}`);
+        }
+    }
+
+    async loadRecentTrades() {
+        try {
+            const result = await db.pool.query(
+                'SELECT * FROM trades ORDER BY timestamp DESC LIMIT 50'
+            );
+
+            this.trades = result.rows.map(row => ({
+                symbol: row.symbol,
+                side: row.side,
+                price: parseFloat(row.price),
+                amount: parseFloat(row.amount),
+                timestamp: parseInt(row.timestamp),
+                is_paper: row.is_paper,
+                reason: row.reason,
+                entryPrice: parseFloat(row.entry_price) || null
+            })).reverse(); // Reverse to maintain chronological order
+
+            logger.info(`Loaded ${this.trades.length} recent trades from database`);
+        } catch (error) {
+            logger.error(`Error loading recent trades: ${error.message}`);
         }
     }
 
