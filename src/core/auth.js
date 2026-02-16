@@ -1,13 +1,14 @@
 
 const crypto = require('crypto');
 const db = require('./database');
+const logger = require('./logger');
 
 class SimpleAuth {
     constructor() {
         this.adminPassword = process.env.ADMIN_PASSWORD;
 
         if (!this.adminPassword) {
-            console.error('ERROR: ADMIN_PASSWORD no configurado en .env');
+            throw new Error('ADMIN_PASSWORD is required in environment variables. Cannot start without it.');
         }
     }
 
@@ -27,7 +28,7 @@ class SimpleAuth {
             );
             return token;
         } catch (error) {
-            console.error('Error guardando token:', error.message);
+            logger.error('Error guardando token:', error.message);
             return null;
         }
     }
@@ -53,7 +54,7 @@ class SimpleAuth {
 
             return true;
         } catch (error) {
-            console.error('Error verificando token:', error.message);
+            logger.error('Error verificando token:', error.message);
             return false;
         }
     }
@@ -63,7 +64,7 @@ class SimpleAuth {
             await db.pool.query('DELETE FROM sessions WHERE token = $1', [token]);
             return true;
         } catch (error) {
-            console.error('Error revocando token:', error.message);
+            logger.error('Error revocando token:', error.message);
             return false;
         }
     }
@@ -72,7 +73,7 @@ class SimpleAuth {
         try {
             await db.pool.query('DELETE FROM sessions WHERE expiry < $1', [Date.now()]);
         } catch (error) {
-            console.error('Error limpiando tokens expirados:', error.message);
+            logger.error('Error limpiando tokens expirados:', error.message);
         }
     }
 }

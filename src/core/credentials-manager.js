@@ -1,6 +1,7 @@
 // src/core/credentials-manager.js
 const encryption = require('./encryption');
 const db = require('./database');
+const logger = require('./logger');
 
 class CredentialsManager {
     // Guardar credenciales encriptadas
@@ -20,10 +21,10 @@ class CredentialsManager {
           updated_at = CURRENT_TIMESTAMP
       `, [exchange, encryptedKey, encryptedSecret]);
 
-            console.log(`[Credentials] ✅ Credenciales guardadas para ${exchange}`);
+            logger.info(`[Credentials] Credenciales guardadas para ${exchange}`);
             return true;
         } catch (error) {
-            console.error('[Credentials] ❌ Error guardando:', error.message);
+            logger.error('[Credentials] Error guardando:', error.message);
             throw error;
         }
     }
@@ -54,7 +55,7 @@ class CredentialsManager {
 
             return { apiKey, apiSecret };
         } catch (error) {
-            console.error('[Credentials] ❌ Error obteniendo:', error.message);
+            logger.error('[Credentials] Error obteniendo:', error.message);
             throw error;
         }
     }
@@ -69,7 +70,7 @@ class CredentialsManager {
 
             return parseInt(result.rows[0].count) > 0;
         } catch (error) {
-            console.error('[Credentials] ❌ Error verificando:', error.message);
+            logger.error('[Credentials] Error verificando:', error.message);
             return false;
         }
     }
@@ -83,10 +84,10 @@ class CredentialsManager {
         WHERE exchange = $1
       `, [exchange]);
 
-            console.log(`[Credentials] ✅ Credenciales desactivadas para ${exchange}`);
+            logger.info(`[Credentials] Credenciales desactivadas para ${exchange}`);
             return true;
         } catch (error) {
-            console.error('[Credentials] ❌ Error desactivando:', error.message);
+            logger.error('[Credentials] Error desactivando:', error.message);
             throw error;
         }
     }

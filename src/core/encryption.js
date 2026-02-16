@@ -1,9 +1,14 @@
 // src/core/encryption.js
 const crypto = require('crypto');
+const logger = require('./logger');
 
 class Encryption {
     constructor() {
-        this.masterKey = process.env.ENCRYPTION_MASTER_KEY || 'default-dev-key-change-in-prod';
+        const masterKey = process.env.ENCRYPTION_MASTER_KEY;
+        if (!masterKey) {
+            throw new Error('ENCRYPTION_MASTER_KEY is required in environment variables. Cannot start without it.');
+        }
+        this.masterKey = masterKey;
         this.algorithm = 'aes-256-cbc';
     }
 
@@ -23,7 +28,7 @@ class Encryption {
             // Devolver IV + encrypted (necesario para desencriptar)
             return `${iv.toString('hex')}:${encrypted}`;
         } catch (error) {
-            console.error('[Encryption] Error encriptando:', error.message);
+            logger.error('[Encryption] Error encriptando:', error.message);
             throw error;
         }
     }
@@ -45,7 +50,7 @@ class Encryption {
 
             return decrypted;
         } catch (error) {
-            console.error('[Encryption] Error desencriptando:', error.message);
+            logger.error('[Encryption] Error desencriptando:', error.message);
             throw error;
         }
     }

@@ -1,19 +1,24 @@
 const { Pool } = require('pg');
+const logger = require('./logger');
 
 class DatabaseManager {
     constructor() {
+        const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME'];
+        const missing = requiredVars.filter(v => !process.env[v]);
+        if (missing.length > 0) {
+            throw new Error(`Missing required database environment variables: ${missing.join(', ')}`);
+        }
+
         this.pool = new Pool({
-            host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER || 'boosis_admin',
-            password: process.env.DB_PASS || 'boosis_secure_pass_2024',
-            database: process.env.DB_NAME || 'boosis_db',
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASS,
+            database: process.env.DB_NAME,
             port: parseInt(process.env.DB_PORT || '5432'),
-            // SSL is usually needed for remote connections, but within Docker it's not strictly necessary
-            // unless configured. For now we keep it simple since we're in the same network.
         });
 
         this.pool.on('error', (err) => {
-            console.error('[DB] Unexpected error on idle client', err);
+            logger.error('[DB] Unexpected error on idle client', err);
         });
     }
 
@@ -24,7 +29,7 @@ class DatabaseManager {
     async init() {
         const client = await this.pool.connect();
         try {
-            console.log('[DB] Initializing database tables...');
+            logger.info('[DB] Initializing database tables...');
 
             // 1. Candles Table
             await client.query(`
@@ -79,9 +84,9 @@ class DatabaseManager {
             // Cleanup expired sessions
             await client.query('DELETE FROM sessions WHERE expiry < $1', [Date.now()]);
 
-            console.log('[DB] Database ready.');
+            logger.info('[DB] Database ready.');
         } catch (err) {
-            console.error('[DB] Error initializing database:', err);
+            logger.error('[DB] Error initializing database:', err);
             throw err;
         } finally {
             client.release();

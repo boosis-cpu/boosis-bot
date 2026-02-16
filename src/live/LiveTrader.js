@@ -1,11 +1,10 @@
 
 require('dotenv').config();
 const WebSocket = require('ws');
-const axios = require('axios');
 const path = require('path');
 const express = require('express');
-const os = require('os');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const logger = require('../core/logger');
 const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
@@ -80,6 +79,25 @@ class LiveTrader {
         this.app.use(cors());
         this.app.use(express.json());
 
+        // Rate limiting
+        const loginLimiter = rateLimit({
+            windowMs: 15 * 60 * 1000, // 15 minutos
+            max: 5, // máximo 5 intentos por ventana
+            message: { error: 'Demasiados intentos de login. Intenta de nuevo en 15 minutos.' },
+            standardHeaders: true,
+            legacyHeaders: false,
+        });
+
+        const apiLimiter = rateLimit({
+            windowMs: 60 * 1000, // 1 minuto
+            max: 100, // 100 requests por minuto
+            message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un momento.' },
+            standardHeaders: true,
+            legacyHeaders: false,
+        });
+
+        this.app.use('/api/', apiLimiter);
+
         const authMiddleware = async (req, res, next) => {
             if (req.url === '/api/login' || req.originalUrl === '/api/login') return next();
             const authHeader = req.headers.authorization || '';
@@ -93,7 +111,7 @@ class LiveTrader {
 
         this.app.use(express.static(path.join(__dirname, '../../public')));
 
-        this.app.post('/api/login', async (req, res) => {
+        this.app.post('/api/login', loginLimiter, async (req, res) => {
             const { password } = req.body;
             const token = await auth.generateToken(password);
             if (!token) return res.status(401).json({ error: 'Contraseña incorrecta' });
