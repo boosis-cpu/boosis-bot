@@ -349,6 +349,29 @@ class LiveTrader {
             }
         });
 
+        // ⛏️ DATA MINER API (The Refinery)
+        this.app.post('/api/miner/mine', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, days } = req.body;
+                if (!symbol || !days) return res.status(400).json({ error: 'symbol and days required' });
+
+                const miner = require('../core/data_miner');
+
+                // Start async job (don't await)
+                miner.mineToDatabase(symbol, '5m', parseInt(days))
+                    .catch(err => logger.error(`[Miner Background Error] ${err.message}`));
+
+                res.json({ status: 'started', symbol, days });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.get('/api/miner/status', authMiddleware, (req, res) => {
+            const miner = require('../core/data_miner');
+            res.json(miner.getStatus());
+        });
+
         this.app.get('/api/refinery/history/:symbol', authMiddleware, async (req, res) => {
             try {
                 const { symbol } = req.params;

@@ -34,4 +34,8 @@ export const setTradingMode = (live) => api.post('/settings/trading-mode', { liv
 export const emergencyStop = () => api.post('/emergency-stop');
 export const runOptimization = (symbol, period, params) => api.post('/optimize', { symbol, period, params });
 
+// Data Miner
+export const startMining = (symbol, days) => api.post('/miner/mine', { symbol, days });
+export const getMinerStatus = () => api.get('/miner/status');
+
 export default api;

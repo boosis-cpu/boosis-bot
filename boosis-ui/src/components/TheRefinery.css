@@ -67,6 +67,118 @@
   color: #ff0064;
 }
 
+/* MINER SECTION STYLES */
+.miner-section {
+  background: rgba(255, 166, 0, 0.05);
+  border: 1px solid rgba(255, 166, 0, 0.3);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.miner-section h3 {
+  margin: 0 0 15px 0;
+  color: #FFA500;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.miner-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.days-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.days-selector select {
+  padding: 8px 12px;
+  background: #0a0e27;
+  border: 1px solid #FFA500;
+  color: #FFA500;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-mine {
+  padding: 10px 20px;
+  background: rgba(255, 166, 0, 0.2);
+  border: 1px solid #FFA500;
+  color: #FFA500;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+
+.btn-mine:hover:not(:disabled) {
+  background: #FFA500;
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 166, 0, 0.6);
+}
+
+.btn-mine.mining {
+  background: #333;
+  border-color: #555;
+  color: #aaa;
+  cursor: not-allowed;
+  animation: pulse-gray 2s infinite;
+}
+
+.miner-progress {
+  margin-top: 20px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 10px;
+  background: #0a0e27;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FFA500, #FFD700);
+  width: 0%;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(255, 166, 0, 0.5);
+}
+
+.progress-text {
+  text-align: right;
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 5px;
+}
+
+@keyframes pulse-gray {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* --- End Miner Styles --- */
+
 .refinery-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -259,28 +371,6 @@
   border: 1px solid rgba(0, 255, 255, 0.1);
 }
 
-.backtest-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.btn-save, .btn-load {
-  padding: 10px 15px;
-  border: 1px solid #00ffff;
-  background: rgba(0, 255, 255, 0.1);
-  color: #00ffff;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: bold;
-  transition: all 0.3s;
-}
-
-.btn-save:hover, .btn-load:hover {
-  background: rgba(0, 255, 255, 0.3);
-}
-
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -335,6 +425,13 @@
   text-align: right;
 }
 
+.refinery-loading {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  font-size: 16px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .refinery-container {
@@ -348,11 +445,4 @@
   .metrics {
     grid-template-columns: 1fr;
   }
-}
-
-.refinery-loading {
-  text-align: center;
-  padding: 40px;
-  color: #888;
-  font-size: 16px;
 }

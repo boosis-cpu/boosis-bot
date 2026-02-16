@@ -4,6 +4,7 @@ import axios from 'axios';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import { startMining, getMinerStatus } from '../services/api';
 import './TheRefinery.css';
 
 export default function TheRefinery({ token }) {
@@ -17,12 +18,41 @@ export default function TheRefinery({ token }) {
     const [history, setHistory] = useState([]);
     const backtestTimeoutRef = useRef(null);
 
+    // Miner State
+    const [minerDays, setMinerDays] = useState(90);
+    const [minerJob, setMinerJob] = useState(null);
+    const [minerInterval, setMinerInterval] = useState(null);
+
     // Cargar perfil al cambiar símbolo
     useEffect(() => {
         loadProfile();
         loadProfiles();
         loadHistory();
     }, [selectedSymbol]);
+
+    // Miner Polling (Global, checks any active job)
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const res = await getMinerStatus();
+                if (res.data && res.data.status === 'mining') {
+                    setMinerJob(res.data);
+                } else if (res.data && (res.data.status === 'completed' || res.data.status === 'error')) {
+                    setMinerJob(res.data);
+                    // Stop polling after a few seconds of result
+                    if (res.data.status === 'completed') setMessage('✅ Minería completada exitosamente');
+                    if (res.data.status === 'error') setMessage(`❌ Error minería: ${res.data.error}`);
+                }
+            } catch (err) {
+                console.error("Miner poll error", err);
+            }
+        };
+
+        // Poll immediately and then interval
+        checkStatus();
+        const interval = setInterval(checkStatus, 2000);
+        return () => clearInterval(interval);
+    }, []);
 
     const loadProfile = async () => {
         try {
@@ -65,6 +95,15 @@ export default function TheRefinery({ token }) {
         }
     };
 
+    const handleStartMining = async () => {
+        try {
+            setMessage('⛏️ Iniciando inyección de datos...');
+            await startMining(selectedSymbol, minerDays);
+        } catch (error) {
+            setMessage(`❌ Error iniciando minería: ${error.response?.data?.error || error.message}`);
+        }
+    };
+
     const handleSliderChange = (field, value) => {
         const [group, subfield] = field.split('.');
         setFormData(prev => ({
@@ -89,10 +128,6 @@ export default function TheRefinery({ token }) {
     }, [selectedSymbol, formData]);
 
     const handleBacktestInternal = async (field, value) => {
-        // Necesitamos usar el formData actualizado, pero como setFormData es async, 
-        // pasamos el valor actual de forma manual para el backtest si es posible 
-        // o simplemente confiamos en el debounce lo suficiente.
-        // Una mejora sería calcular el nuevo objeto params aquí.
         const [group, subfield] = field.split('.');
         const updatedParams = {
             ...formData,
@@ -120,8 +155,6 @@ export default function TheRefinery({ token }) {
 
             setMessage('✅ Parámetros actualizados (aplicados en próxima vela)');
             setProfile(formData);
-
-            // Auto-clear mensaje
             setTimeout(() => setMessage(''), 3000);
         } catch (error) {
             setMessage(`❌ Error: ${error.response?.data?.error || error.message}`);
@@ -213,7 +246,7 @@ export default function TheRefinery({ token }) {
                     <select
                         value={selectedSymbol}
                         onChange={(e) => setSelectedSymbol(e.target.value)}
-                        disabled={loading}
+                        disabled={loading || (minerJob && minerJob.status === 'mining')}
                     >
                         <option value="BTCUSDT">Bitcoin (BTCUSDT)</option>
                         <option value="ETHUSDT">Ethereum (ETHUSDT)</option>
@@ -226,6 +259,41 @@ export default function TheRefinery({ token }) {
                 {message && (
                     <div className={`message ${message.includes('✅') ? 'success' : 'error'}`}>
                         {message}
+                    </div>
+                )}
+            </div>
+
+            {/* MINER SECTION */}
+            <div className="miner-section">
+                <h3>⛏️ INYECCIÓN DE DATOS DE MERCADO</h3>
+                <div className="miner-controls">
+                    <div className="days-selector">
+                        <label>Historial a inyectar:</label>
+                        <select value={minerDays} onChange={(e) => setMinerDays(e.target.value)} disabled={minerJob?.status === 'mining'}>
+                            <option value="30">30 Días (Rápido)</option>
+                            <option value="90">90 Días (Estándar)</option>
+                            <option value="180">6 Meses (Robusto)</option>
+                            <option value="365">1 Año (Completo)</option>
+                        </select>
+                    </div>
+
+                    <button
+                        className={`btn-mine ${minerJob?.status === 'mining' ? 'mining' : ''}`}
+                        onClick={handleStartMining}
+                        disabled={minerJob?.status === 'mining'}
+                    >
+                        {minerJob?.status === 'mining' ? '⛏️ MINANDO DATOS...' : '💉 INYECTAR DATOS'}
+                    </button>
+                </div>
+
+                {minerJob && minerJob.status === 'mining' && (
+                    <div className="miner-progress">
+                        <div className="progress-bar-container">
+                            <div className="progress-bar" style={{ width: `${minerJob.progress}%` }}></div>
+                        </div>
+                        <div className="progress-text">
+                            Importando {minerJob.symbol}: {minerJob.progress}% ({minerJob.imported} velas)
+                        </div>
                     </div>
                 )}
             </div>
@@ -270,7 +338,7 @@ export default function TheRefinery({ token }) {
                         </div>
                     </div>
 
-                    {/* EMA */}
+                    {/* EMA Ranges... */}
                     <div className="param-group">
                         <label>EMA Short</label>
                         <div className="slider-container">
@@ -288,93 +356,21 @@ export default function TheRefinery({ token }) {
                     </div>
 
                     <div className="param-group">
-                        <label>EMA Long</label>
-                        <div className="slider-container">
-                            <input
-                                type="range"
-                                min="10"
-                                max="100"
-                                step="1"
-                                value={formData.ema?.long || 21}
-                                onChange={(e) => handleSliderChangeWithDebounce('ema.long', e.target.value)}
-                                disabled={loading}
-                            />
-                            <span className="value">{formData.ema?.long || 21}</span>
-                        </div>
-                    </div>
-
-                    <div className="param-group">
                         <label>EMA Trend</label>
                         <div className="slider-container">
-                            <input
-                                type="range"
-                                min="20"
-                                max="200"
-                                step="1"
+                            <input type="range" min="10" max="200" step="1"
                                 value={formData.ema?.trend || 50}
                                 onChange={(e) => handleSliderChangeWithDebounce('ema.trend', e.target.value)}
-                                disabled={loading}
                             />
                             <span className="value">{formData.ema?.trend || 50}</span>
                         </div>
                     </div>
 
-                    {/* Bollinger Bands */}
-                    <div className="param-group">
-                        <label>BB Period</label>
-                        <div className="slider-container">
-                            <input
-                                type="range"
-                                min="5"
-                                max="50"
-                                step="1"
-                                value={formData.bb?.period || 20}
-                                onChange={(e) => handleSliderChangeWithDebounce('bb.period', e.target.value)}
-                                disabled={loading}
-                            />
-                            <span className="value">{formData.bb?.period || 20}</span>
-                        </div>
-                    </div>
-
-                    <div className="param-group">
-                        <label>BB Std Dev</label>
-                        <div className="slider-container">
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="5"
-                                step="0.1"
-                                value={formData.bb?.stdDev || 2.5}
-                                onChange={(e) => handleSliderChangeWithDebounce('bb.stdDev', e.target.value)}
-                                disabled={loading}
-                            />
-                            <span className="value">{formData.bb?.stdDev || 2.5}</span>
-                        </div>
-                    </div>
-
                     {/* Botones de acción */}
                     <div className="action-buttons">
-                        <button
-                            onClick={handleReset}
-                            disabled={loading}
-                            className="btn-reset"
-                        >
-                            🔄 Reset
-                        </button>
-                        <button
-                            onClick={handleApply}
-                            disabled={loading}
-                            className="btn-apply"
-                        >
-                            ✅ Aplicar
-                        </button>
-                        <button
-                            onClick={handleBacktest}
-                            disabled={loading}
-                            className="btn-backtest"
-                        >
-                            📊 Backtest
-                        </button>
+                        <button onClick={handleReset} disabled={loading} className="btn-reset">🔄 Reset</button>
+                        <button onClick={handleApply} disabled={loading} className="btn-apply">✅ Aplicar</button>
+                        <button onClick={handleBacktest} disabled={loading} className="btn-backtest">📊 Backtest</button>
                     </div>
                 </div>
 
@@ -390,8 +386,8 @@ export default function TheRefinery({ token }) {
                                     <div className="success">{backtest.winRate}%</div>
                                 </div>
                                 <div className="metric">
-                                    <label>Sharpe Ratio</label>
-                                    <div className="success">{backtest.sharpe}</div>
+                                    <label>ROI</label>
+                                    <div className={backtest.roi >= 0 ? 'success' : 'danger'}>{backtest.roi}%</div>
                                 </div>
                                 <div className="metric">
                                     <label>Max Drawdown</label>
@@ -407,8 +403,8 @@ export default function TheRefinery({ token }) {
                                 <ResponsiveContainer width="100%" height={250}>
                                     <LineChart data={backtest.equity}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                                        <XAxis dataKey="time" stroke="#888" />
-                                        <YAxis stroke="#888" />
+                                        <XAxis dataKey="time" stroke="#888" minTickGap={30} />
+                                        <YAxis stroke="#888" domain={['auto', 'auto']} />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
                                             labelStyle={{ color: '#fff' }}
@@ -419,14 +415,10 @@ export default function TheRefinery({ token }) {
                                             stroke="#00ff00"
                                             isAnimationActive={false}
                                             strokeWidth={2}
+                                            dot={false}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>
-                            </div>
-
-                            <div className="backtest-actions">
-                                <button className="btn-save">💾 Guardar Perfil</button>
-                                <button className="btn-load">📂 Cargar Perfil</button>
                             </div>
                         </>
                     ) : (
@@ -445,8 +437,7 @@ export default function TheRefinery({ token }) {
                     {history.length > 0 ? history.map((item, idx) => (
                         <div key={idx} className="history-item">
                             <span className="date">{new Date(item.changed_at).toLocaleString()}</span>
-                            <span className="change">{item.field_changed}: {item.new_value.length > 30 ? 'Params' : item.new_value}</span>
-                            <span className="user">{item.changed_by}</span>
+                            <span className="change">{item.field_changed} &rarr; {typeof item.new_value === 'object' ? 'Params' : item.new_value}</span>
                         </div>
                     )) : (
                         <div className="empty-state">No hay historial de cambios</div>

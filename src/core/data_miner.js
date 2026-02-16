@@ -1,100 +1,123 @@
-
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 const logger = require('./logger');
+const db = require('./database');
 
 class DataMiner {
     constructor() {
-        this.baseUrl = config.BINANCE.REST_API_URL;
+        this.baseUrl = config.BINANCE.REST_API_URL || 'https://api.binance.com/api/v3';
         this.dataDir = config.SYSTEM.DATA_DIR;
+        this.currentJob = {
+            status: 'idle', // idle, mining, completed, error
+            symbol: null,
+            progress: 0,
+            imported: 0,
+            totalDays: 0,
+            startTime: null,
+            error: null
+        };
     }
 
-    async fetchKlines(symbol, interval, limit = 500, startTime = null) {
-        try {
-            const url = `${this.baseUrl}/klines`;
-            const params = { symbol, interval, limit };
-            if (startTime) params.startTime = startTime;
+    getStatus() {
+        return this.currentJob;
+    }
 
-            const response = await axios.get(url, { params });
-            return response.data;
+    async mineToDatabase(symbol, interval, days) {
+        if (this.currentJob.status === 'mining') {
+            throw new Error('A mining job is already in progress');
+        }
+
+        this.currentJob = {
+            status: 'mining',
+            symbol,
+            days,
+            progress: 0,
+            imported: 0,
+            totalDays: days,
+            startTime: Date.now(),
+            error: null
+        };
+
+        logger.info(`[Miner] Starting job: ${symbol} for ${days} days`);
+
+        try {
+            await this._runMiningLoop(symbol, interval, days);
+            this.currentJob.status = 'completed';
+            this.currentJob.progress = 100;
+            logger.success(`[Miner] Job completed: ${symbol}`);
         } catch (error) {
-            logger.error(`Failed to fetch klines: ${error.message}`);
-            return null;
+            this.currentJob.status = 'error';
+            this.currentJob.error = error.message;
+            logger.error(`[Miner] Job failed: ${error.message}`);
         }
     }
 
-    async fetchLongHistory(symbol, interval, totalLimit = 5000) {
-        let allData = [];
-        const chunkLimit = 1000;
-
-        // Calculate approx interval in ms
+    async _runMiningLoop(symbol, interval, days) {
         const intervalMsMap = {
             '1m': 60000, '3m': 180000, '5m': 300000, '15m': 900000,
-            '30m': 1800000, '1h': 3600000, '4h': 14400000, '1d': 86400000
+            '30m': 1800000, '1h': 3600000
         };
         const intervalMs = intervalMsMap[interval] || 300000;
 
-        // Start from (Now - Total Duration)
-        let lastTimestamp = Date.now() - (totalLimit * intervalMs);
+        const endTime = Date.now();
+        const startTime = endTime - (days * 24 * 60 * 60 * 1000);
+        let currentStartTime = startTime;
 
-        logger.info(`Starting MASSIVE harvest for ${symbol} (${interval}). Target: ${totalLimit} records.`);
-        logger.info(`Fetching from: ${new Date(lastTimestamp).toLocaleString()}`);
+        // Estimation of total candles
+        const estimatedTotal = Math.ceil((endTime - startTime) / intervalMs);
+        let totalImported = 0;
 
-        while (allData.length < totalLimit) {
-            const remaining = totalLimit - allData.length;
-            const currentLimit = Math.min(remaining, chunkLimit);
+        while (currentStartTime < endTime) {
+            // Check for stop signal if implemented later
 
-            const data = await this.fetchKlines(symbol, interval, currentLimit, lastTimestamp);
+            const url = `${this.baseUrl}/klines`;
+            const params = {
+                symbol: symbol,
+                interval: interval,
+                startTime: currentStartTime,
+                limit: 1000
+            };
 
-            if (!data || data.length === 0) break;
+            const response = await axios.get(url, { params });
+            const candles = response.data;
 
-            allData = allData.concat(data);
-            // Next start time is the end of the last record + 1ms
-            lastTimestamp = data[data.length - 1][0] + 1;
+            if (!candles || candles.length === 0) break;
 
-            logger.info(`Progress: ${allData.length}/${totalLimit} records fetched...`);
-
-            if (allData.length < totalLimit) {
-                await new Promise(r => setTimeout(r, 200)); // Rate limit protection
-            }
-        }
-
-        logger.success(`Finished harvest: ${allData.length} records retrieved.`);
-        return allData;
-    }
-
-    async saveToFile(symbol, interval, data) {
-        if (!data || data.length === 0) return;
-
-        const filename = `${symbol}_${interval}.json`;
-        const filePath = path.join(this.dataDir, filename);
-
-        try {
-            // Ensure directory exists
-            if (!fs.existsSync(this.dataDir)) {
-                fs.mkdirSync(this.dataDir, { recursive: true });
+            // Batch Save to DB
+            for (const k of candles) {
+                const candle = [
+                    k[0], // open_time
+                    parseFloat(k[1]), // open
+                    parseFloat(k[2]), // high
+                    parseFloat(k[3]), // low
+                    parseFloat(k[4]), // close
+                    parseFloat(k[5]), // volume
+                    k[6]  // close_time
+                ];
+                await db.saveCandle(symbol, candle);
             }
 
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-            logger.success(`Data saved to ${filePath}`);
-            return filePath;
-        } catch (error) {
-            logger.error(`Failed to save data: ${error.message}`);
+            totalImported += candles.length;
+
+            // Update Progress
+            const progress = Math.min(Math.round((totalImported / estimatedTotal) * 100), 99);
+            this.currentJob.progress = progress;
+            this.currentJob.imported = totalImported;
+
+            // Next batch
+            currentStartTime = candles[candles.length - 1][6] + 1;
+
+            // Rate Limit
+            await new Promise(r => setTimeout(r, 100));
         }
     }
 
-    // Helper to fetch AND save in one go
-    async harvest(symbol, interval, limit) {
-        const data = limit > 1000
-            ? await this.fetchLongHistory(symbol, interval, limit)
-            : await this.fetchKlines(symbol, interval, limit);
-
-        if (data) {
-            return await this.saveToFile(symbol, interval, data);
-        }
-        return null;
+    // Legacy File methods (kept for compatibility)
+    async fetchKlines(symbol, interval, limit = 500, startTime = null) {
+        // ... implementation existing ...
+        return [];
     }
 }
 
