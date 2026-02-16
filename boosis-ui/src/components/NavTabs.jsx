@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart2, FlaskConical } from 'lucide-react';
+import { BarChart2, FlaskConical, Cpu } from 'lucide-react';
 
 const NavTabs = () => {
     const navigate = useNavigate();
@@ -74,6 +74,25 @@ const NavTabs = () => {
                 }}
             >
                 <BarChart2 size={16} /> Multi-Activo
+            </button>
+            <button
+                onClick={() => navigate('/lab')}
+                style={{
+                    padding: '10px 20px',
+                    background: isActive('/lab') ? '#0d1117' : 'transparent',
+                    border: '1px solid #30363d',
+                    borderBottom: isActive('/lab') ? 'none' : '1px solid #30363d',
+                    color: isActive('/lab') ? '#a371f7' : '#8b949e',
+                    borderRadius: '8px 8px 0 0',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}
+            >
+                <Cpu size={16} /> The Lab
             </button>
         </div>
     );

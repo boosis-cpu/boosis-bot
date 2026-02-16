@@ -333,6 +333,22 @@ class LiveTrader {
             }
         });
 
+        // POST /api/optimize (The Lab)
+        this.app.post('/api/optimize', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, period, params } = req.body;
+                if (!symbol || !params) return res.status(400).json({ error: 'symbol y params iniciales requeridos' });
+
+                const optimizer = require('../core/optimizer');
+                const results = await optimizer.optimize(symbol, period || '1m', params);
+
+                res.json({ status: 'ok', results });
+            } catch (error) {
+                logger.error(`[API] Error en optimización: ${error.message}`);
+                res.status(500).json({ error: error.message });
+            }
+        });
+
         this.app.get('/api/refinery/history/:symbol', authMiddleware, async (req, res) => {
             try {
                 const { symbol } = req.params;

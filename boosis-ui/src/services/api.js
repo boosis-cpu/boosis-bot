@@ -32,5 +32,6 @@ export const getHealth = () => api.get('/health');
 export const getMetrics = () => api.get('/metrics');
 export const setTradingMode = (live) => api.post('/settings/trading-mode', { live });
 export const emergencyStop = () => api.post('/emergency-stop');
+export const runOptimization = (symbol, period, params) => api.post('/optimize', { symbol, period, params });
 
 export default api;
