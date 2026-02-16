@@ -50,8 +50,9 @@ class LiveTrader {
         // Trading State
         this.liveTrading = false;
         this.paperTrading = true;
+        this.initialCapital = 1000;
         this.balance = {
-            usdt: 1000,
+            usdt: this.initialCapital,
             asset: 0
         };
         this.realBalance = [];
@@ -166,6 +167,7 @@ class LiveTrader {
                 liveTrading: this.liveTrading,
                 paperTrading: !this.liveTrading,
                 balance: this.balance,
+                initialCapital: this.initialCapital,
                 realBalance: this.realBalance,
                 totalBalanceUSD: this.totalBalanceUSD,
                 emergencyStopped: this.emergencyStopped,
@@ -457,19 +459,19 @@ class LiveTrader {
 
     async executePaperTrade(symbol, signal, position) {
         const fee = 0.001;
+        let tradeAmount = 0;
+
         if (signal.action === 'BUY') {
-            // Simple allocation logic: Use all USDT balance for now (refined in future)
-            const amountUsdt = this.balance.usdt;
+            // Position sizing: divide capital equally among active pairs
+            const activePairs = Math.max(this.marketData.size, 1);
+            const maxAllocation = this.balance.usdt / activePairs;
+            const amountUsdt = Math.min(this.balance.usdt, maxAllocation);
             if (amountUsdt < 10) return; // Min trade
 
             const amountAsset = (amountUsdt / signal.price) * (1 - fee);
+            tradeAmount = amountAsset;
 
-            // Deduct USDT (Global Balance)
             this.balance.usdt -= amountUsdt;
-            // We need to track asset balance per symbol ideally, but for now simple swap
-            // In a real multi-asset paper wallet, 'this.balance' would need key 'ETH' etc.
-            // keeping it simple for BTC-only compatible logic:
-            if (symbol === CONFIG.symbol) this.balance.asset += amountAsset;
 
             const newPos = {
                 symbol: symbol,
@@ -491,9 +493,8 @@ class LiveTrader {
             // SELL
             if (!position) return;
             const usdtReceived = (position.amount * signal.price) * (1 - fee);
+            tradeAmount = position.amount;
             this.balance.usdt += usdtReceived;
-
-            if (symbol === CONFIG.symbol) this.balance.asset = 0;
 
             this.activePositions.delete(symbol);
             if (symbol === CONFIG.symbol) this.activePosition = null;
@@ -501,13 +502,85 @@ class LiveTrader {
             await this.clearActivePosition(symbol);
         }
         await this.savePaperBalance();
-        db.saveTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: 0 }); // Todo: fix amount
-        notifications.notifyTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: 0 });
+        db.saveTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: tradeAmount });
+        notifications.notifyTrade({ ...signal, symbol: symbol, type: 'PAPER', amount: tradeAmount });
     }
 
     async executeRealTrade(symbol, signal, position) {
-        logger.warn(`!!! EXECUTING REAL TRADE [${symbol}]: ${signal.action} !!!`);
-        // Implementation for real trades via binanceService.executeOrder...
+        try {
+            logger.warn(`!!! EXECUTING REAL TRADE [${symbol}]: ${signal.action} @ ${signal.price} !!!`);
+            notifications.notifyAlert(`🚨 LIVE TRADE: ${signal.action} ${symbol} @ $${signal.price}`);
+
+            if (signal.action === 'BUY') {
+                // Get real USDT balance from Binance
+                const balances = await binanceService.getAccountBalance();
+                const usdtBalance = balances.find(b => b.asset === 'USDT');
+                const availableUsdt = usdtBalance ? usdtBalance.free : 0;
+
+                // Position sizing: divide among active pairs
+                const activePairs = Math.max(this.marketData.size, 1);
+                const maxAllocation = availableUsdt / activePairs;
+                if (maxAllocation < 10) {
+                    logger.warn(`[LIVE] Insufficient USDT balance for ${symbol}: $${availableUsdt.toFixed(2)}`);
+                    return;
+                }
+
+                // Calculate quantity to buy
+                const quantity = (maxAllocation / signal.price) * 0.999; // 0.1% buffer for fees
+                const order = await binanceService.executeOrder(symbol, 'BUY', quantity);
+
+                const filledQty = parseFloat(order.executedQty);
+                const filledPrice = parseFloat(order.fills?.[0]?.price || signal.price);
+
+                const newPos = {
+                    symbol: symbol,
+                    side: 'BUY',
+                    entryPrice: filledPrice,
+                    amount: filledQty,
+                    isPaper: false,
+                    orderId: order.orderId,
+                    timestamp: Date.now()
+                };
+
+                this.activePositions.set(symbol, newPos);
+                if (symbol === CONFIG.symbol) {
+                    this.lastBuyPrice = filledPrice;
+                    this.activePosition = newPos;
+                }
+                await this.saveActivePosition(newPos);
+
+                logger.success(`[LIVE] BUY executed: ${filledQty} ${symbol} @ $${filledPrice} (Order: ${order.orderId})`);
+                db.saveTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });
+                notifications.notifyTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });
+
+            } else if (signal.action === 'SELL') {
+                if (!position || !position.amount) {
+                    logger.warn(`[LIVE] No position to sell for ${symbol}`);
+                    return;
+                }
+
+                const order = await binanceService.executeOrder(symbol, 'SELL', position.amount);
+
+                const filledQty = parseFloat(order.executedQty);
+                const filledPrice = parseFloat(order.fills?.[0]?.price || signal.price);
+                const pnl = ((filledPrice - position.entryPrice) / position.entryPrice * 100).toFixed(2);
+
+                this.activePositions.delete(symbol);
+                if (symbol === CONFIG.symbol) this.activePosition = null;
+                await this.clearActivePosition(symbol);
+
+                logger.success(`[LIVE] SELL executed: ${filledQty} ${symbol} @ $${filledPrice} | PnL: ${pnl}% (Order: ${order.orderId})`);
+                db.saveTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });
+                notifications.notifyTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });
+            }
+
+            // Refresh real balance after trade
+            await this.fetchRealBalance();
+
+        } catch (error) {
+            logger.error(`[LIVE] TRADE FAILED [${symbol}]: ${error.message}`);
+            notifications.notifyAlert(`🚨 LIVE TRADE FAILED: ${symbol} ${signal.action} - ${error.message}`);
+        }
     }
 
     async connectWebSocket() {

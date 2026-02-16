@@ -104,6 +104,7 @@ class BacktestEngine {
     _simulateTrading(candles, params) {
         const trades = [];
         const equity = [{ time: candles[0].open_time, value: 100 }];
+        const fee = 0.001; // 0.1% trading fee per operation
 
         let position = null; // null | {side, entryPrice, entryTime}
         let balance = 100; // USD simulado
@@ -131,6 +132,9 @@ class BacktestEngine {
                         entryTime: candle.open_time,
                     };
 
+                    // Apply 0.1% fee on buy
+                    balance = balance * (1 - fee);
+
                     trades.push({
                         date: new Date(candle.open_time).toISOString(),
                         side: 'BUY',
@@ -144,8 +148,8 @@ class BacktestEngine {
                 const stopLoss = -Math.abs(params.stopLoss || 0.02);
 
                 if (rsiValue > params.rsi.sell || pnl < stopLoss) {
-                    // Calcular ganancia/pérdida
-                    balance = balance * (1 + pnl);
+                    // Apply P&L and 0.1% fee on sell
+                    balance = balance * (1 + pnl) * (1 - fee);
                     maxBalance = Math.max(maxBalance, balance);
 
                     trades.push({

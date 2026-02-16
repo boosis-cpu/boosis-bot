@@ -48,11 +48,13 @@ export default function MultiPairDashboard({ token }) {
         let totalTrades = 0;
         let winningTrades = 0;
         let pairBreakdown = [];
+        // Get initial capital from backend (first pair response), fallback to 1000
+        const firstPair = Object.values(data)[0];
+        const initialCapital = firstPair?.initialCapital || 1000;
 
         for (const [symbol, pairData] of Object.entries(data)) {
-            const balance = (pairData.balance?.usdt || 0) + (pairData.balance?.assetValue || 0); // Assuming assetValue if in position
+            const balance = (pairData.balance?.usdt || 0) + (pairData.balance?.assetValue || 0);
             totalBalance += balance;
-            // Note: metrics would be per symbol
             totalTrades += pairData.metrics?.trades || 0;
             winningTrades += pairData.metrics?.winningTrades || 0;
 
@@ -68,8 +70,8 @@ export default function MultiPairDashboard({ token }) {
             totalTrades,
             winRate: totalTrades > 0 ? (winningTrades / totalTrades * 100).toFixed(2) : 0,
             pairBreakdown,
-            pnl: totalBalance - 10000, // Capital inicial simulado en Fase 8
-            pnlPercent: ((totalBalance - 10000) / 10000 * 100).toFixed(2),
+            pnl: totalBalance - initialCapital,
+            pnlPercent: initialCapital > 0 ? ((totalBalance - initialCapital) / initialCapital * 100).toFixed(2) : 0,
         });
     };
 

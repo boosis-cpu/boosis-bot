@@ -1,3 +1,5 @@
+// DEPRECATED: Use src/core/backtest-engine.js instead (integrated with API and DB).
+// This standalone version is kept for reference only.
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
