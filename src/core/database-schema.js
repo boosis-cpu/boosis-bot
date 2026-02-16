@@ -1,4 +1,6 @@
 // src/core/database-schema.js
+const logger = require('./logger');
+
 const DatabaseSchema = {
   async init(pool) {
     // 1. Tabla: candles
@@ -116,7 +118,7 @@ const DatabaseSchema = {
       )
     `);
 
-    console.log('[DB] ✅ Esquema actualizado para Phase 8');
+    logger.info('[DB] Esquema actualizado para Phase 8');
   }
 };
 
