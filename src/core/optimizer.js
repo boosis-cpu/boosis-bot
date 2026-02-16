@@ -83,6 +83,17 @@ class Optimizer {
         // Sort by ROI
         results.sort((a, b) => b.metrics.roi - a.metrics.roi);
 
+        if (results.length === 0) {
+            logger.warn(`[Optimizer] No valid results found for ${symbol}`);
+            return {
+                symbol,
+                period,
+                bestConfig: { metrics: { roi: 0, winRate: 0, profitFactor: 0, totalTrades: 0 }, params: baseParams },
+                originalConfig: { metrics: { roi: 0, winRate: 0 }, params: baseParams },
+                allResults: []
+            };
+        }
+
         const bestResult = results[0];
         const originalResult = results.find(r =>
             r.params.rsi.buy === baseParams.rsi.buy &&

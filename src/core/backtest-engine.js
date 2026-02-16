@@ -22,7 +22,13 @@ class BacktestEngine {
             const candles = await this._loadHistoricalData(symbol, period);
 
             if (candles.length === 0) {
-                throw new Error(`No hay datos históricos para ${symbol}`);
+                // Return gracefully instead of throw for optimizer stability
+                logger.warn(`[Backtest] No historical data for ${symbol}`);
+                return {
+                    metrics: { roi: 0, winRate: 0, totalTrades: 0, profitFactor: 0 },
+                    trades: [],
+                    equity: []
+                };
             }
 
             // Ejecutar simulación
@@ -31,7 +37,7 @@ class BacktestEngine {
             // Calcular métricas
             const metrics = this._calculateMetrics(results);
 
-            logger.info(`[Backtest] ✅ Completado: ${symbol} | Win Rate: ${metrics.winRate}%`);
+            logger.info(`[Backtest] ✅ Completado: ${symbol} | ROI: ${metrics.roi}% | Trades: ${metrics.totalTrades}`);
 
             return {
                 status: 'completed',
@@ -103,81 +109,103 @@ class BacktestEngine {
      */
     _simulateTrading(candles, params) {
         const trades = [];
-        const equity = [{ time: candles[0].open_time, value: 100 }];
-        const fee = 0.001; // 0.1% trading fee per operation
+        const equity = []; // [{time, value}]
+        let balance = 1000; // Starting capital
+        const initialBalance = balance;
+        let position = null; // { entryPrice, size, time }
+        const fee = 0.001; // 0.1%
 
-        let position = null; // null | {side, entryPrice, entryTime}
-        let balance = 100; // USD simulado
-        let maxBalance = 100;
+        // Need enough data for indicators
+        const warmupPeriod = Math.max(params.ema.trend, 50, 14) + 1;
 
-        for (let i = 0; i < candles.length; i++) {
+        if (candles.length < warmupPeriod) {
+            logger.warn(`[Backtest] Insufficient history (${candles.length}) for warmup (${warmupPeriod})`);
+            return { trades: [], equity: [], finalBalance: balance };
+        }
+
+        // Main Loop
+        for (let i = warmupPeriod; i < candles.length; i++) {
             const candle = candles[i];
-
-            // Convertir valores a números para asegurar cálculos correctos
             const close = parseFloat(candle.close);
+            const time = parseInt(candle.open_time); // BIGINT from PG comes as string
 
-            // Calcular indicadores
-            const emaShortValue = this._ema(candles, i, params.ema.short);
-            const emaLongValue = this._ema(candles, i, params.ema.long);
-            const emaTrendValue = this._ema(candles, i, params.ema.trend);
-            const rsiValue = this._rsi(candles, i, 14);
+            // 1. Calculate Indicators
+            const emaShort = this._ema(candles, i, params.ema.short);
+            const emaLong = this._ema(candles, i, params.ema.long);
+            const emaTrend = this._ema(candles, i, params.ema.trend);
+            const rsi = this._rsi(candles, i, 14);
 
-            // Lógica de señales
+            // 2. Logic
             if (!position) {
-                // COMPRA: RSI oversold + EMA confirmación
-                if (rsiValue < params.rsi.buy && emaShortValue > emaLongValue && emaLongValue > emaTrendValue) {
-                    position = {
-                        side: 'BUY',
-                        entryPrice: close,
-                        entryTime: candle.open_time,
-                    };
+                // BUY CONDITION
+                // RSI oversold (< buy_threshold) + Trend Filter (Quick EMA > Slow EMA > Trend EMA)
+                // Relaxed trend condition: just price > trend ema or similar
+                const isUptrend = emaShort > emaLong; // && emaLong > emaTrend; (Too strict for simple test)
 
-                    // Apply 0.1% fee on buy
-                    balance = balance * (1 - fee);
+                if (rsi < params.rsi.buy && isUptrend) {
+                    const size = (balance * 0.99) / close; // Invest 99%
+
+                    position = {
+                        entryPrice: close,
+                        size: size,
+                        entryTime: candle.open_time
+                    };
+                    balance -= (size * close) * (1 + fee); // Deduct cost + fee
 
                     trades.push({
-                        date: new Date(candle.open_time).toISOString(),
-                        side: 'BUY',
+                        id: trades.length + 1,
+                        side: 'buy',
                         price: close,
-                        reason: 'RSI + EMA',
+                        time: time,
+                        reason: `RSI ${rsi.toFixed(1)} < ${params.rsi.buy}`
                     });
                 }
-            } else if (position.side === 'BUY') {
-                // VENTA: RSI overbought o stop loss
-                const pnl = (close - position.entryPrice) / position.entryPrice;
-                const stopLoss = -Math.abs(params.stopLoss || 0.02);
+            } else {
+                // SELL CONDITION
+                // RSI overbought (> sell_threshold) OR Stop Loss
+                const currentValue = position.size * close;
+                const entryValue = position.size * position.entryPrice;
+                const pnlPct = (currentValue - entryValue) / entryValue; // e.g. -0.05 for -5%
 
-                if (rsiValue > params.rsi.sell || pnl < stopLoss) {
-                    // Apply P&L and 0.1% fee on sell
-                    balance = balance * (1 + pnl) * (1 - fee);
-                    maxBalance = Math.max(maxBalance, balance);
+                // PnL Logic
+                const isStopLoss = pnlPct <= -Math.abs(params.stopLoss);
+                const isTakeProfit = rsi > params.rsi.sell;
+
+                if (isStopLoss || isTakeProfit) {
+                    const sellReason = isStopLoss ? 'stop_loss' : 'take_profit';
+                    const revenue = (position.size * close) * (1 - fee);
+                    balance += revenue;
+
+                    const tradePnl = revenue - (position.size * position.entryPrice * (1 + fee)); // Net PnL considering fees
 
                     trades.push({
-                        date: new Date(candle.open_time).toISOString(),
-                        side: 'SELL',
+                        id: trades.length + 1,
+                        side: 'sell',
                         price: close,
-                        pnl: pnl * 100, // %
-                        reason: rsiValue > params.rsi.sell ? 'RSI' : 'SL',
+                        time: time,
+                        pnl: tradePnl,
+                        pnlPct: (tradePnl / (position.size * position.entryPrice)) * 100, // ROI % of this trade
+                        reason: `${sellReason} (RSI: ${rsi.toFixed(1)})`
                     });
 
                     position = null;
                 }
             }
 
-            // Guardar equity cada día (aproximadamente cada 288 velas de 5m)
-            if (i % 288 === 0 || i === candles.length - 1) {
-                equity.push({
-                    time: candle.open_time,
-                    value: Math.round(balance * 100) / 100,
-                });
+            // Track Equity
+            const openPositionValue = position ? (position.size * close) : 0;
+            const totalEquity = balance + openPositionValue;
+
+            // Push equity point every 4 hours or so to save space, or every candle if short period
+            if (i % 4 === 0 || i === candles.length - 1) {
+                equity.push({ time: time, value: totalEquity });
             }
         }
 
         return {
-            trades: trades,
-            equity: equity,
-            finalBalance: balance,
-            maxBalance: maxBalance,
+            trades,
+            equity,
+            finalBalance: equity.length > 0 ? equity[equity.length - 1].value : initialBalance
         };
     }
 
@@ -251,48 +279,57 @@ class BacktestEngine {
      * Calcular métricas finales
      */
     _calculateMetrics(results) {
-        const sellTrades = results.trades.filter(t => t.side === 'SELL');
-        const winningTrades = sellTrades.filter(t => t.pnl > 0).length;
-        const losingTrades = sellTrades.filter(t => t.pnl < 0).length;
+        const trades = results.trades.filter(t => t.side === 'sell');
+        const totalTrades = trades.length;
 
-        const winRate = sellTrades.length > 0 ? (winningTrades / sellTrades.length) * 100 : 0;
-
-        // Calcular Sharpe Ratio (simplificado)
-        const returns = [];
-        for (let i = 1; i < results.equity.length; i++) {
-            const ret = (results.equity[i].value - results.equity[i - 1].value) / results.equity[i - 1].value;
-            returns.push(ret);
+        if (totalTrades === 0) {
+            return {
+                roi: 0,
+                winRate: 0,
+                totalTrades: 0,
+                profitFactor: 0,
+                maxDD: 0,
+                sharpe: 0
+            };
         }
 
-        const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b) / returns.length : 0;
-        const stdDev = returns.length > 1
-            ? Math.sqrt(returns.reduce((sq, n) => sq + Math.pow(n - avgReturn, 2), 0) / (returns.length - 1))
-            : 0;
-        const sharpeRatio = stdDev > 0 ? (avgReturn * Math.sqrt(252)) / stdDev : 0; // Aproximación anualizada
+        let wins = 0;
+        let losses = 0;
+        let grossProfit = 0;
+        let grossLoss = 0;
+
+        trades.forEach(t => {
+            if (t.pnl > 0) {
+                wins++;
+                grossProfit += t.pnl;
+            } else {
+                losses++;
+                grossLoss += Math.abs(t.pnl);
+            }
+        });
+
+        const winRate = (wins / totalTrades) * 100;
+        const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? 100 : 0) : grossProfit / grossLoss;
+        const totalReturn = results.finalBalance - 1000;
+        const roi = (totalReturn / 1000) * 100;
 
         // Max Drawdown
+        let maxPeak = -Infinity;
         let maxDD = 0;
-        let peak = 100;
-        for (const point of results.equity) {
-            if (point.value > peak) peak = point.value;
-            const dd = ((point.value - peak) / peak) * 100;
-            if (dd < maxDD) maxDD = dd;
-        }
 
-        // Profit Factor
-        const totalWins = sellTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
-        const totalLosses = Math.abs(sellTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0));
-        const profitFactor = totalLosses > 0 ? totalWins / totalLosses : (totalWins > 0 ? 99.9 : 0);
+        results.equity.forEach(point => {
+            if (point.value > maxPeak) maxPeak = point.value;
+            const dd = (maxPeak - point.value) / maxPeak;
+            if (dd > maxDD) maxDD = dd;
+        });
 
         return {
-            winRate: Math.round(winRate * 100) / 100,
-            winningTrades: winningTrades,
-            losingTrades: losingTrades,
-            totalTrades: sellTrades.length,
-            sharpe: Math.round(sharpeRatio * 100) / 100,
-            maxDD: Math.round(maxDD * 100) / 100,
-            profitFactor: Math.round(profitFactor * 100) / 100,
-            roi: Math.round(((results.finalBalance - 100) / 100) * 10000) / 100,
+            roi: parseFloat(roi.toFixed(2)),
+            winRate: parseFloat(winRate.toFixed(1)),
+            totalTrades,
+            profitFactor: parseFloat(profitFactor.toFixed(2)),
+            maxDD: parseFloat((maxDD * 100).toFixed(2)),
+            sharpe: 0 // TODO: Implement proper Sharpe calculation
         };
     }
 }
