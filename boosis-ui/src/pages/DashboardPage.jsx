@@ -10,8 +10,10 @@ const DashboardPage = ({ data, candles, trades, health, metrics, token }) => {
     const [activeTab, setActiveTab] = useState('logs');
     const logs = useLogs(token);
 
-    const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
-    const totalBalance = data.balance ? (data.balance.usdt + (data.balance.asset * lastPrice)) : 0;
+    const lastPrice = (candles && candles.length > 0 && candles[candles.length - 1].close !== null)
+        ? candles[candles.length - 1].close
+        : 0;
+    const totalBalance = data.balance ? (Number(data.balance.usdt || 0) + (Number(data.balance.asset || 0) * lastPrice)) : 0;
     const realUsdt = parseFloat(data.realBalance?.find(b => b.asset === 'USDT')?.free || 0).toFixed(2);
 
     return (

@@ -1,5 +1,5 @@
-const db = require('../src/core/database');
 require('dotenv').config();
+const db = require('../src/core/database');
 
 async function deploy() {
     try {

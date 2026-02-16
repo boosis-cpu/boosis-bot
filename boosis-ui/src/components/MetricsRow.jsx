@@ -6,7 +6,7 @@ const MetricsRow = ({ totalBalance, realUsdt, data, metrics, trades }) => {
         <div className="metrics-row">
             <div className="stat-card-compact">
                 <div className="stat-label-tiny">Total Portfolio</div>
-                <div className="stat-value-med text-green-400">${totalBalance.toFixed(2)}</div>
+                <div className="stat-value-med text-green-400">${(Number(totalBalance) || 0).toFixed(2)}</div>
             </div>
             <div className="stat-card-compact" style={{ borderLeftColor: '#ffa500' }}>
                 <div className="stat-label-tiny">Binance Real (USDT)</div>

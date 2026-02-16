@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import PairCard from './PairCard';
 import PortfolioCard from './PortfolioCard';
+import './MultiPairDashboard.css';
 
 export default function MultiPairDashboard({ token }) {
     const [gridMode, setGridMode] = useState('2x2');
-    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'ETHUSDT']);
+    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'DOGEUSDT', 'SHIBUSDT']);
     const [pairsData, setPairsData] = useState({});
     const [portfolio, setPortfolio] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -15,9 +16,11 @@ export default function MultiPairDashboard({ token }) {
 
     useEffect(() => {
         loadMultiPairData();
-        const interval = setInterval(loadMultiPairData, 5000);
+        const interval = setInterval(loadMultiPairData, 10000);
         return () => clearInterval(interval);
     }, [activeSymbols]);
+
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
     const loadMultiPairData = async () => {
         try {
@@ -25,7 +28,8 @@ export default function MultiPairDashboard({ token }) {
             const data = {};
             const authToken = token || localStorage.getItem('token');
 
-            for (const symbol of activeSymbols) {
+            for (let i = 0; i < activeSymbols.length; i++) {
+                const symbol = activeSymbols[i];
                 try {
                     const response = await axios.get(
                         `/api/status?symbol=${symbol}`,
@@ -35,6 +39,7 @@ export default function MultiPairDashboard({ token }) {
                 } catch (e) {
                     console.error(`Error cargando ${symbol}:`, e);
                 }
+                if (i < activeSymbols.length - 1) await delay(200);
             }
 
             setPairsData(data);
@@ -59,7 +64,7 @@ export default function MultiPairDashboard({ token }) {
         }
 
         const firstPair = dataValues[0];
-        const initialCapital = Number(firstPair?.initialCapital) || 1000;
+        const initialCapital = Number(firstPair?.initialCapital) || 200;
 
         for (const [symbol, pairData] of Object.entries(data)) {
             const assetValue = Number(pairData.balance?.assetValue) || 0;
@@ -71,12 +76,10 @@ export default function MultiPairDashboard({ token }) {
 
             pairBreakdown.push({
                 name: symbol.replace('USDT', ''),
-                value: assetValue,
+                value: (Number(pairData.balance?.usdt) || 0) + assetValue,
                 trades: trades,
             });
         }
-
-        pairBreakdown.push({ name: 'CASH', value: globalUSDT, trades: 0 });
 
         const totalBalance = globalUSDT + totalAssetValue;
 
@@ -90,77 +93,102 @@ export default function MultiPairDashboard({ token }) {
         });
     };
 
-    if (!portfolio && loading) {
-        return (
-            <div className=\"flex h-64 items-center justify-center\">
-                < div className =\"text-xl text-green-400 font-bold animate-pulse\">Desplegando infraestructura multi-activos... 🐜</div>
-            </div >
-        );
-    }
+    const COLORS = ['#00ff88', '#00ffff', '#ff0080', '#ffaa00', '#ffea00', '#007aff', '#ff4d4d', '#a371f7'];
 
     return (
-        <div className=\"p-6\">
-            < div className =\"mb-8 flex flex-col md:flex-row items-center justify-between gap-4\">
-                < div >
-                <h1 className=\"text-3xl font-black tracking-tighter text-green-400 uppercase\">
-                    < span className =\"inline-block w-4 h-4 bg-green-500 mr-2 shadow-[0_0_15px_rgba(34,197,94,0.6)]\"></span>
-                        Boosis Ant Army Dashboard
-                    </h1 >
-                </div >
+        <div className="multi-pair-dashboard">
+            <div className="dashboard-header">
+                <h1>📊 BOOSIS ANT ARMY DASHBOARD</h1>
+                {loading && <div className="loading-indicator">Refrescando Batallón...</div>}
+            </div>
 
-        <div className=\"flex bg-gray-900/50 p-1 rounded-lg border border-gray-800\">
-    {
-        ['1', '2', '2x2', '4'].map(mode => (
-            <button
-                key={mode}
-                onClick={() => setGridMode(mode)}
-                className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${gridMode === mode
-                    ? 'bg-green-500 text-black'
-                    : 'text-gray-400 hover:text-white'
-                    }`}
-            >
-                {mode.toUpperCase()}
-            </button>
-        ))
-    }
-                </div >
+            <div className="dashboard-controls">
+                <div className="grid-selector">
+                    <button
+                        onClick={() => setGridMode('1')}
+                        className={gridMode === '1' ? 'active' : ''}
+                    >
+                        1X1
+                    </button>
+                    <button
+                        onClick={() => setGridMode('2')}
+                        className={gridMode === '2' ? 'active' : ''}
+                    >
+                        2X1
+                    </button>
+                    <button
+                        onClick={() => setGridMode('2x2')}
+                        className={gridMode === '2x2' ? 'active' : ''}
+                    >
+                        2X2
+                    </button>
+                    <button
+                        onClick={() => setGridMode('4')}
+                        className={gridMode === '4' ? 'active' : ''}
+                    >
+                        4X1
+                    </button>
+                </div>
 
-        <div className=\"flex flex-wrap gap-3 bg-gray-900/30 p-2 rounded-xl border border-gray-800\">
-    {
-        ALL_SOLDIERS.map(symbol => (
-            <label key={symbol} className=\"flex items-center gap-2 cursor-pointer group\">
-        < input
-                                type =\"checkbox\"
-                                checked = { activeSymbols.includes(`${symbol}USDT`) }
-                                onChange = {(e) => {
-            const pair = `${symbol}USDT`;
-            if(e.target.checked) {
-            setActiveSymbols([...activeSymbols, pair]);
-        } else {
-            setActiveSymbols(activeSymbols.filter(s => s !== pair));
-        }
-    }
-}
-className =\"w-4 h-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-green-500\"
-    />
-    <span className=\"text-[10px] font-bold text-gray-400 group-hover:text-white\">{symbol}</span>
-                        </label >
+                <div className="symbol-toggles">
+                    {ALL_SOLDIERS.map(symbol => (
+                        <label key={symbol} className="toggle">
+                            <input
+                                type="checkbox"
+                                checked={activeSymbols.includes(`${symbol}USDT`)}
+                                onChange={(e) => {
+                                    const pair = `${symbol}USDT`;
+                                    if (e.target.checked) {
+                                        setActiveSymbols([...activeSymbols, pair]);
+                                    } else {
+                                        setActiveSymbols(activeSymbols.filter(s => s !== pair));
+                                    }
+                                }}
+                            />
+                            <span>{symbol}</span>
+                        </label>
                     ))}
-                </div >
-            </div >
+                </div>
+            </div>
 
-    <div className={`grid gap-6 ${gridMode === '2x2' ? 'grid-cols-2' : gridMode === '4' ? 'grid-cols-4' : 'grid-cols-1'}`}>
-        {activeSymbols.map(symbol => (
-            <PairCard
-                key={symbol}
-                symbol={symbol}
-                data={pairsData[symbol]}
-                token={token || localStorage.getItem('token')}
-            />
-        ))}
+            <div className={`pairs-grid grid-${gridMode}`}>
+                {activeSymbols.map((symbol, index) => (
+                    <PairCard
+                        key={symbol}
+                        symbol={symbol}
+                        data={pairsData[symbol]}
+                        token={token || localStorage.getItem('token')}
+                        loadDelay={index * 300}
+                    />
+                ))}
 
-        <PortfolioCard portfolio={portfolio} />
-    </div>
-        </div >
+                {portfolio && (
+                    <PortfolioCard portfolio={portfolio} colors={COLORS} />
+                )}
+            </div>
+
+            {portfolio && (
+                <div className="status-bar">
+                    <div className="metric">
+                        <label>Balance Total</label>
+                        <div className="value">${portfolio.totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="metric">
+                        <label>P&L Global</label>
+                        <div className={`value ${portfolio.pnl >= 0 ? 'positive' : 'positive'}`} style={{ color: portfolio.pnl >= 0 ? '#00ff88' : '#ff0064' }}>
+                            ${portfolio.pnl.toFixed(2)} ({portfolio.pnlPercent}%)
+                        </div>
+                    </div>
+                    <div className="metric">
+                        <label>Hormigas en Combate</label>
+                        <div className="value">{portfolio.totalTrades} Trades</div>
+                    </div>
+                    <div className="metric">
+                        <label>Efectividad (WR)</label>
+                        <div className="value">{portfolio.winRate}%</div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

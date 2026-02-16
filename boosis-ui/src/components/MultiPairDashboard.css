@@ -20,6 +20,7 @@
     font-weight: 800;
     background: linear-gradient(90deg, #00ff88, #00ffff);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0;
     letter-spacing: -0.5px;
@@ -172,9 +173,15 @@
 }
 
 .status-pill.idle {
+    background: rgba(0, 255, 136, 0.05);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.status-pill.inactive {
     background: rgba(255, 255, 255, 0.05);
-    color: #888;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #666;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .chart-container {
@@ -183,6 +190,9 @@
     padding: 10px;
     margin-bottom: 20px;
     border: 1px solid #1a1f26;
+    min-height: 150px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .pair-metrics {

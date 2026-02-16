@@ -51,7 +51,7 @@ class LiveTrader {
         // Trading State
         this.liveTrading = false;
         this.paperTrading = true;
-        this.initialCapital = 1000;
+        this.initialCapital = 200;
         this.balance = {
             usdt: this.initialCapital,
             asset: 0
@@ -85,9 +85,9 @@ class LiveTrader {
         });
 
         const apiLimiter = rateLimit({
-            windowMs: 60 * 1000, // 1 minuto
-            max: 100, // 100 requests por minuto
-            message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un momento.' },
+            windowMs: 15 * 60 * 1000, // 15 minutos
+            max: 3000, // 10 pares × (status + candles) cada 5s = ~2700 req/15min
+            message: 'Demasiadas peticiones desde esta IP, intenta de nuevo en 15 minutos',
             standardHeaders: true,
             legacyHeaders: false,
         });
@@ -158,11 +158,12 @@ class LiveTrader {
                 // Specific Pair Status
                 const manager = this.pairManagers.get(requestedSymbol);
                 if (!manager) {
-                    // Fallback for legacy calls or initializing
-                    if (requestedSymbol === CONFIG.symbol) {
-                        return res.json({ status: 'initializing', symbol: requestedSymbol });
-                    }
-                    return res.status(404).json({ error: `Pair ${requestedSymbol} not active` });
+                    return res.json({
+                        status: 'inactive',
+                        symbol: requestedSymbol,
+                        metrics: { winRate: 0, trades: 0 },
+                        balance: { usdt: this.balance.usdt, assetValue: 0 }
+                    });
                 }
 
                 const status = manager.getStatus();
@@ -173,6 +174,7 @@ class LiveTrader {
                     usdt: this.balance.usdt,
                     assetValue: status.activePosition ? (status.activePosition.amount * status.latestCandle.close) : 0
                 };
+                status.initialCapital = this.initialCapital;
                 res.json(status);
 
             } else {
@@ -187,7 +189,9 @@ class LiveTrader {
                     mode: this.liveTrading ? 'LIVE' : 'PAPER',
                     liveTrading: this.liveTrading,
                     paperTrading: !this.liveTrading,
-                    globalBalance: this.balance,
+                    balance: this.balance,
+                    realBalance: this.realBalance,
+                    totalBalanceUSD: this.totalBalanceUSD,
                     totalEquity: this.calculateTotalEquity ? this.calculateTotalEquity() : this.totalBalanceUSD,
                     activePairs: activePairs,
                     activePositionsCount: positions.length,
@@ -440,37 +444,6 @@ class LiveTrader {
         });
     }
 
-    async start() {
-        try {
-            logger.info('Starting Boosis Quant Bot...');
-            await db.connect();
-            await schema.init(db.pool);
-            await binanceService.initialize();
-
-            await this.loadTradingMode();
-            await this.loadPaperBalance();
-            await this.loadActivePosition();
-            await this.loadHistoricalData();
-
-            this.fetchRealBalance();
-            setInterval(() => this.fetchRealBalance(), 60000);
-
-            if (this.liveTrading) await this.reconcileOrders();
-            this.startHeartbeat();
-
-            if (!this.emergencyStopped) this.connectWebSocket();
-
-            const mode = this.liveTrading ? 'LIVE (💰 REAL)' : 'PAPER (📝 SIMULATION)';
-            notifications.send(`🚀 **BOT INICIADO**\n\nModo: ${mode}\nBalance: $${this.totalBalanceUSD.toFixed(2)} USD`, 'info');
-
-            this.app.listen(CONFIG.port, () => {
-                logger.success(`Dashboard API listening on port ${CONFIG.port}`);
-            });
-        } catch (error) {
-            logger.error(`Critical failure during startup: ${error.message}`);
-            process.exit(1);
-        }
-    }
 
     async handleKlineMessage(kline, symbol) {
         if (!kline.x) return; // Only process closed candles
@@ -784,6 +757,13 @@ class LiveTrader {
             await this.loadTradingMode();
             await this.loadPaperBalance();
 
+            // Sync initial balance display
+            this.totalBalanceUSD = (Number(this.balance.usdt) || 0) + (Number(this.balance.asset) || 0);
+
+            // Fetch real balance from Binance if credentials exist
+            this.fetchRealBalance();
+            setInterval(() => this.fetchRealBalance(), 60000);
+
             // MULTI-ASSET: Load Active Pairs
             const pairs = await db.pool.query('SELECT symbol, strategy_name FROM active_trading_pairs WHERE is_active = true');
             if (pairs.rows.length > 0) {
@@ -797,13 +777,18 @@ class LiveTrader {
                 await this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
             }
 
-            // Connect WS (Managers are already subscribed via addTradingPair -> wsManager.addSymbol)
+            // Connect WS
             wsManager.connect();
 
             this.startHeartbeat();
 
             const mode = this.liveTrading ? 'LIVE (💰 REAL)' : 'PAPER (📝 SIMULATION)';
+            const initialLink = `🚀 **BOT INICIADO**\n\nModo: ${mode}\nBalance: $${(Number(this.totalBalanceUSD) || 0).toFixed(2)} USD\nHormigas Activas: ${this.pairManagers.size}`;
+
             logger.success(`BOT STARTED | Mode: ${mode} | Active Pairs: ${this.pairManagers.size}`);
+
+            // Send to Telegram
+            await notifications.send(initialLink, 'success');
 
             this.app.listen(CONFIG.port, () => {
                 logger.success(`API listening on port ${CONFIG.port}`);
@@ -863,33 +848,6 @@ class LiveTrader {
             const status = this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO';
             notifications.send(`💓 **HEARTBEAT**: ${status}\nModo: ${this.liveTrading ? 'LIVE' : 'PAPER'}`, 'info');
         }, 12 * 60 * 60 * 1000);
-    }
-
-    async reconcileOrders() {
-        // Only for Primary pair for now or need refactor for all
-        // Skipping for MVP Phase 8
-    }
-
-    async fetchRealBalance() {
-        try {
-            const data = await binanceService.getEnrichedBalance();
-            this.realBalance = data.balances;
-
-            // Only update global display balance, don't overwrite internal logic yet
-            this.totalBalanceUSD = data.totalUSD;
-        } catch (e) { logger.error(`Balance Fetch Error: ${e.message}`); }
-    }
-
-    async loadTradingMode() {
-        const res = await db.pool.query('SELECT key, value FROM trading_settings WHERE key = $1', ['live_trading']);
-        if (res.rows.length > 0) {
-            this.liveTrading = res.rows[0].value === 'true';
-            if (this.liveTrading && this.forcePaper) this.liveTrading = false;
-        }
-    }
-
-    async saveTradingMode() {
-        await db.pool.query('INSERT INTO trading_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['live_trading', this.liveTrading.toString()]);
     }
 
     async loadPaperBalance() {

@@ -400,7 +400,7 @@ export default function TheRefinery({ token }) {
                             </div>
 
                             <div className="chart">
-                                <ResponsiveContainer width="100%" height={250}>
+                                <ResponsiveContainer width="99%" height={250} minWidth={0}>
                                     <LineChart data={backtest.equity}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                                         <XAxis dataKey="time" stroke="#888" minTickGap={30} />

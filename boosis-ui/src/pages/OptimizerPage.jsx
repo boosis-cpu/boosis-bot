@@ -89,7 +89,7 @@ const OptimizerPage = () => {
                     <div className="panel" style={{ gridColumn: '1 / -1' }}>
                         <h3 style={{ marginBottom: '20px', color: '#8b949e' }}>Top Configurations (ROI %)</h3>
                         <div style={{ height: '300px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="99%" aspect={3} minWidth={0}>
                                 <BarChart data={results.allResults.slice(0, 15)}>
                                     <XAxis
                                         dataKey="params.rsi.buy"
