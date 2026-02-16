@@ -2,39 +2,24 @@
 > boosis-bot@1.0.0 start
 > node src/live/LiveTrader.js
 
-[dotenv@17.3.1] injecting env (14) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
-[2:18:55 PM] [INFO] ✅ Sistema de notificaciones activado
-[2:18:55 PM] [INFO] Initializing Boosis Live Trader [Mode: PAPER] [Symbol: BTCUSDT]
-[2:18:55 PM] [INFO] Starting Boosis Quant Bot...
-[2:18:55 PM] [INFO] [DB] Esquema actualizado para Phase 8
-[2:18:55 PM] [WARN] [Binance] ⚠️  No hay credenciales en DB. Usando .env (Fallback)
-[2:18:55 PM] [SUCCESS] Dashboard API listening on port 3000
-[2:18:55 PM] [INFO] [WS] ➕ Símbolo agregado: BTCUSDT (Total: 1)
-[2:18:55 PM] [INFO] [LiveTrader] ✅ Pair agregado: BTCUSDT con BoosisTrend
-[2:18:55 PM] [INFO] [WS] ➕ Símbolo agregado: ETHUSDT (Total: 2)
-[2:18:55 PM] [INFO] [LiveTrader] ✅ Pair agregado: ETHUSDT con Momentum
-[2:18:55 PM] [INFO] [WS] ➕ Símbolo agregado: XRPUSDT (Total: 3)
-[2:18:55 PM] [INFO] [LiveTrader] ✅ Pair agregado: XRPUSDT con MeanReversion
-[2:18:55 PM] [DEBUG] [WS] URL generada: wss://stream.binance.com:9443/stream?streams=btcusdt@kline_5m/ethusdt@kline_5m/xrpusdt@kline_5m
-[2:18:55 PM] [INFO] [WS] 🔌 Conectando a 3 símbolo(s)...
-[2:18:55 PM] [SUCCESS] [LiveTrader] ✅ WebSocket manager inicializado con multi-activo
-[2:18:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:18:56 PM] [DEBUG] Telegram notification sent
-[2:18:56 PM] [DEBUG] No se pudo obtener precio para MXN
-[2:18:56 PM] [SUCCESS] [WS] ✅ Conectado. Escuchando: BTCUSDT, ETHUSDT, XRPUSDT
-[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
-[2:19:19 PM] [INFO] [Miner] Starting job: BTCUSDT for 30 days
-[2:19:40 PM] [SUCCESS] [Miner] Job completed: BTCUSDT
-[2:19:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:19:56 PM] [DEBUG] No se pudo obtener precio para MXN
-[2:20:00 PM] [INFO] Candle closed [BTCUSDT]: 68499.99
-[2:20:00 PM] [DEBUG] Candle closed [ETHUSDT]: 1989
-[2:20:00 PM] [DEBUG] Candle closed [XRPUSDT]: 1.4822
-[2:20:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:20:56 PM] [DEBUG] No se pudo obtener precio para MXN
-[2:21:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:21:56 PM] [DEBUG] No se pudo obtener precio para MXN
-[2:22:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:22:56 PM] [DEBUG] No se pudo obtener precio para MXN
-[2:23:55 PM] [SUCCESS] ✅ Balance obtenido: 6 activos
-[2:23:56 PM] [DEBUG] No se pudo obtener precio para MXN
+[dotenv@17.3.1] injecting env (14) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[3:42:47 PM] [INFO] ✅ Sistema de notificaciones activado
+[3:42:47 PM] [INFO] Initializing Boosis Live Trader [Mode: PAPER] [Symbol: BTCUSDT]
+[3:42:47 PM] [INFO] Starting Boosis Quant Bot (Multi-Asset Engine)...
+[3:42:47 PM] [INFO] [DB] Esquema actualizado para Phase 8
+[3:42:47 PM] [WARN] [Binance] ⚠️  No hay credenciales en DB. Usando .env (Fallback)
+[3:42:47 PM] [INFO] [Startup] Loading 3 active pairs from DB...
+[3:42:47 PM] [INFO] [BTCUSDT] Pair Manager Initialized (200 candles, Position: false)
+[3:42:47 PM] [INFO] [WS] ➕ Símbolo agregado: BTCUSDT (Total: 1)
+[3:42:47 PM] [INFO] [LiveTrader] ✅ Pair Activated: BTCUSDT (BoosisTrend)
+[3:42:47 PM] [INFO] [ETHUSDT] Pair Manager Initialized (200 candles, Position: false)
+[3:42:47 PM] [INFO] [WS] ➕ Símbolo agregado: ETHUSDT (Total: 2)
+[3:42:47 PM] [INFO] [LiveTrader] ✅ Pair Activated: ETHUSDT (Momentum)
+[3:42:47 PM] [INFO] [XRPUSDT] Pair Manager Initialized (200 candles, Position: false)
+[3:42:47 PM] [INFO] [WS] ➕ Símbolo agregado: XRPUSDT (Total: 3)
+[3:42:47 PM] [INFO] [LiveTrader] ✅ Pair Activated: XRPUSDT (MeanReversion)
+[3:42:47 PM] [DEBUG] [WS] URL generada: wss://stream.binance.com:9443/stream?streams=btcusdt@kline_5m/ethusdt@kline_5m/xrpusdt@kline_5m
+[3:42:47 PM] [INFO] [WS] 🔌 Conectando a 3 símbolo(s)...
+[3:42:47 PM] [SUCCESS] BOT STARTED | Mode: PAPER (📝 SIMULATION) | Active Pairs: 3
+[3:42:47 PM] [SUCCESS] API listening on port 3000
+[3:42:48 PM] [SUCCESS] [WS] ✅ Conectado. Escuchando: BTCUSDT, ETHUSDT, XRPUSDT

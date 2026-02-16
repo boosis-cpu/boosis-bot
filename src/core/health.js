@@ -27,10 +27,11 @@ class HealthChecker {
             },
             bot: {
                 wsConnected: wsStatus.isConnected,
-                candlesInBuffer: this.trader.candles.length,
-                tradesCount: this.trader.trades.length,
-                symbol: this.trader.symbol || 'BTCUSDT',
-                activePairs: wsStatus.activeSymbols
+                candlesInBuffer: this.getTotalCandlesAndTrades().totalCandles,
+                tradesCount: this.getTotalCandlesAndTrades().totalTrades,
+                symbol: 'MULTI-ASSET',
+                activePairs: wsStatus.activeSymbols,
+                pairManagersCount: this.trader.pairManagers ? this.trader.pairManagers.size : 0
             }
         };
 
@@ -38,12 +39,26 @@ class HealthChecker {
         if (!health.bot.wsConnected) {
             health.status = 'ERROR';
             health.message = 'WebSocket Disconnected';
-        } else if (health.bot.candlesInBuffer === 0) {
+        } else if (health.bot.pairManagersCount === 0) {
             health.status = 'WARNING';
-            health.message = 'No data in buffer';
+            health.message = 'No active pairs configured';
         }
 
         return health;
+    }
+
+    getTotalCandlesAndTrades() {
+        let totalCandles = 0;
+        let totalTrades = 0;
+
+        if (this.trader.pairManagers) {
+            for (const manager of this.trader.pairManagers.values()) {
+                if (manager.candles) totalCandles += manager.candles.length;
+                if (manager.metrics) totalTrades += manager.metrics.totalTrades;
+            }
+        }
+
+        return { totalCandles, totalTrades };
     }
 }
 
