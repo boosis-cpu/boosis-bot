@@ -21,3 +21,4 @@ test_api_protection.exp
 test_api_verbose.exp
 # setup_env.exp # User might want this
 # full_deploy.exp # User definitely wants this
+coverage/
