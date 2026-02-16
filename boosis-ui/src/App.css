@@ -1,42 +1,98 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* App.css - Extracted Styles */
+
+.emergency-banner {
+  background: #f85149;
+  color: white;
   text-align: center;
+  padding: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  margin-bottom: 10px;
+  border-radius: 6px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.emergency-banner button {
+  padding: 4px 12px;
+  background: white;
+  color: #f85149;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 900;
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.system-stopped {
+  border: 2px solid #f85149;
 }
 
-.card {
-  padding: 2em;
+/* Nav Tabs Styles that were Inline */
+.nav-tabs-container {
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  margin-bottom: -1px;
+  z-index: 10;
 }
 
-.read-the-docs {
-  color: #888;
+.nav-tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-bottom: 1px solid #30363d;
+  color: #8b949e;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-tab.active {
+  background: #0d1117;
+  border-bottom: none;
+  color: #58a6ff;
+}
+
+.nav-tab.refinery.active {
+  color: #00ff88;
+}
+
+.nav-tab.multi.active {
+  color: #00ffff;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  width: 400px;
+  padding: 30px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
 }
