@@ -35,7 +35,7 @@ const Sidebar = ({ data, health }) => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>{asset.asset}</span>
                                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#e6edf3' }}>
-                                    {asset.total.toFixed(asset.asset === 'USDT' ? 4 : 8)}
+                                    {asset.total.toFixed(['USDT', 'MXN', 'USD', 'EUR'].includes(asset.asset) ? 2 : 8)}
                                 </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>

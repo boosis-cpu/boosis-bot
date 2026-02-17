@@ -26,7 +26,7 @@ export default function MultiPairDashboard({ token }) {
         try {
             setLoading(true);
             const data = {};
-            const authToken = token || localStorage.getItem('token');
+            const authToken = token || localStorage.getItem('boosis_token');
 
             for (let i = 0; i < activeSymbols.length; i++) {
                 const symbol = activeSymbols[i];
@@ -198,7 +198,7 @@ export default function MultiPairDashboard({ token }) {
                         key={symbol}
                         symbol={symbol}
                         data={pairsData[symbol]}
-                        token={token || localStorage.getItem('token')}
+                        token={token || localStorage.getItem('boosis_token')}
                         loadDelay={index * 300}
                         onToggle={() => setTimeout(loadMultiPairData, 500)}
                     />

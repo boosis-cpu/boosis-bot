@@ -24,6 +24,12 @@ export const setAuthToken = (token) => {
     }
 };
 
+// Inicialización inmediata para evitar deslogueos al refrescar
+const savedToken = localStorage.getItem('boosis_token');
+if (savedToken) {
+    setAuthToken(savedToken);
+}
+
 export const login = (password) => api.post('/login', { password });
 export const getStatus = (symbol) => api.get(`/status${symbol ? `?symbol=${symbol}` : ''}`);
 export const getCandles = (limit = 100) => api.get(`/candles?limit=${limit}`);

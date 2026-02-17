@@ -45,15 +45,7 @@ class TradingPairManager {
             const recentCandles = await db.getRecentCandles(this.symbol, 400); // 400 velas de 1m = ~6.6h para indicadores
             // Convertir formato DB a formato interno si es necesario (array vs obj)
             // Asumiendo formato array [time, open, high, low, close, vol]
-            this.candles = recentCandles.map(c => [
-                parseInt(c.open_time),
-                parseFloat(c.open),
-                parseFloat(c.high),
-                parseFloat(c.low),
-                parseFloat(c.close),
-                parseFloat(c.volume),
-                parseInt(c.close_time)
-            ]);
+            this.candles = recentCandles;
 
             // 2. Cargar Posición Activa
             const posQuery = await db.pool.query('SELECT * FROM active_position WHERE symbol = $1', [this.symbol]);

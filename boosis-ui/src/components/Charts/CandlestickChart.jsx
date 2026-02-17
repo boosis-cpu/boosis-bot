@@ -11,6 +11,8 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const smaSeriesRef = useRef(null);
+  const ema12SeriesRef = useRef(null);
+  const ema26SeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -26,7 +28,7 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`http://localhost:3000/api/candles`, {
+      const response = await axios.get(`/api/candles`, {
         params: {
           symbol,
           timeframe: tf,
@@ -95,81 +97,113 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
 
   // Initialize chart
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || chartRef.current) return;
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: '#0a0e27' },
-        textColor: '#a0aec0',
-        fontSize: 12,
+        background: { color: '#0b0e11' }, // Binance Dark
+        textColor: '#848e9c',
+        fontSize: 11,
+        fontFamily: 'Inter, sans-serif',
       },
-      width: containerRef.current.clientWidth,
+      grid: {
+        vertLines: { color: '#1e2329' },
+        horzLines: { color: '#1e2329' },
+      },
+      width: containerRef.current.clientWidth || 300,
       height: mini ? 150 : height,
       timeScale: {
         timeVisible: true,
-        secondsVisible: false,
-        barSpacing: mini ? 4 : 8,
+        borderColor: '#2b3139',
+        barSpacing: mini ? 4 : 10,
       },
       rightPriceScale: {
-        borderColor: '#1a1f3a',
+        borderColor: '#2b3139',
+        visible: !mini,
+        autoScale: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.25, // Deja espacio abajo para el volumen
+        },
       },
-      leftPriceScale: showVolume ? { visible: true, borderColor: '#1a1f3a' } : { visible: false },
+      handleScroll: !mini,
+      handleScale: !mini,
       crosshair: {
-        mode: 1, // Normal mode
-        vertLine: { color: '#1a1f3a', width: 1, style: 2 },
-        horzLine: { color: '#1a1f3a', width: 1, style: 2 },
+        mode: 0, // Magnet mode
+        vertLine: {
+          color: '#707a8a',
+          width: 1,
+          style: 1,
+          labelBackgroundColor: '#4b525d',
+        },
+        horzLine: {
+          color: '#707a8a',
+          width: 1,
+          style: 1,
+          labelBackgroundColor: '#4b525d',
+        },
       },
-      grid: {
-        horzLines: { color: '#1a1f3a' },
-        vertLines: { color: '#1a1f3a' },
+    });
+
+    // Configurar la escala izquierda para el volumen (invisible)
+    chart.priceScale('left').applyOptions({
+      scaleMargins: {
+        top: 0.7, // Volumen en el 30% inferior
+        bottom: 0,
       },
+      visible: false,
     });
 
     chartRef.current = chart;
 
-    // Create candlestick series
+    // Create candlestick series con colores Binance
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#00ff88',
-      downColor: '#ff0064',
-      borderUpColor: '#00ff88',
-      borderDownColor: '#ff0064',
-      wickUpColor: '#00ff88',
-      wickDownColor: '#ff0064',
+      upColor: '#2ebd85',
+      downColor: '#f6465d',
+      borderUpColor: '#2ebd85',
+      borderDownColor: '#f6465d',
+      wickUpColor: '#2ebd85',
+      wickDownColor: '#f6465d',
     });
     candleSeriesRef.current = candleSeries;
 
-    // Create SMA line series
-    const smaSeries = chart.addLineSeries({
-      color: '#ffaa00',
-      lineWidth: 2,
-      title: 'SMA200',
+    // SMA200 (Amarillo)
+    smaSeriesRef.current = chart.addLineSeries({
+      color: '#F0B90B',
+      lineWidth: 1,
+      title: 'MA200',
       visible: indicators.includes('SMA200'),
     });
-    smaSeriesRef.current = smaSeries;
 
-    // Create volume histogram
+    // EMA12 (Azul/Cian)
+    ema12SeriesRef.current = chart.addLineSeries({
+      color: '#00f2ff',
+      lineWidth: 1,
+      title: 'EMA12',
+      visible: indicators.includes('EMA12'),
+    });
+
+    // EMA26 (Púrpura)
+    ema26SeriesRef.current = chart.addLineSeries({
+      color: '#e600ff',
+      lineWidth: 1,
+      title: 'EMA26',
+      visible: indicators.includes('EMA26'),
+    });
+
+    // Volumen en escala separada (usando la izquierda invisible)
     if (showVolume) {
       const volumeSeries = chart.addHistogramSeries({
-        color: 'rgba(0, 255, 136, 0.2)',
+        priceScaleId: 'left',
         priceFormat: { type: 'volume' },
       });
       volumeSeriesRef.current = volumeSeries;
     }
 
-    // Handle candle click
-    chart.subscribeClick((param) => {
-      if (param.point && param.seriesData.size > 0) {
-        const candleData = param.seriesData.get(candleSeries);
-        if (candleData) {
-          setSelectedCandle(candleData);
-        }
-      }
-    });
-
     // Handle window resize
     const handleResize = () => {
-      if (containerRef.current) {
-        chart.applyOptions({
+      if (containerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
           width: containerRef.current.clientWidth,
         });
       }
@@ -177,24 +211,25 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
 
     window.addEventListener('resize', handleResize);
 
-    // Subscribe to WebSocket for live updates (1m only)
-    if (timeframe === '1m') {
-      subscribeToLiveData();
+    // Initial fetch if token exists
+    if (token) {
+      fetchCandles(timeframe);
     }
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      if (wsRef.current) wsRef.current.close();
       chart.remove();
+      chartRef.current = null;
     };
-  }, [height, mini, showVolume]);
+  }, [height, mini, token]); // Re-run if token appears or size changes
 
   // Subscribe to WebSocket for live updates
   const subscribeToLiveData = () => {
     try {
-      const wsUrl = `ws://localhost:3000/api/candles/stream?symbol=${symbol}`;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
+      const wsUrl = `${protocol}//${host}/api/candles/stream?symbol=${symbol}&token=${token}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -228,8 +263,10 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
 
   // Fetch candles when timeframe or symbol changes
   useEffect(() => {
-    fetchCandles(timeframe);
-  }, [timeframe, symbol]);
+    if (token) {
+      fetchCandles(timeframe);
+    }
+  }, [timeframe, symbol, token]);
 
   // Update SMA visibility and volume
   useEffect(() => {
@@ -244,7 +281,7 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
       volumeSeriesRef.current = null;
     } else if (showVolume && !volumeSeriesRef.current && chartRef.current) {
       const volumeSeries = chartRef.current.addHistogramSeries({
-        color: 'rgba(0, 255, 136, 0.2)',
+        priceScaleId: 'left',
         priceFormat: { type: 'volume' },
       });
       volumeSeriesRef.current = volumeSeries;
@@ -265,24 +302,8 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
     }
   };
 
-  if (mini) {
-    return (
-      <div className="candlestick-chart">
-        {loading && <div className="chart-loading">Loading...</div>}
-        {error && <div className="chart-error">Error: {error}</div>}
-        {!loading && !error && (
-          <div
-            ref={containerRef}
-            className="chart-container"
-            style={{ height: '150px', width: '100%' }}
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="candlestick-chart">
+    <div className="candlestick-chart" style={{ position: 'relative' }}>
       {!mini && (
         <>
           <TimeframeSelector value={timeframe} onChange={handleTimeframeChange} />
@@ -295,22 +316,42 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
         </>
       )}
 
-      {loading && <div className="chart-loading">Loading chart data...</div>}
-      {error && <div className="chart-error">Error: {error}</div>}
+      {loading && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          background: 'rgba(10, 14, 39, 0.7)', zIndex: 10, color: '#00ff88', fontSize: '12px'
+        }}>
+          Cargando datos...
+        </div>
+      )}
 
-      {!loading && !error && (
-        <>
-          <div
-            ref={containerRef}
-            className="chart-container"
-            style={{ height: `${height}px`, width: '100%' }}
-          />
-          <div className="chart-controls">
-            <button onClick={() => chartRef.current?.timeScale().fitContent()}>
-              Reset Zoom
-            </button>
-          </div>
-        </>
+      {error && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          background: 'rgba(10, 14, 39, 0.9)', zIndex: 11, color: '#ff0064', fontSize: '12px', textAlign: 'center', padding: '10px'
+        }}>
+          Error: {error}
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        className="chart-container"
+        style={{
+          height: mini ? '150px' : `${height}px`,
+          width: '100%',
+          visibility: (loading && !chartRef.current) ? 'hidden' : 'visible'
+        }}
+      />
+
+      {!mini && !loading && !error && (
+        <div className="chart-controls">
+          <button onClick={() => chartRef.current?.timeScale().fitContent()}>
+            Reset Zoom
+          </button>
+        </div>
       )}
 
       {selectedCandle && (

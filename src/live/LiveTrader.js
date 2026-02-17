@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const WebSocket = require('ws');
 const path = require('path');
@@ -16,6 +15,8 @@ const binanceService = require('../core/binance');
 const TechnicalIndicators = require('../core/technical_indicators');
 const HealthChecker = require('../core/health');
 const schema = require('../core/database-schema');
+const fs = require('fs');
+const axios = require('axios');
 
 // Configuration
 const CONFIG = {
@@ -60,6 +61,7 @@ class LiveTrader {
         this.totalBalanceUSD = 0;
         this.equityHistory = [];
         this.emergencyStopped = false;
+        this.clients = new Set(); // Frontend clients for candle streaming
 
         // MULTI-ASSET: Handled by pairManagers map
         this.health = new HealthChecker(this);
@@ -151,7 +153,7 @@ class LiveTrader {
             const keepAlive = setInterval(() => {
                 try {
                     res.write(': ping\n\n');
-                } catch (e) {}
+                } catch (e) { }
             }, 25000);
 
             req.on('close', () => {
@@ -260,29 +262,49 @@ class LiveTrader {
         this.app.get('/api/candles', authMiddleware, async (req, res) => {
             try {
                 const symbol = req.query.symbol || CONFIG.symbol;
-                const limit = validators.validateLimit(req.query.limit || 100);
+                const timeframe = req.query.timeframe || '1m';
+                const limit = Math.min(validators.validateLimit(req.query.limit || 500), 500);
 
-                let candleData = [];
+                let candles1m = [];
 
                 // 1. Try Memory Buffer (Multi-Asset V2)
                 const manager = this.pairManagers.get(symbol);
                 if (manager && manager.candles.length > 0) {
-                    candleData = manager.candles;
+                    candles1m = manager.candles;
                 }
 
                 // 2. If memory is empty, try DB
-                if (candleData.length === 0) {
-                    candleData = await db.getRecentCandles(symbol, limit);
+                if (candles1m.length === 0) {
+                    candles1m = await db.getRecentCandles(symbol, limit * 60);
                 } else {
-                    candleData = candleData.slice(-limit);
+                    candles1m = candles1m.slice(-(limit * 60));
                 }
 
-                const response = candleData.map(c => ({
-                    open_time: c[0], open: c[1], high: c[2], low: c[3], close: c[4], volume: c[5], close_time: c[6],
-                    indicators: {}
+                // 3. If 1m requested, convert format directly
+                if (timeframe === '1m') {
+                    const response = candles1m.slice(-limit).map(c => ({
+                        time: Math.floor(c[0] / 1000),
+                        open: parseFloat(c[1]),
+                        high: parseFloat(c[2]),
+                        low: parseFloat(c[3]),
+                        close: parseFloat(c[4]),
+                        volume: parseFloat(c[5])
+                    }));
+                    return res.json({ candles: response, timeframe: '1m', symbol, count: response.length });
+                }
+
+                // 4. For other timeframes, aggregate
+                const aggregated = this._aggregateCandles(candles1m, timeframe);
+                const response = aggregated.slice(-limit).map(c => ({
+                    time: c.time,
+                    open: c.open,
+                    high: c.high,
+                    low: c.low,
+                    close: c.close,
+                    volume: c.volume
                 }));
 
-                res.json(response);
+                res.json({ candles: response, timeframe, symbol, count: response.length });
             } catch (error) {
                 res.status(400).json({ error: error.message });
             }
@@ -387,7 +409,7 @@ class LiveTrader {
                 const optimizer = require('../core/optimizer');
                 const validPeriods = ['1w', '1m', '3m', '6m', '1y', '2y', '5y'];
                 const safePeriod = validPeriods.includes(period) ? period : '1m';
-                
+
                 const results = await optimizer.optimize(symbol, safePeriod, params);
 
                 res.json({ status: 'ok', results });
@@ -474,6 +496,24 @@ class LiveTrader {
         ];
 
         try {
+            // Emit to frontend clients
+            if (this.clients && this.clients.size > 0) {
+                const candleData = {
+                    time: Math.floor(kline.t / 1000),
+                    open: parseFloat(kline.o),
+                    high: parseFloat(kline.h),
+                    low: parseFloat(kline.l),
+                    close: parseFloat(kline.c),
+                    volume: parseFloat(kline.v)
+                };
+
+                this.clients.forEach(client => {
+                    if (client.readyState === 1 && client.symbol === symbol) { // 1 = OPEN
+                        client.send(JSON.stringify(candleData));
+                    }
+                });
+            }
+
             // Process (Manager handles DB and logic)
             const signal = await manager.onCandleClosed(candle);
 
@@ -765,6 +805,63 @@ class LiveTrader {
         await db.pool.query('INSERT INTO trading_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['live_trading', this.liveTrading.toString()]);
     }
 
+    _aggregateCandles(candles1m, targetTimeframe) {
+        const timeframeMs = {
+            '1m': 60 * 1000,
+            '5m': 5 * 60 * 1000,
+            '15m': 15 * 60 * 1000,
+            '30m': 30 * 60 * 1000,
+            '1h': 60 * 60 * 1000,
+            '4h': 4 * 60 * 60 * 1000,
+            '1d': 24 * 60 * 60 * 1000,
+            '1w': 7 * 24 * 60 * 60 * 1000,
+            '1M': 30 * 24 * 60 * 60 * 1000
+        };
+
+        const ms = timeframeMs[targetTimeframe];
+        if (!ms) throw new Error(`Invalid timeframe: ${targetTimeframe}`);
+
+        const grouped = {};
+
+        for (const c of candles1m) {
+            const time = Math.floor(c[0] / ms) * ms;
+            if (!grouped[time]) {
+                grouped[time] = [];
+            }
+            grouped[time].push({
+                open: parseFloat(c[1]),
+                high: parseFloat(c[2]),
+                low: parseFloat(c[3]),
+                close: parseFloat(c[4]),
+                volume: parseFloat(c[5])
+            });
+        }
+
+        const aggregated = [];
+        for (const [time, group] of Object.entries(grouped)) {
+            aggregated.push(this._processCandleGroup(parseInt(time), group));
+        }
+
+        return aggregated.sort((a, b) => a.time - b.time);
+    }
+
+    _processCandleGroup(time, group) {
+        const opens = group.map(c => c.open);
+        const highs = group.map(c => c.high);
+        const lows = group.map(c => c.low);
+        const closes = group.map(c => c.close);
+        const volumes = group.map(c => c.volume);
+
+        return {
+            time: Math.floor(time / 1000),
+            open: opens[0],
+            high: Math.max(...highs),
+            low: Math.min(...lows),
+            close: closes[closes.length - 1],
+            volume: volumes.reduce((a, b) => a + b, 0)
+        };
+    }
+
     async start() {
         try {
             logger.info('Starting Boosis Quant Bot (Multi-Asset Engine)...');
@@ -808,9 +905,15 @@ class LiveTrader {
             // Send to Telegram
             await notifications.send(initialLink, 'success');
 
-            this.app.listen(CONFIG.port, () => {
+            const server = this.app.listen(CONFIG.port, () => {
                 logger.success(`API listening on port ${CONFIG.port}`);
+                // Generar token después de que el servidor esté escuchando
+                this.generateInitialToken().catch(err => {
+                    logger.error(`[Token] Error en generación inicial: ${err.message}`);
+                });
             });
+
+            this.setupWebSocket(server);
 
         } catch (error) {
             logger.error(`Fatal startup error: ${error.message}`);
@@ -845,6 +948,36 @@ class LiveTrader {
             }
         }
         return equity;
+    }
+
+    setupWebSocket(server) {
+        const wss = new WebSocket.Server({ noServer: true });
+
+        server.on('upgrade', async (request, socket, head) => {
+            const { pathname, searchParams } = new URL(request.url, `http://${request.headers.host}`);
+
+            if (pathname === '/api/candles/stream') {
+                const token = searchParams.get('token');
+                const symbol = searchParams.get('symbol');
+
+                if (!(await auth.verifyToken(token))) {
+                    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                wss.handleUpgrade(request, socket, head, (ws) => {
+                    ws.symbol = symbol;
+                    this.clients.add(ws);
+                    ws.on('close', () => this.clients.delete(ws));
+                    wss.emit('connection', ws, request);
+                });
+            } else {
+                socket.destroy();
+            }
+        });
+
+        logger.info('[LiveTrader] ✅ Candle Streaming WebSocket Server initialized');
     }
 
     // --- LEGACY / HELPER METHODS ---
@@ -889,6 +1022,25 @@ class LiveTrader {
     // Deprecated but kept for safety
     async loadHistoricalData() { }
 
+    async generateInitialToken() {
+        try {
+            const password = process.env.ADMIN_PASSWORD;
+            if (!password) {
+                logger.warn('[Token] ADMIN_PASSWORD no configurado en .env, saltando generación automática');
+                return;
+            }
+
+            const response = await axios.post(`http://localhost:${CONFIG.port}/api/login`, { password });
+
+            if (response.data && response.data.token) {
+                const tokenPath = path.join(__dirname, '../../auth_token.txt');
+                fs.writeFileSync(tokenPath, response.data.token, 'utf8');
+                logger.info(`[Token] ✅ Token automático generado y guardado en auth_token.txt`);
+            }
+        } catch (err) {
+            logger.error(`[Token] ❌ Error generando token inicial: ${err.message}`);
+        }
+    }
 }
 
 module.exports = LiveTrader;

@@ -226,8 +226,12 @@ class BinanceService {
                             const btcUSD = await this.getCurrentPrice('BTCUSDT');
                             priceUSD = priceBTC * btcUSD;
                         } catch (error2) {
-                            logger.debug(`No se pudo obtener precio para ${balance.asset}`);
-                            priceUSD = 0;
+                            // Fallback para MXN si Binance no da el par
+                            if (balance.asset === 'MXN') {
+                                priceUSD = 1 / 20.0; // Tasa base aprox (1 USD = 20 MXN)
+                            } else {
+                                priceUSD = 0;
+                            }
                         }
                     }
 

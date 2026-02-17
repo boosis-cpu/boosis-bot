@@ -9,9 +9,9 @@ const DatabaseSchema = {
         id SERIAL PRIMARY KEY,
         symbol VARCHAR(20) NOT NULL,
         open_time BIGINT NOT NULL,
-        open DECIMAL(20,8), high DECIMAL(20,8),
-        low DECIMAL(20,8), close DECIMAL(20,8),
-        volume DECIMAL(20,8),
+        open NUMERIC, high NUMERIC,
+        low NUMERIC, close NUMERIC,
+        volume NUMERIC,
         close_time BIGINT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(symbol, open_time)
@@ -23,7 +23,7 @@ const DatabaseSchema = {
       CREATE TABLE IF NOT EXISTS trades (
         id SERIAL PRIMARY KEY,
         symbol VARCHAR(20), side VARCHAR(10),
-        price DECIMAL(20,8), amount DECIMAL(20,8),
+        price NUMERIC, amount NUMERIC,
         type VARCHAR(20) DEFAULT 'PAPER',
         reason TEXT,
         timestamp BIGINT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -44,8 +44,8 @@ const DatabaseSchema = {
       CREATE TABLE IF NOT EXISTS active_position (
         id SERIAL PRIMARY KEY,
         symbol VARCHAR(20) UNIQUE,
-        side VARCHAR(10), amount DECIMAL(20,8),
-        entry_price DECIMAL(20,8), is_paper BOOLEAN DEFAULT true,
+        side VARCHAR(10), amount NUMERIC,
+        entry_price NUMERIC, is_paper BOOLEAN DEFAULT true,
         timestamp BIGINT
       )
     `);
@@ -57,14 +57,14 @@ const DatabaseSchema = {
         symbol VARCHAR(20) UNIQUE,
         name VARCHAR(100) DEFAULT 'Default',
         strategy_name VARCHAR(100) DEFAULT 'BoosisTrend',
-        rsi_buy_bound DECIMAL(5,2) DEFAULT 25,
-        rsi_sell_bound DECIMAL(5,2) DEFAULT 75,
+        rsi_buy_bound NUMERIC DEFAULT 25,
+        rsi_sell_bound NUMERIC DEFAULT 75,
         ema_short INTEGER DEFAULT 12,
         ema_long INTEGER DEFAULT 26,
         ema_trend INTEGER DEFAULT 50,
         bb_period INTEGER DEFAULT 20,
-        bb_std_dev DECIMAL(3,1) DEFAULT 2.0,
-        stop_loss_percent DECIMAL(5,4) DEFAULT 0.02,
+        bb_std_dev NUMERIC DEFAULT 2.0,
+        stop_loss_percent NUMERIC DEFAULT 0.02,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

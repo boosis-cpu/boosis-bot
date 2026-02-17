@@ -36,14 +36,14 @@ export const useBotData = (token) => {
                     getMetrics()
                 ]);
 
-                if (candlesRes.data) {
-                    setCandles(candlesRes.data.map(c => ({
-                        time: new Date(c.open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                if (candlesRes.data && Array.isArray(candlesRes.data.candles)) {
+                    setCandles(candlesRes.data.candles.map(c => ({
+                        time: new Date(c.time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         close: c.close,
-                        rsi: c.indicators?.rsi,
-                        sma200: c.indicators?.sma200,
-                        bbUpper: c.indicators?.bb?.upper,
-                        bbLower: c.indicators?.bb?.lower
+                        open: c.open,
+                        high: c.high,
+                        low: c.low,
+                        volume: c.volume
                     })));
                 }
                 if (tradesRes.data) setTrades(tradesRes.data);
