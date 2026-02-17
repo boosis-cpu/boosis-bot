@@ -378,13 +378,17 @@ class LiveTrader {
         });
 
         // POST /api/optimize (The Lab)
+        // Supported periods: '1w', '1m', '3m', '6m', '1y', '2y', '5y'
         this.app.post('/api/optimize', authMiddleware, async (req, res) => {
             try {
                 const { symbol, period, params } = req.body;
                 if (!symbol || !params) return res.status(400).json({ error: 'symbol y params iniciales requeridos' });
 
                 const optimizer = require('../core/optimizer');
-                const results = await optimizer.optimize(symbol, period || '1m', params);
+                const validPeriods = ['1w', '1m', '3m', '6m', '1y', '2y', '5y'];
+                const safePeriod = validPeriods.includes(period) ? period : '1m';
+                
+                const results = await optimizer.optimize(symbol, safePeriod, params);
 
                 res.json({ status: 'ok', results });
             } catch (error) {

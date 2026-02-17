@@ -21,7 +21,7 @@ export default function TheRefinery({ token }) {
     // Miner State
     const [minerDays, setMinerDays] = useState(90);
     const [minerJob, setMinerJob] = useState(null);
-    const [minerInterval, setMinerInterval] = useState(null);
+    const [backtestPeriod, setBacktestPeriod] = useState('1y');
 
     // Cargar perfil al cambiar símbolo
     useEffect(() => {
@@ -177,7 +177,7 @@ export default function TheRefinery({ token }) {
                 {
                     symbol: selectedSymbol,
                     params: params,
-                    period: '1y'
+                    period: backtestPeriod
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -274,6 +274,9 @@ export default function TheRefinery({ token }) {
                             <option value="90">90 Días (Estándar)</option>
                             <option value="180">6 Meses (Robusto)</option>
                             <option value="365">1 Año (Completo)</option>
+                            <option value="730">2 Años (Extenso)</option>
+                            <option value="1095">3 Años (Profundo)</option>
+                            <option value="1825">5 Años (Máximo)</option>
                         </select>
                     </div>
 
@@ -364,6 +367,25 @@ export default function TheRefinery({ token }) {
                             />
                             <span className="value">{formData.ema?.trend || 50}</span>
                         </div>
+                    </div>
+
+                    {/* Backtest Period Selector */}
+                    <div className="param-group" style={{ marginTop: '20px', borderTop: '1px solid #333', paddingTop: '15px' }}>
+                        <label>📅 Período de Simulación</label>
+                        <select
+                            value={backtestPeriod}
+                            onChange={(e) => setBacktestPeriod(e.target.value)}
+                            disabled={loading}
+                            style={{ width: '100%', padding: '8px', background: '#222', color: 'white', border: '1px solid #444', borderRadius: '4px' }}
+                        >
+                            <option value="1m">1 Mes (Corto Plazo)</option>
+                            <option value="3m">3 Meses (Trimestre)</option>
+                            <option value="6m">6 Meses (Semestral)</option>
+                            <option value="1y">1 Año (Anual)</option>
+                            <option value="2y">2 Años (Ciclo Medio)</option>
+                            <option value="3y">3 Años (Largo Plazo)</option>
+                            <option value="5y">5 Años (Ciclo Completo)</option>
+                        </select>
                     </div>
 
                     {/* Botones de acción */}

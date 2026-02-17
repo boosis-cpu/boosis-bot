@@ -98,6 +98,8 @@ class BacktestEngine {
             case '6m': start.setMonth(start.getMonth() - 6); break;
             case '1y': start.setFullYear(start.getFullYear() - 1); break;
             case '2y': start.setFullYear(start.getFullYear() - 2); break;
+            case '3y': start.setFullYear(start.getFullYear() - 3); break;
+            case '5y': start.setFullYear(start.getFullYear() - 5); break;
             default: start.setMonth(start.getMonth() - 1); // default 1 month
         }
 

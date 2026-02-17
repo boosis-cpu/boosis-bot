@@ -59,6 +59,10 @@ const OptimizerPage = () => {
                         <option value="1w">1 Week</option>
                         <option value="1m">1 Month</option>
                         <option value="3m">3 Months</option>
+                        <option value="6m">6 Months</option>
+                        <option value="1y">1 Year</option>
+                        <option value="2y">2 Years</option>
+                        <option value="5y">5 Years</option>
                     </select>
                     <button
                         onClick={handleRun}
