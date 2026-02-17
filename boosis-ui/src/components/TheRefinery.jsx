@@ -20,6 +20,7 @@ export default function TheRefinery({ token }) {
 
     // Miner State
     const [minerDays, setMinerDays] = useState(90);
+    const [minerInterval, setMinerInterval] = useState('1m');
     const [minerJob, setMinerJob] = useState(null);
     const [backtestPeriod, setBacktestPeriod] = useState('1y');
 
@@ -98,7 +99,7 @@ export default function TheRefinery({ token }) {
     const handleStartMining = async () => {
         try {
             setMessage('⛏️ Iniciando inyección de datos...');
-            await startMining(selectedSymbol, minerDays);
+            await startMining(selectedSymbol, minerDays, minerInterval);
         } catch (error) {
             setMessage(`❌ Error iniciando minería: ${error.response?.data?.error || error.message}`);
         }
@@ -277,6 +278,18 @@ export default function TheRefinery({ token }) {
                             <option value="730">2 Años (Extenso)</option>
                             <option value="1095">3 Años (Profundo)</option>
                             <option value="1825">5 Años (Máximo)</option>
+                        </select>
+                    </div>
+
+                    <div className="interval-selector">
+                        <label>Intervalo de velas:</label>
+                        <select value={minerInterval} onChange={(e) => setMinerInterval(e.target.value)} disabled={minerJob?.status === 'mining'}>
+                            <option value="1m">1 Minuto</option>
+                            <option value="3m">3 Minutos</option>
+                            <option value="5m">5 Minutos (Defecto)</option>
+                            <option value="15m">15 Minutos</option>
+                            <option value="30m">30 Minutos</option>
+                            <option value="1h">1 Hora</option>
                         </select>
                     </div>
 

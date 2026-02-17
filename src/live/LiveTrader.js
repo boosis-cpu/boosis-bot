@@ -400,16 +400,19 @@ class LiveTrader {
         // ⛏️ DATA MINER API (The Refinery)
         this.app.post('/api/miner/mine', authMiddleware, async (req, res) => {
             try {
-                const { symbol, days } = req.body;
+                const { symbol, days, interval = '5m' } = req.body;
                 if (!symbol || !days) return res.status(400).json({ error: 'symbol and days required' });
+
+                const validIntervals = ['1m', '3m', '5m', '15m', '30m', '1h'];
+                const selectedInterval = validIntervals.includes(interval) ? interval : '5m';
 
                 const miner = require('../core/data_miner');
 
                 // Start async job (don't await)
-                miner.mineToDatabase(symbol, '5m', parseInt(days))
+                miner.mineToDatabase(symbol, selectedInterval, parseInt(days))
                     .catch(err => logger.error(`[Miner Background Error] ${err.message}`));
 
-                res.json({ status: 'started', symbol, days });
+                res.json({ status: 'started', symbol, days, interval: selectedInterval });
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }

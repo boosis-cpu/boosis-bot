@@ -109,6 +109,21 @@
   cursor: pointer;
 }
 
+.interval-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.interval-selector select {
+  padding: 8px 12px;
+  background: #0a0e27;
+  border: 1px solid #FFA500;
+  color: #FFA500;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
 .btn-mine {
   padding: 10px 20px;
   background: rgba(255, 166, 0, 0.2);
