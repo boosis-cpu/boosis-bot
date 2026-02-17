@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBotData } from './hooks/useBotData';
-import { setTradingMode, emergencyStop, getStatus } from './services/api';
+import { setTradingMode, emergencyStop, getStatus, setAuthToken } from './services/api';
 import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import NavTabs from './components/NavTabs';
@@ -18,6 +18,10 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('boosis_token'));
   const { data, candles, trades, health, metrics, loading, error, refetch } = useBotData(token);
   const [modal, setModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' });
+
+  useEffect(() => {
+    setAuthToken(token);
+  }, [token]);
 
   const handleLogin = (newToken) => {
     setToken(newToken);

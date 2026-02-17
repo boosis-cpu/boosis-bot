@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { getStatus, addTradingPair, removeTradingPair, emergencyStop } from '../services/api';
 import PairCard from './PairCard';
 import PortfolioCard from './PortfolioCard';
 import './MultiPairDashboard.css';
@@ -31,10 +31,7 @@ export default function MultiPairDashboard({ token }) {
             for (let i = 0; i < activeSymbols.length; i++) {
                 const symbol = activeSymbols[i];
                 try {
-                    const response = await axios.get(
-                        `/api/status?symbol=${symbol}`,
-                        { headers: { Authorization: `Bearer ${authToken}` } }
-                    );
+                    const response = await getStatus(symbol);
                     data[symbol] = response.data;
                 } catch (e) {
                     console.error(`Error cargando ${symbol}:`, e);
@@ -100,6 +97,18 @@ export default function MultiPairDashboard({ token }) {
             <div className="dashboard-header">
                 <h1>📊 BOOSIS ANT ARMY DASHBOARD</h1>
                 {loading && <div className="loading-indicator">Refrescando Batallón...</div>}
+                {Object.values(pairsData).some(p => p.emergencyStopped) && (
+                    <div className="emergency-alert" style={{
+                        background: '#b62324',
+                        color: 'white',
+                        padding: '5px 15px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                    }}>
+                        🚨 SISTEMA DETENIDO
+                    </div>
+                )}
             </div>
 
             <div className="dashboard-controls">
@@ -136,18 +145,50 @@ export default function MultiPairDashboard({ token }) {
                             <input
                                 type="checkbox"
                                 checked={activeSymbols.includes(`${symbol}USDT`)}
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                     const pair = `${symbol}USDT`;
-                                    if (e.target.checked) {
-                                        setActiveSymbols([...activeSymbols, pair]);
-                                    } else {
-                                        setActiveSymbols(activeSymbols.filter(s => s !== pair));
+                                    try {
+                                        if (e.target.checked) {
+                                            await addTradingPair(pair, 'BoosisTrend');
+                                            setActiveSymbols([...activeSymbols, pair]);
+                                        } else {
+                                            await removeTradingPair(pair);
+                                            setActiveSymbols(activeSymbols.filter(s => s !== pair));
+                                        }
+                                    } catch (err) {
+                                        console.error("Error al modificar par:", err);
                                     }
                                 }}
                             />
                             <span>{symbol}</span>
                         </label>
                     ))}
+                </div>
+
+                <div className="emergency-controls">
+                    <button
+                        className="emergency-btn"
+                        style={{
+                            background: '#b62324',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                        onClick={async () => {
+                            if (window.confirm("🚨 ¿Cerrar TODA la operación del Batallón Hormiga?")) {
+                                try {
+                                    await emergencyStop();
+                                    window.location.reload();
+                                } catch (e) { console.error(e); }
+                            }
+                        }}
+                    >
+                        🛑 TERMINAR TODO
+                    </button>
                 </div>
             </div>
 
@@ -159,6 +200,7 @@ export default function MultiPairDashboard({ token }) {
                         data={pairsData[symbol]}
                         token={token || localStorage.getItem('token')}
                         loadDelay={index * 300}
+                        onToggle={() => setTimeout(loadMultiPairData, 500)}
                     />
                 ))}
 

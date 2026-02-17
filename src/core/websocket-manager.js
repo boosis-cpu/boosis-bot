@@ -10,6 +10,7 @@ class WebSocketManager {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
         this.reconnectDelay = 1000; // ms
+        this._lastAlreadyOpenWarn = 0;
     }
 
     // PASO 1: Agregar símbolo a escuchar
@@ -66,7 +67,12 @@ class WebSocketManager {
     async connect() {
         try {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                logger.warn('[WS] ⚠️ Ya hay una conexión abierta');
+                const now = Date.now();
+                // Only warn once per minute to avoid log spam
+                if (!this._lastAlreadyOpenWarn || (now - this._lastAlreadyOpenWarn) > 60000) {
+                    logger.warn('[WS] ⚠️ Ya hay una conexión abierta');
+                    this._lastAlreadyOpenWarn = now;
+                }
                 return;
             }
 

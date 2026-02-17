@@ -25,7 +25,7 @@ export const setAuthToken = (token) => {
 };
 
 export const login = (password) => api.post('/login', { password });
-export const getStatus = () => api.get('/status');
+export const getStatus = (symbol) => api.get(`/status${symbol ? `?symbol=${symbol}` : ''}`);
 export const getCandles = (limit = 100) => api.get(`/candles?limit=${limit}`);
 export const getTrades = (limit = 20) => api.get(`/trades?limit=${limit}`);
 export const getHealth = () => api.get('/health');
@@ -37,5 +37,9 @@ export const runOptimization = (symbol, period, params) => api.post('/optimize',
 // Data Miner
 export const startMining = (symbol, days) => api.post('/miner/mine', { symbol, days });
 export const getMinerStatus = () => api.get('/miner/status');
+
+// Multi-Asset Management
+export const addTradingPair = (symbol, strategy) => api.post('/trading/pair/add', { symbol, strategy });
+export const removeTradingPair = (symbol) => api.delete('/trading/pair/remove', { data: { symbol } });
 
 export default api;

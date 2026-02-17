@@ -1,12 +1,34 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export const useLogs = (token) => {
     const [logs, setLogs] = useState([]);
+    const [status, setStatus] = useState('connecting'); // connecting | connected | reconnecting | closed
+    const esRef = useRef(null);
+    const reconnectTimer = useRef(null);
+    const attempts = useRef(0);
+    const [lastAttempt, setLastAttempt] = useState(null);
 
     useEffect(() => {
-        if (token) {
-            const eventSource = new EventSource(`/api/logs/stream?token=${token}`);
+        const connect = () => {
+            if (!token) return;
+            setStatus('connecting');
+            // Close existing before creating
+            if (esRef.current) {
+                try { esRef.current.close(); } catch (e) {}
+                esRef.current = null;
+            }
+
+            const url = `/api/logs/stream?token=${token}`;
+            const eventSource = new EventSource(url);
+            esRef.current = eventSource;
+
+            eventSource.onopen = () => {
+                attempts.current = 0;
+                setStatus('connected');
+                setLastAttempt({ when: Date.now(), ok: true });
+                console.info('SSE logs connected');
+            };
 
             eventSource.onmessage = (event) => {
                 try {
@@ -18,14 +40,29 @@ export const useLogs = (token) => {
             };
 
             eventSource.onerror = (err) => {
-                eventSource.close();
+                // Try reconnect with backoff
+                try { eventSource.close(); } catch (e) {}
+                esRef.current = null;
+                attempts.current += 1;
+                setStatus('reconnecting');
+                setLastAttempt({ when: Date.now(), ok: false, message: err?.message || 'SSE error' });
+                const delay = Math.min(30000, 1000 * Math.pow(2, Math.min(attempts.current, 6)));
+                if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+                reconnectTimer.current = setTimeout(() => connect(), delay);
             };
+        };
 
-            return () => {
-                eventSource.close();
-            };
-        }
+        connect();
+
+        return () => {
+            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+            if (esRef.current) {
+                try { esRef.current.close(); } catch (e) {}
+                esRef.current = null;
+            }
+            setStatus('closed');
+        };
     }, [token]);
 
-    return logs;
+    return { logs, status, lastAttempt };
 };

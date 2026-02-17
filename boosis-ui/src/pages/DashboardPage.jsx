@@ -8,7 +8,7 @@ import { useLogs } from '../hooks/useLogs';
 
 const DashboardPage = ({ data, candles, trades, health, metrics, token }) => {
     const [activeTab, setActiveTab] = useState('logs');
-    const logs = useLogs(token);
+    const { logs, status: logsStatus, lastAttempt } = useLogs(token);
 
     const lastPrice = (candles && candles.length > 0 && candles[candles.length - 1].close !== null)
         ? candles[candles.length - 1].close
@@ -39,6 +39,8 @@ const DashboardPage = ({ data, candles, trades, health, metrics, token }) => {
                 setActiveTab={setActiveTab}
                 trades={trades}
                 logs={logs}
+                logsStatus={logsStatus}
+                logsLastAttempt={lastAttempt}
             />
         </div>
     );

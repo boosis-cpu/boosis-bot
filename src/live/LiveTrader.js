@@ -147,7 +147,17 @@ class LiveTrader {
             res.flushHeaders();
             const onLog = (log) => res.write(`data: ${JSON.stringify(log)}\n\n`);
             logger.on('log', onLog);
-            req.on('close', () => logger.off('log', onLog));
+            // Keep-alive ping every 25s to avoid certain proxies closing the SSE
+            const keepAlive = setInterval(() => {
+                try {
+                    res.write(': ping\n\n');
+                } catch (e) {}
+            }, 25000);
+
+            req.on('close', () => {
+                clearInterval(keepAlive);
+                logger.off('log', onLog);
+            });
         });
 
         // STATUS ENDPOINT (Multi-Asset Ready)
@@ -175,6 +185,7 @@ class LiveTrader {
                     assetValue: status.activePosition ? (status.activePosition.amount * status.latestCandle.close) : 0
                 };
                 status.initialCapital = this.initialCapital;
+                status.emergencyStopped = this.emergencyStopped;
                 res.json(status);
 
             } else {
@@ -425,7 +436,7 @@ class LiveTrader {
             try {
                 const { symbol, strategy } = req.body;
                 if (!symbol || !strategy) return res.status(400).json({ error: 'symbol y strategy requeridos' });
-                this.addTradingPair(symbol, strategy);
+                await this.addTradingPair(symbol, strategy);
                 res.json({ status: 'ok', message: `Par ${symbol} agregado`, symbol, strategy });
             } catch (error) {
                 res.status(500).json({ error: error.message });
@@ -436,7 +447,7 @@ class LiveTrader {
             try {
                 const { symbol } = req.body;
                 if (!symbol) return res.status(400).json({ error: 'symbol requerido' });
-                this.removeTradingPair(symbol);
+                await this.removeTradingPair(symbol);
                 res.json({ status: 'ok', message: `Par ${symbol} removido` });
             } catch (error) {
                 res.status(500).json({ error: error.message });
@@ -446,7 +457,7 @@ class LiveTrader {
 
 
     async handleKlineMessage(kline, symbol) {
-        if (!kline.x) return; // Only process closed candles
+        if (!kline.x || this.emergencyStopped) return; // Detener todo si hay emergencia
 
         const manager = this.pairManagers.get(symbol);
         if (!manager) return;

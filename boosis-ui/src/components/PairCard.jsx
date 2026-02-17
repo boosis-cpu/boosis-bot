@@ -4,9 +4,50 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer
 } from 'recharts';
+import { addTradingPair, removeTradingPair } from '../services/api';
+import { Play, Square } from 'lucide-react';
 
-export default function PairCard({ symbol, data, token, loadDelay = 0 }) {
+export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle }) {
     const [chartData, setChartData] = useState([]);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [feedback, setFeedback] = useState(null);
+    const [confirmStop, setConfirmStop] = useState(false);
+
+    const showFeedback = (msg, type = 'success') => {
+        setFeedback({ msg, type });
+        setTimeout(() => setFeedback(null), 3000);
+    };
+
+    const handleToggleClick = () => {
+        if (data.status === 'inactive') {
+            executeToggle('start');
+        } else {
+            setConfirmStop(true);
+        }
+    };
+
+    const executeToggle = async (action) => {
+        try {
+            setActionLoading(true);
+            setConfirmStop(false);
+            if (action === 'start') {
+                await addTradingPair(symbol, 'BoosisTrend');
+                showFeedback(`${symbol} activado`);
+            } else {
+                await removeTradingPair(symbol);
+                showFeedback(`${symbol} detenido`);
+            }
+            onToggle?.();
+        } catch (error) {
+            const msg = error.response?.status === 429
+                ? 'Rate limit - espera unos segundos'
+                : error.response?.data?.error || 'Error de conexión';
+            showFeedback(msg, 'error');
+            console.error('Error toggling pair:', error);
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         const timer = setTimeout(() => loadChartData(), loadDelay);
@@ -43,13 +84,90 @@ export default function PairCard({ symbol, data, token, loadDelay = 0 }) {
     const balance = (Number(data.balance?.usdt) || 0) + (Number(data.balance?.assetValue) || 0);
 
     return (
-        <div className="pair-card">
+        <div className={`pair-card ${data.status === 'inactive' ? 'is-inactive' : ''}`}>
             <div className="pair-card-header">
-                <h3>{symbol}</h3>
-                <span className={`status-pill ${data.status === 'inactive' ? 'inactive' : (data.activePosition ? 'active' : 'idle')}`}>
-                    {data.status === 'inactive' ? '⚪ INACTIVE' : (data.activePosition ? '🔵 IN POSITION' : '🟢 WAITING')}
-                </span>
+                <div className="title-area">
+                    <h3>{symbol}</h3>
+                    <span className={`status-pill ${data.status === 'inactive' ? 'inactive' : (data.activePosition ? 'active' : 'idle')}`}>
+                        {data.status === 'inactive' ? '⚪ INACTIVE' : (data.activePosition ? '🔵 IN POSITION' : '🟢 WAITING')}
+                    </span>
+                </div>
+
+                <button
+                    className={`pair-toggle-btn ${data.status === 'inactive' ? 'start' : 'stop'}`}
+                    onClick={handleToggleClick}
+                    disabled={actionLoading || confirmStop}
+                    title={data.status === 'inactive' ? 'Activar Hormiga' : 'Detener Hormiga'}
+                >
+                    {actionLoading ? '...' : (data.status === 'inactive' ? <Play size={14} /> : <Square size={14} />)}
+                </button>
             </div>
+
+            {confirmStop && (
+                <div style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    marginBottom: '8px',
+                    background: 'rgba(255, 0, 100, 0.1)',
+                    border: '1px solid #ff0064',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                }}>
+                    <span style={{ color: '#ff0064' }}>Detener {symbol}?</span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                            onClick={() => executeToggle('stop')}
+                            style={{
+                                background: '#ff0064',
+                                color: 'white',
+                                border: 'none',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                            }}
+                        >
+                            Si
+                        </button>
+                        <button
+                            onClick={() => setConfirmStop(false)}
+                            style={{
+                                background: 'transparent',
+                                color: '#8b949e',
+                                border: '1px solid #30363d',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                            }}
+                        >
+                            No
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {feedback && (
+                <div style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    marginBottom: '8px',
+                    background: feedback.type === 'error' ? 'rgba(255, 0, 100, 0.15)' : 'rgba(0, 255, 136, 0.15)',
+                    color: feedback.type === 'error' ? '#ff0064' : '#00ff88',
+                    border: `1px solid ${feedback.type === 'error' ? '#ff0064' : '#00ff88'}`,
+                }}>
+                    {feedback.msg}
+                </div>
+            )}
 
             <div className="chart-container" style={{ minWidth: 0, minHeight: 150 }}>
                 <ResponsiveContainer width="99%" height={150} minWidth={0}>
@@ -66,7 +184,7 @@ export default function PairCard({ symbol, data, token, loadDelay = 0 }) {
                         <Line
                             type="monotone"
                             dataKey="price"
-                            stroke={change >= 0 ? '#00ff88' : '#ff0064'}
+                            stroke={data.status === 'inactive' ? '#666' : (change >= 0 ? '#00ff88' : '#ff0064')}
                             dot={false}
                             strokeWidth={2}
                             isAnimationActive={false}

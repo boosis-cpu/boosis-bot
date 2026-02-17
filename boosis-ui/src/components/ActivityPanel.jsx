@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const ActivityPanel = ({ activeTab, setActiveTab, trades, logs }) => {
+const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'connecting', logsLastAttempt = null }) => {
     return (
         <section className="activity-area panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', borderBottom: '1px solid #30363d', paddingBottom: '10px' }}>
@@ -16,7 +16,18 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs }) => {
                         paddingBottom: '4px'
                     }}
                 >
-                    LOGS DEL SISTEMA
+                    <span style={{ display: 'inline-flex', alignItems: 'center' }} title={logsLastAttempt ? `${logsLastAttempt.ok ? 'Última conexión ok' : 'Último intento: ' + (logsLastAttempt.message || '')} — ${logsLastAttempt ? new Date(logsLastAttempt.when).toLocaleTimeString() : ''}` : ''}>
+                        <span style={{
+                            display: 'inline-block',
+                            width: 10,
+                            height: 10,
+                            borderRadius: 6,
+                            marginRight: 8,
+                            background: logsStatus === 'connected' ? '#2ea043' : logsStatus === 'reconnecting' ? '#d29922' : logsStatus === 'closed' ? '#f85149' : '#8b949e'
+                        }} />
+                        <span style={{ marginRight: 8 }}>{logsStatus === 'connected' ? 'Conectado' : logsStatus === 'reconnecting' ? 'Reconectando' : logsStatus === 'closed' ? 'Cerrado' : 'Conectando'}</span>
+                        LOGS DEL SISTEMA
+                    </span>
                 </div>
                 <div
                     onClick={() => setActiveTab('trades')}
