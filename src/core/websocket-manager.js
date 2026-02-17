@@ -53,9 +53,9 @@ class WebSocketManager {
             throw new Error('[WS] No hay símbolos para escuchar');
         }
 
-        // Convertir a minúsculas para la URL
+        // Convertir a minúsculas para la URL - CAMBIO: 5m -> 1m para mayor reactividad
         const streams = Array.from(this.activeSymbols)
-            .map(symbol => `${symbol.toLowerCase()}@kline_5m`)
+            .map(symbol => `${symbol.toLowerCase()}@kline_1m`)
             .join('/');
 
         const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;

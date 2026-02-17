@@ -42,7 +42,7 @@ class TradingPairManager {
         // Cargar estado inicial desde DB si existe (posición abierta, historial reciente)
         try {
             // 1. Cargar Velas Recientes (Warmup)
-            const recentCandles = await db.getRecentCandles(this.symbol, 200); // 200 velas para indicadores
+            const recentCandles = await db.getRecentCandles(this.symbol, 400); // 400 velas de 1m = ~6.6h para indicadores
             // Convertir formato DB a formato interno si es necesario (array vs obj)
             // Asumiendo formato array [time, open, high, low, close, vol]
             this.candles = recentCandles.map(c => [
@@ -136,10 +136,13 @@ class TradingPairManager {
         const lastCandle = this.candles[this.candles.length - 1];
         const currentPrice = lastCandle ? lastCandle[4] : 0;
 
-        // Calcular cambio 24h aproximado (usando vela hace 288 periodos de 5m = 24h)
+        // Calcular cambio 24h aproximado (usando vela hace 1440 periodos de 1m = 24h)
         // O simplemente cambio desde inicio de sesión si no hay suficientes datos
         let change24h = 0;
-        if (this.candles.length > 0) {
+        if (this.candles.length > 1440) {
+            const openPrice = this.candles[this.candles.length - 1440][4]; // Precio hace 24h
+            change24h = ((currentPrice - openPrice) / openPrice) * 100;
+        } else if (this.candles.length > 0) {
             const openPrice = this.candles[0][4]; // Precio más antiguo en memoria
             change24h = ((currentPrice - openPrice) / openPrice) * 100;
         }

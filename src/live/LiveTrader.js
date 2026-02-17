@@ -20,8 +20,8 @@ const schema = require('../core/database-schema');
 // Configuration
 const CONFIG = {
     symbol: 'BTCUSDT',
-    interval: '5m',
-    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_5m`,
+    interval: '1m',
+    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_1m`,
     apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };

@@ -6,7 +6,7 @@ const PriceChart = ({ lastPrice, candles }) => {
     return (
         <main className="main-chart-area panel">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 5M LIVE</h2>
+                <h2 className="text-sm font-semibold text-gray-400">BTC/USDT 1M LIVE</h2>
                 <div className="text-xl font-bold font-mono">${(Number(lastPrice) || 0).toFixed(2)}</div>
             </div>
             <div className="chart-wrapper" style={{ height: '400px', width: '100%', minWidth: 0 }}>
