@@ -1,0 +1,283 @@
+/* Chart Components Styling - Dark Theme */
+
+.timeframe-selector {
+  margin-bottom: 12px;
+}
+
+.timeframe-selector select {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #1a1f3a;
+  color: #00ff88;
+  border: 1px solid #00ff88;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.timeframe-selector select:hover {
+  background-color: #252d47;
+}
+
+.timeframe-selector select:focus {
+  outline: none;
+  border-color: #00ff88;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+}
+
+/* Indicator Config */
+
+.indicator-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background-color: #1a1f3a;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.indicators-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.indicator-checkbox,
+.volume-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #a0aec0;
+}
+
+.indicator-checkbox input,
+.volume-toggle input {
+  cursor: pointer;
+  accent-color: #00ff88;
+}
+
+.indicator-checkbox:hover,
+.volume-toggle:hover {
+  color: #00ff88;
+}
+
+/* OHLC Details */
+
+.ohlc-details {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #0a0e27;
+  border: 1px solid #00ff88;
+  border-radius: 6px;
+  padding: 0;
+  min-width: 220px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ohlc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #00ff88;
+  background-color: #1a1f3a;
+  border-radius: 6px 6px 0 0;
+}
+
+.ohlc-header span {
+  color: #00ff88;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.ohlc-header button {
+  background: none;
+  border: none;
+  color: #00ff88;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.ohlc-header button:hover {
+  color: #00ff88;
+  opacity: 0.7;
+}
+
+.ohlc-body {
+  padding: 12px;
+}
+
+.ohlc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.ohlc-row .label {
+  color: #718096;
+  min-width: 50px;
+}
+
+.ohlc-row .value {
+  color: #e2e8f0;
+  font-weight: 600;
+  text-align: right;
+  flex: 1;
+}
+
+/* Candlestick Chart Container */
+
+.candlestick-chart {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background-color: #0a0e27;
+  border-radius: 8px;
+  border: 1px solid #1a1f3a;
+}
+
+.chart-container {
+  width: 100%;
+  background-color: #0a0e27;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.chart-loading,
+.chart-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+.chart-error {
+  color: #ff0064;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.chart-controls button {
+  padding: 6px 12px;
+  background-color: #1a1f3a;
+  color: #00ff88;
+  border: 1px solid #00ff88;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.chart-controls button:hover {
+  background-color: #00ff88;
+  color: #0a0e27;
+}
+
+/* Currency Selector */
+
+.currency-selector-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #1a1f3a;
+}
+
+.currency-selector-section label {
+  color: #a0aec0;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.currency-selector-section select {
+  flex: 1;
+  padding: 8px 12px;
+  background-color: #1a1f3a;
+  color: #00ff88;
+  border: 1px solid #00ff88;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.currency-selector-section select:hover {
+  background-color: #252d47;
+}
+
+.currency-selector-section select:focus {
+  outline: none;
+  border-color: #00ff88;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .indicators-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ohlc-details {
+    bottom: 10px;
+    right: 10px;
+    min-width: 200px;
+  }
+
+  .chart-controls {
+    flex-direction: column;
+  }
+
+  .chart-controls button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .indicators-list {
+    grid-template-columns: 1fr;
+  }
+
+  .currency-selector-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .currency-selector-section select {
+    width: 100%;
+  }
+}

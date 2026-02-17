@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer
-} from 'recharts';
+import CandlestickChart from './Charts/CandlestickChart';
 import { addTradingPair, removeTradingPair } from '../services/api';
 import { Play, Square } from 'lucide-react';
 
 export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle }) {
-    const [chartData, setChartData] = useState([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [feedback, setFeedback] = useState(null);
     const [confirmStop, setConfirmStop] = useState(false);
@@ -50,28 +46,8 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
     };
 
     useEffect(() => {
-        const timer = setTimeout(() => loadChartData(), loadDelay);
-        return () => clearTimeout(timer);
+        // Component mounted, CandlestickChart will handle data loading
     }, [symbol, token]);
-
-    const loadChartData = async () => {
-        try {
-            const response = await axios.get(
-                `/api/candles?symbol=${symbol}&limit=50`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (response.data && Array.isArray(response.data)) {
-                setChartData(response.data.slice(-20)
-                    .map(c => ({
-                        time: new Date(c.open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        price: parseFloat(c.close) || 0,
-                    }))
-                    .filter(c => c.price > 0));
-            }
-        } catch (error) {
-            console.error('Error loading candles:', error);
-        }
-    };
 
     if (!data) return <div className="pair-card loading">Cargando {symbol}...</div>;
 
@@ -170,27 +146,7 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
             )}
 
             <div className="chart-container" style={{ minWidth: 0, minHeight: 150 }}>
-                <ResponsiveContainer width="99%" height={150} minWidth={0}>
-                    <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                        <XAxis dataKey="time" hide />
-                        <YAxis domain={['auto', 'auto']} hide />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: '#111', border: '1px solid #00ff88', borderRadius: '4px' }}
-                            itemStyle={{ color: '#00ff88' }}
-                            labelStyle={{ color: '#fff' }}
-                            formatter={(value) => [isNaN(value) ? '0' : `$${Number(value).toLocaleString()}`, 'Precio']}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="price"
-                            stroke={data.status === 'inactive' ? '#666' : (change >= 0 ? '#00ff88' : '#ff0064')}
-                            dot={false}
-                            strokeWidth={2}
-                            isAnimationActive={false}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                <CandlestickChart symbol={symbol} token={token} height={150} mini={true} />
             </div>
 
             <div className="pair-metrics">
