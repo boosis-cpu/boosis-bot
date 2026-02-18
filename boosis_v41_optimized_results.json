@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-02-18T21:14:15.627Z",
+  "version": "v4.1 OPTIMIZED",
+  "changes": [
+    "Eliminado SUI (-55.76% destructor)",
+    "Profit target: +3% → +5%",
+    "Stop loss: 1.5x ATR → 1.0x ATR",
+    "Risk/trade: 2% → 1.5%",
+    "Max trades/día: 3",
+    "Enfoque: CORE (BTC/ETH) + AI (FET) + RWA (LINK)"
+  ],
+  "metrics": {
+    "roi": "-3.75",
+    "trades": 515,
+    "wr": "24.1",
+    "maxDD": "0.56",
+    "assetPerformance": {
+      "LINKUSDT": {
+        "trades": 119,
+        "wins": 42,
+        "totalPnL": 96.43769504609901
+      },
+      "ETHUSDT": {
+        "trades": 115,
+        "wins": 34,
+        "totalPnL": 67.20825223851428
+      },
+      "BTCUSDT": {
+        "trades": 111,
+        "wins": 18,
+        "totalPnL": 1.0278909523113229
+      },
+      "FETUSDT": {
+        "trades": 170,
+        "wins": 30,
+        "totalPnL": -19.668562446128718
+      }
+    },
+    "narrativePerformance": {
+      "RWA": {
+        "trades": 119,
+        "wins": 42,
+        "totalPnL": 96.43769504609901
+      },
+      "CORE": {
+        "trades": 226,
+        "wins": 52,
+        "totalPnL": 68.23614319082557
+      },
+      "AI": {
+        "trades": 170,
+        "wins": 30,
+        "totalPnL": -19.668562446128718
+      }
+    },
+    "verdict": "⚠️ REVISAR"
+  }
+}
