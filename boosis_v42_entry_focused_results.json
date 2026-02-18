@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-02-18T21:17:43.698Z",
+  "version": "v4.2 ENTRY-FOCUSED",
+  "metrics": {
+    "roi": "-2.69",
+    "trades": 72,
+    "wr": "36.1",
+    "maxDD": "0.57",
+    "rejectedEntries": 1097,
+    "acceptedEntries": 73,
+    "verdict": "⚠️ NEEDS MORE WORK"
+  }
+}
