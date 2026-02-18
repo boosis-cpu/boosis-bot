@@ -1,0 +1,570 @@
+{
+  "timestamp": "2026-02-18T21:03:58.896Z",
+  "summary": {
+    "roi": "-13.44",
+    "trades": 750,
+    "winRate": "42.4",
+    "maxDD": "1.83",
+    "assetPerformance": {
+      "SOLUSDT": {
+        "trades": 113,
+        "wins": 57,
+        "totalPnL": 51.03909636783729
+      },
+      "HYPEUSDT": {
+        "trades": 121,
+        "wins": 52,
+        "totalPnL": 7.94064525335748
+      },
+      "SUIUSDT": {
+        "trades": 118,
+        "wins": 36,
+        "totalPnL": -55.76377520054023
+      },
+      "ETHUSDT": {
+        "trades": 100,
+        "wins": 44,
+        "totalPnL": 22.012527188391783
+      },
+      "FETUSDT": {
+        "trades": 99,
+        "wins": 44,
+        "totalPnL": 27.855419199977838
+      },
+      "BTCUSDT": {
+        "trades": 81,
+        "wins": 39,
+        "totalPnL": 26.042988536987203
+      },
+      "LINKUSDT": {
+        "trades": 118,
+        "wins": 46,
+        "totalPnL": 15.37621351697031
+      }
+    },
+    "narrativePerformance": {
+      "UTILITY": {
+        "trades": 352,
+        "wins": 145,
+        "totalPnL": 3.2159664206545164
+      },
+      "CORE": {
+        "trades": 181,
+        "wins": 83,
+        "totalPnL": 48.05551572537898
+      },
+      "AI": {
+        "trades": 99,
+        "wins": 44,
+        "totalPnL": 27.855419199977838
+      },
+      "RWA": {
+        "trades": 118,
+        "wins": 46,
+        "totalPnL": 15.37621351697031
+      }
+    }
+  },
+  "detailedTrades": [
+    {
+      "type": "ENTRY",
+      "asset": "BTCUSDT",
+      "price": 64372.4961,
+      "shares": "0.0155",
+      "narrative": "CORE",
+      "reason": "RSI:46.6 | ATR:1.08% | Vol:OK",
+      "capital": "48999.00",
+      "timestamp": 0
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 2051.5453,
+      "shares": "0.4777",
+      "narrative": "CORE",
+      "reason": "RSI:62.2 | ATR:1.30% | Vol:OK",
+      "capital": "48018.04",
+      "timestamp": 0
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 90.6044,
+      "shares": "10.5995",
+      "narrative": "UTILITY",
+      "reason": "RSI:63.2 | ATR:1.60% | Vol:OK",
+      "capital": "47056.72",
+      "timestamp": 0
+    },
+    {
+      "type": "ENTRY",
+      "asset": "HYPEUSDT",
+      "price": 41.7496,
+      "shares": "22.5424",
+      "narrative": "UTILITY",
+      "reason": "RSI:52.1 | ATR:1.47% | Vol:OK",
+      "capital": "46114.64",
+      "timestamp": 0
+    },
+    {
+      "type": "ENTRY",
+      "asset": "FETUSDT",
+      "price": 4.0345,
+      "shares": "228.6015",
+      "narrative": "AI",
+      "reason": "RSI:82.9 | ATR:1.44% | Vol:OK",
+      "capital": "45191.43",
+      "timestamp": 0
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 90.6044,
+      "exitPrice": 87.81,
+      "pnl": "-3.08",
+      "reason": "STOP_LOSS",
+      "capital": "46121.24",
+      "timestamp": 2
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SUIUSDT",
+      "price": 3.2209,
+      "shares": "286.3873",
+      "narrative": "UTILITY",
+      "reason": "RSI:34.1 | ATR:1.51% | Vol:OK",
+      "capital": "45197.89",
+      "timestamp": 2
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 87.81,
+      "shares": "10.2945",
+      "narrative": "UTILITY",
+      "reason": "RSI:45.8 | ATR:1.71% | Vol:OK",
+      "capital": "44293.03",
+      "timestamp": 3
+    },
+    {
+      "type": "ENTRY",
+      "asset": "LINKUSDT",
+      "price": 26.2681,
+      "shares": "33.7238",
+      "narrative": "RWA",
+      "reason": "RSI:31.4 | ATR:1.72% | Vol:OK",
+      "capital": "43406.28",
+      "timestamp": 3
+    },
+    {
+      "type": "EXIT",
+      "asset": "HYPEUSDT",
+      "entryPrice": 41.7496,
+      "exitPrice": 43.4717,
+      "pnl": "4.12",
+      "reason": "TARGET_HIT",
+      "capital": "44385.26",
+      "timestamp": 7
+    },
+    {
+      "type": "ENTRY",
+      "asset": "HYPEUSDT",
+      "price": 43.4717,
+      "shares": "20.4203",
+      "narrative": "UTILITY",
+      "reason": "RSI:63.2 | ATR:1.44% | Vol:OK",
+      "capital": "43496.67",
+      "timestamp": 8
+    },
+    {
+      "type": "EXIT",
+      "asset": "SUIUSDT",
+      "entryPrice": 3.2209,
+      "exitPrice": 3.1414,
+      "pnl": "-2.47",
+      "reason": "STOP_LOSS",
+      "capital": "44395.42",
+      "timestamp": 15
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SUIUSDT",
+      "price": 3.16,
+      "shares": "280.9837",
+      "narrative": "UTILITY",
+      "reason": "RSI:32.6 | ATR:1.46% | Vol:OK",
+      "capital": "43506.63",
+      "timestamp": 18
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 87.81,
+      "exitPrice": 91.6489,
+      "pnl": "4.37",
+      "reason": "TARGET_HIT",
+      "capital": "44449.16",
+      "timestamp": 26
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 91.6489,
+      "shares": "9.6999",
+      "narrative": "UTILITY",
+      "reason": "RSI:76.5 | ATR:1.36% | Vol:OK",
+      "capital": "43559.29",
+      "timestamp": 27
+    },
+    {
+      "type": "EXIT",
+      "asset": "ETHUSDT",
+      "entryPrice": 2051.5453,
+      "exitPrice": 2014.8598,
+      "pnl": "-1.79",
+      "reason": "PANIC_RSI",
+      "capital": "44520.78",
+      "timestamp": 39
+    },
+    {
+      "type": "EXIT",
+      "asset": "FETUSDT",
+      "entryPrice": 4.0345,
+      "exitPrice": 3.9446,
+      "pnl": "-2.23",
+      "reason": "STOP_LOSS",
+      "capital": "45421.62",
+      "timestamp": 39
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 2014.8598,
+      "shares": "0.4509",
+      "narrative": "CORE",
+      "reason": "RSI:28.9 | ATR:1.20% | Vol:OK",
+      "capital": "44512.28",
+      "timestamp": 40
+    },
+    {
+      "type": "EXIT",
+      "asset": "ETHUSDT",
+      "entryPrice": 2014.8598,
+      "exitPrice": 2001.5751,
+      "pnl": "-0.66",
+      "reason": "PANIC_RSI",
+      "capital": "45413.82",
+      "timestamp": 41
+    },
+    {
+      "type": "EXIT",
+      "asset": "HYPEUSDT",
+      "entryPrice": 43.4717,
+      "exitPrice": 45.2146,
+      "pnl": "4.01",
+      "reason": "TARGET_HIT",
+      "capital": "46336.19",
+      "timestamp": 41
+    },
+    {
+      "type": "EXIT",
+      "asset": "SUIUSDT",
+      "entryPrice": 3.16,
+      "exitPrice": 3.0742,
+      "pnl": "-2.72",
+      "reason": "STOP_LOSS",
+      "capital": "47199.13",
+      "timestamp": 41
+    },
+    {
+      "type": "ENTRY",
+      "asset": "FETUSDT",
+      "price": 3.9482,
+      "shares": "239.0919",
+      "narrative": "AI",
+      "reason": "RSI:31.5 | ATR:1.44% | Vol:OK",
+      "capital": "46254.20",
+      "timestamp": 41
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 91.6489,
+      "exitPrice": 89.7579,
+      "pnl": "-2.06",
+      "reason": "STOP_LOSS",
+      "capital": "47123.97",
+      "timestamp": 42
+    },
+    {
+      "type": "ENTRY",
+      "asset": "HYPEUSDT",
+      "price": 45.2146,
+      "shares": "20.8446",
+      "narrative": "UTILITY",
+      "reason": "RSI:65.9 | ATR:1.25% | Vol:OK",
+      "capital": "46180.55",
+      "timestamp": 42
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SUIUSDT",
+      "price": 3.0775,
+      "shares": "300.1173",
+      "narrative": "UTILITY",
+      "reason": "RSI:42.4 | ATR:1.29% | Vol:OK",
+      "capital": "45256.02",
+      "timestamp": 43
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 90.2983,
+      "shares": "10.0237",
+      "narrative": "UTILITY",
+      "reason": "RSI:36.4 | ATR:1.38% | Vol:OK",
+      "capital": "44349.99",
+      "timestamp": 44
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 1973.1169,
+      "shares": "0.4495",
+      "narrative": "CORE",
+      "reason": "RSI:18.0 | ATR:1.25% | Vol:OK",
+      "capital": "43462.10",
+      "timestamp": 45
+    },
+    {
+      "type": "EXIT",
+      "asset": "ETHUSDT",
+      "entryPrice": 1973.1169,
+      "exitPrice": 1982.0818,
+      "pnl": "0.45",
+      "reason": "PANIC_RSI",
+      "capital": "44352.24",
+      "timestamp": 45
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 1982.0818,
+      "shares": "0.4475",
+      "narrative": "CORE",
+      "reason": "RSI:24.4 | ATR:1.30% | Vol:OK",
+      "capital": "43464.31",
+      "timestamp": 46
+    },
+    {
+      "type": "EXIT",
+      "asset": "ETHUSDT",
+      "entryPrice": 1982.0818,
+      "exitPrice": 1987.0387,
+      "pnl": "0.25",
+      "reason": "PANIC_RSI",
+      "capital": "44352.69",
+      "timestamp": 46
+    },
+    {
+      "type": "EXIT",
+      "asset": "HYPEUSDT",
+      "entryPrice": 45.2146,
+      "exitPrice": 46.8576,
+      "pnl": "3.63",
+      "reason": "TARGET_HIT",
+      "capital": "45328.44",
+      "timestamp": 46
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 1987.0387,
+      "shares": "0.4562",
+      "narrative": "CORE",
+      "reason": "RSI:27.9 | ATR:1.29% | Vol:OK",
+      "capital": "44420.96",
+      "timestamp": 47
+    },
+    {
+      "type": "ENTRY",
+      "asset": "HYPEUSDT",
+      "price": 46.8576,
+      "shares": "18.9600",
+      "narrative": "UTILITY",
+      "reason": "RSI:79.2 | ATR:1.22% | Vol:OK",
+      "capital": "43531.65",
+      "timestamp": 47
+    },
+    {
+      "type": "EXIT",
+      "asset": "BTCUSDT",
+      "entryPrice": 64372.4961,
+      "exitPrice": 66403.5888,
+      "pnl": "3.16",
+      "reason": "TARGET_HIT",
+      "capital": "44562.17",
+      "timestamp": 50
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 90.2983,
+      "exitPrice": 88.0279,
+      "pnl": "-2.51",
+      "reason": "STOP_LOSS",
+      "capital": "45443.65",
+      "timestamp": 50
+    },
+    {
+      "type": "ENTRY",
+      "asset": "BTCUSDT",
+      "price": 66403.5888,
+      "shares": "0.0137",
+      "narrative": "CORE",
+      "reason": "RSI:70.8 | ATR:1.16% | Vol:OK",
+      "capital": "44533.87",
+      "timestamp": 51
+    },
+    {
+      "type": "EXIT",
+      "asset": "SUIUSDT",
+      "entryPrice": 3.0775,
+      "exitPrice": 3.1879,
+      "pnl": "3.59",
+      "reason": "TARGET_HIT",
+      "capital": "45489.66",
+      "timestamp": 53
+    },
+    {
+      "type": "EXIT",
+      "asset": "ETHUSDT",
+      "entryPrice": 1987.0387,
+      "exitPrice": 2054.1777,
+      "pnl": "3.38",
+      "reason": "TARGET_HIT",
+      "capital": "46425.92",
+      "timestamp": 54
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SUIUSDT",
+      "price": 3.1879,
+      "shares": "291.2634",
+      "narrative": "UTILITY",
+      "reason": "RSI:65.3 | ATR:1.32% | Vol:OK",
+      "capital": "45496.47",
+      "timestamp": 54
+    },
+    {
+      "type": "ENTRY",
+      "asset": "ETHUSDT",
+      "price": 2054.1777,
+      "shares": "0.4430",
+      "narrative": "CORE",
+      "reason": "RSI:64.1 | ATR:1.30% | Vol:OK",
+      "capital": "44585.64",
+      "timestamp": 55
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 86.7135,
+      "shares": "10.2834",
+      "narrative": "UTILITY",
+      "reason": "RSI:19.9 | ATR:1.68% | Vol:OK",
+      "capital": "43693.03",
+      "timestamp": 55
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 86.7135,
+      "exitPrice": 86.901,
+      "pnl": "0.22",
+      "reason": "PANIC_RSI",
+      "capital": "44585.78",
+      "timestamp": 55
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 86.901,
+      "shares": "10.2613",
+      "narrative": "UTILITY",
+      "reason": "RSI:24.8 | ATR:1.62% | Vol:OK",
+      "capital": "43693.17",
+      "timestamp": 56
+    },
+    {
+      "type": "EXIT",
+      "asset": "SOLUSDT",
+      "entryPrice": 86.901,
+      "exitPrice": 87.5489,
+      "pnl": "0.75",
+      "reason": "PANIC_RSI",
+      "capital": "44590.64",
+      "timestamp": 56
+    },
+    {
+      "type": "EXIT",
+      "asset": "FETUSDT",
+      "entryPrice": 3.9482,
+      "exitPrice": 4.1075,
+      "pnl": "4.03",
+      "reason": "TARGET_HIT",
+      "capital": "45571.72",
+      "timestamp": 56
+    },
+    {
+      "type": "ENTRY",
+      "asset": "SOLUSDT",
+      "price": 87.5489,
+      "shares": "10.4106",
+      "narrative": "UTILITY",
+      "reason": "RSI:34.9 | ATR:1.59% | Vol:OK",
+      "capital": "44659.38",
+      "timestamp": 57
+    },
+    {
+      "type": "ENTRY",
+      "asset": "FETUSDT",
+      "price": 4.1075,
+      "shares": "217.4528",
+      "narrative": "AI",
+      "reason": "RSI:60.1 | ATR:1.54% | Vol:OK",
+      "capital": "43765.30",
+      "timestamp": 57
+    },
+    {
+      "type": "EXIT",
+      "asset": "HYPEUSDT",
+      "entryPrice": 46.8576,
+      "exitPrice": 45.9071,
+      "pnl": "-2.03",
+      "reason": "STOP_LOSS",
+      "capital": "44634.83",
+      "timestamp": 58
+    },
+    {
+      "type": "ENTRY",
+      "asset": "HYPEUSDT",
+      "price": 45.9071,
+      "shares": "19.4457",
+      "narrative": "UTILITY",
+      "reason": "RSI:50.7 | ATR:1.55% | Vol:OK",
+      "capital": "43741.24",
+      "timestamp": 59
+    },
+    {
+      "type": "EXIT",
+      "asset": "SUIUSDT",
+      "entryPrice": 3.1879,
+      "exitPrice": 3.2935,
+      "pnl": "3.31",
+      "reason": "TARGET_HIT",
+      "capital": "44699.55",
+      "timestamp": 64
+    }
+  ]
+}

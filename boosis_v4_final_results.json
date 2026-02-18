@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-02-18T20:59:48.667Z",
+  "metrics": {
+    "roi": "16796.24",
+    "trades": 169,
+    "wr": "43.2",
+    "maxDD": "1.5495",
+    "dailyAvgReturn": "0.3305",
+    "dailyDollars": "165.26",
+    "monthlyDollars": "4957.80",
+    "calmar": "10839.49"
+  }
+}
