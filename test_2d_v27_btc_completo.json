@@ -1,0 +1,308 @@
+{
+  "summary": {
+    "roi": "-0.27%",
+    "maxDrawdown": "2.24%",
+    "calmarRatio": "-0.02",
+    "sharpeRatio": "-0.08",
+    "profitFactor": "0.91",
+    "winRate": "26.3%",
+    "totalTrades": 19,
+    "finalBalance": "9972.97"
+  },
+  "riskMetrics": {
+    "cagr": "-0.05%",
+    "avgTradeWin": "27.76%",
+    "avgTradeLoss": "-6.21%",
+    "avgTradeDurationDays": "23.1",
+    "circuitBreakerActivations": 11,
+    "volatilityScalerRange": "[0.37 - 1.00]",
+    "finalKelly": "0.25"
+  },
+  "trades": [
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2022-07-19T00:00:00.000Z",
+      "exitTime": "2022-08-19T00:00:00.000Z",
+      "entryPrice": 23396.62,
+      "exitPrice": 20834.39,
+      "pnl": -10.951282706647369,
+      "profit": -54.979035326470225,
+      "durationDays": "31.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2022-09-12T00:00:00.000Z",
+      "exitTime": "2022-09-15T00:00:00.000Z",
+      "entryPrice": 22395.74,
+      "exitPrice": 19701.88,
+      "pnl": -12.028448267393712,
+      "profit": -60.36217021630007,
+      "durationDays": "3.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2022-10-26T00:00:00.000Z",
+      "exitTime": "2022-11-08T00:00:00.000Z",
+      "entryPrice": 20771.59,
+      "exitPrice": 18547.23,
+      "pnl": -10.708665056454516,
+      "profit": -53.76655361963144,
+      "durationDays": "13.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2022-12-13T00:00:00.000Z",
+      "exitTime": "2022-12-16T00:00:00.000Z",
+      "entryPrice": 17774.7,
+      "exitPrice": 16632.12,
+      "pnl": -6.428125369204553,
+      "profit": -32.37455653259975,
+      "durationDays": "3.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2023-01-08T00:00:00.000Z",
+      "exitTime": "2023-02-09T00:00:00.000Z",
+      "entryPrice": 17127.83,
+      "exitPrice": 21796.35,
+      "pnl": 27.256926300646356,
+      "profit": 135.96648918748014,
+      "durationDays": "32.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2023-02-15T00:00:00.000Z",
+      "exitTime": "2023-03-03T00:00:00.000Z",
+      "entryPrice": 24324.05,
+      "exitPrice": 22354.34,
+      "pnl": -8.097787991720125,
+      "profit": -40.71869548862132,
+      "durationDays": "16.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2023-03-17T00:00:00.000Z",
+      "exitTime": "2023-04-21T00:00:00.000Z",
+      "entryPrice": 27395.13,
+      "exitPrice": 27262.84,
+      "pnl": -0.4828960475821829,
+      "profit": -0.5580586579045828,
+      "durationDays": "35.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.41907732205241643,
+        "positionSize": 104.76933051310411
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2023-10-01T00:00:00.000Z",
+      "exitTime": "2023-10-11T00:00:00.000Z",
+      "entryPrice": 27992.57,
+      "exitPrice": 26875.52,
+      "pnl": -3.9905231995490205,
+      "profit": -4.869660993303276,
+      "durationDays": "10.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.482320396750909,
+        "positionSize": 120.58009918772724
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2023-10-23T00:00:00.000Z",
+      "exitTime": "2024-01-18T00:00:00.000Z",
+      "entryPrice": 33069.99,
+      "exitPrice": 41327.5,
+      "pnl": 24.96979890226759,
+      "profit": 33.026982228612084,
+      "durationDays": "87.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.5303981348591418,
+        "positionSize": 132.59953371478545
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2024-02-12T00:00:00.000Z",
+      "exitTime": "2024-03-19T00:00:00.000Z",
+      "entryPrice": 49917.27,
+      "exitPrice": 61937.4,
+      "pnl": 24.080102938321758,
+      "profit": 50.38438853398809,
+      "durationDays": "36.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.41955413949364195,
+        "positionSize": 209.77706974682098
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2024-09-28T00:00:00.000Z",
+      "exitTime": "2024-10-01T00:00:00.000Z",
+      "entryPrice": 65858,
+      "exitPrice": 60805.78,
+      "pnl": -7.6713838865437785,
+      "profit": -14.466968948355866,
+      "durationDays": "3.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.37491101016971984,
+        "positionSize": 187.4555050848599
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2024-10-16T00:00:00.000Z",
+      "exitTime": "2024-12-15T00:00:00.000Z",
+      "entryPrice": 67620.01,
+      "exitPrice": 104463.99,
+      "pnl": 54.48680057870446,
+      "profit": 27.204778589207553,
+      "durationDays": "60.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.39426784959851324,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-01-17T00:00:00.000Z",
+      "exitTime": "2025-02-02T00:00:00.000Z",
+      "entryPrice": 104077.48,
+      "exitPrice": 97700.59,
+      "pnl": -6.127060340046665,
+      "profit": -3.0869984049383206,
+      "durationDays": "16.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.39426784959851324,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-04-24T00:00:00.000Z",
+      "exitTime": "2025-06-05T00:00:00.000Z",
+      "entryPrice": 93980.47,
+      "exitPrice": 101508.68,
+      "pnl": 8.010398330631876,
+      "profit": 3.97819656573328,
+      "durationDays": "42.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.418107482520663,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-07-12T00:00:00.000Z",
+      "exitTime": "2025-08-01T00:00:00.000Z",
+      "entryPrice": 117420,
+      "exitPrice": 113297.93,
+      "pnl": -3.5105348322262024,
+      "profit": -1.7793897824050446,
+      "durationDays": "20.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.4443385043916719,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-08-13T00:00:00.000Z",
+      "exitTime": "2025-08-15T00:00:00.000Z",
+      "entryPrice": 123306.43,
+      "exitPrice": 117342.05,
+      "pnl": -4.837038911920482,
+      "profit": -2.4423101962322606,
+      "durationDays": "2.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.46732752586530846,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-09-18T00:00:00.000Z",
+      "exitTime": "2025-09-22T00:00:00.000Z",
+      "entryPrice": 117073.53,
+      "exitPrice": 112650.99,
+      "pnl": -3.7775746575677642,
+      "profit": -1.9128429351194902,
+      "durationDays": "4.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.486249219326476,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2025-10-01T00:00:00.000Z",
+      "exitTime": "2025-10-10T00:00:00.000Z",
+      "entryPrice": 118594.99,
+      "exitPrice": 112774.5,
+      "pnl": -4.907871740619064,
+      "profit": -2.4777089023743772,
+      "durationDays": "9.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.5053396275742623,
+        "positionSize": 50
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "entryTime": "2026-01-04T00:00:00.000Z",
+      "exitTime": "2026-01-20T00:00:00.000Z",
+      "entryPrice": 91529.73,
+      "exitPrice": 88427.66,
+      "pnl": -3.389139244702232,
+      "profit": -1.7187223375399403,
+      "durationDays": "16.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 0.5214732108495937,
+        "positionSize": 50
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "symbol": "BTCUSDT",
+  "period1": {
+    "name": "2019-2022 (aprox)",
+    "summary": {
+      "roi": "-1.16%",
+      "maxDrawdown": "2.33%",
+      "calmarRatio": "-0.20",
+      "sharpeRatio": "-0.70",
+      "profitFactor": "0.54",
+      "winRate": "12.5%",
+      "totalTrades": 8,
+      "finalBalance": "9884.09"
+    },
+    "riskMetrics": {
+      "cagr": "-0.47%",
+      "avgTradeWin": "27.26%",
+      "avgTradeLoss": "-7.43%",
+      "avgTradeDurationDays": "19.4",
+      "circuitBreakerActivations": 3,
+      "volatilityScalerRange": "[0.41 - 1.00]",
+      "finalKelly": "0.25"
+    }
+  },
+  "period2": {
+    "name": "2022-2024 (aprox)",
+    "summary": {
+      "roi": "-0.81%",
+      "maxDrawdown": "1.47%",
+      "calmarRatio": "-0.22",
+      "sharpeRatio": "-0.79",
+      "profitFactor": "0.35",
+      "winRate": "14.3%",
+      "totalTrades": 7,
+      "finalBalance": "9918.58"
+    },
+    "riskMetrics": {
+      "cagr": "-0.33%",
+      "avgTradeWin": "8.63%",
+      "avgTradeLoss": "-4.19%",
+      "avgTradeDurationDays": "16.4",
+      "circuitBreakerActivations": 0,
+      "volatilityScalerRange": "[0.89 - 1.00]",
+      "finalKelly": "0.25"
+    }
+  },
+  "conclusion": "❌ Falló"
+}

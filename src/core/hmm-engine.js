@@ -1,6 +1,7 @@
 
 // src/core/hmm-engine.js
 const logger = require('./logger');
+const BOOSISv27RiskManager = require('./boosis_v27_risk_management');
 
 /**
  * HMM Engine para Boosis Quant Bot - "MEDALLION UPGRADE"
@@ -11,6 +12,9 @@ class HMMEngine {
         this.N = nStates;
         this.D = 2; // [Price, Volume]
         this._initBuffers();
+        this.riskManager = new BOOSISv27RiskManager(10000);
+        this.symbol = 'BTCUSDT';  // Default, se actualiza en predictState
+        this.adaptiveWindowEnabled = true;
     }
 
     _initBuffers() {
@@ -169,11 +173,41 @@ class HMMEngine {
         }
     }
 
-    predictState(data) {
+    predictState(data, symbol = null) {
         if (!this.isTrained) return null;
-        const obs = this._calculateObservations(data);
+        if (!data || data.length < 2) return null;
+
+        // GUARDAR SÍMBOLO PARA VENTANA ADAPTATIVA
+        if (symbol) {
+            this.symbol = symbol;
+        }
+
+        // CALCULAR VOLATILIDAD RECIENTE
+        const recentCandles = data.slice(-50);
+        const closes = recentCandles.map(c => parseFloat(c[4]));
+        const returns = [];
+        for (let i = 1; i < closes.length; i++) {
+            returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+        }
+        const meanReturn = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
+        const volatility = Math.sqrt(
+            returns.reduce((a, b) => a + Math.pow(b - meanReturn, 2), 0) / (returns.length || 1)
+        );
+
+        // OBTENER VENTANA ADAPTATIVA BASADA EN VOLATILIDAD
+        const hmmWindow = this.riskManager.getHMMWindowSize(this.symbol, volatility);
+
+        // USAR hmmWindow EN LUGAR DE WINDOW FIJO
+        const count = Math.min(hmmWindow, data.length);
+        const slicedData = data.slice(-count);
+        const obs = this._calculateObservations(slicedData);
         const T = obs.length;
         if (T === 0) return null;
+
+        // ACTUALIZAR RISK MANAGER CON VOLATILIDAD RECIENTE
+        if (volatility > 0) {
+            this.riskManager.updateVolatilityScaler(volatility);
+        }
 
         const delta = Array.from({ length: T }, () => new Float64Array(this.N).fill(-Infinity));
         const psi = Array.from({ length: T }, () => new Int32Array(this.N));
@@ -202,7 +236,21 @@ class HMMEngine {
             }
         }
 
-        return { state: lastState, probability: Math.exp(maxProb), label: this.stateLabels[lastState] || 'TRANSICIÓN' };
+        return {
+            state: lastState,
+            probability: Math.exp(maxProb),
+            label: this.stateLabels[lastState] || 'TRANSICIÓN',
+            // METADATA v2.7
+            volatility: volatility,
+            hmmWindow: hmmWindow,
+            adaptiveWindowUsed: this.adaptiveWindowEnabled,
+            symbol: this.symbol,
+            riskMetrics: {
+                kellyFraction: this.riskManager.kellyFraction,
+                circuitBreakerActive: this.riskManager.circuitBreakerActive,
+                volatilityScaler: this.riskManager.volatilityScaler
+            }
+        };
     }
 
     _identifyStates() {
@@ -227,6 +275,20 @@ class HMMEngine {
             obs.push([Math.log(parseFloat(data[i][4]) / parseFloat(data[i - 1][4])), Math.log((parseFloat(data[i][5]) || 1) / (parseFloat(data[i - 1][5]) || 1))]);
         }
         return obs;
+    }
+
+    getAdaptiveWindowSize(symbol, volatility) {
+        if (!this.riskManager) {
+            return 100;
+        }
+        return this.riskManager.getHMMWindowSize(symbol, volatility);
+    }
+
+    getRiskMetrics() {
+        if (!this.riskManager) {
+            return null;
+        }
+        return this.riskManager.getMetrics();
     }
 }
 

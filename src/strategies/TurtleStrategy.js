@@ -1,6 +1,7 @@
 
 // src/strategies/TurtleStrategy.js
 const logger = require('../core/logger');
+const BOOSISv27RiskManager = require('../core/boosis_v27_risk_management');
 
 /**
  * Turtle Trading Strategy (Richard Dennis Full Implementation)
@@ -20,6 +21,11 @@ class TurtleStrategy {
 
         this.currentPositions = [];
         this.maxUnitsPerMarket = 4;
+
+        this.riskManager = new BOOSISv27RiskManager(10000);
+        this.basePositionSize = 10000 * 0.05;  // 5% por operación
+        this.dailyLossAccumulated = 0;
+        this.lastResetDay = new Date().getDate();
     }
 
     onCandle(candle, candles, hasPosition, activePosition, capital = 10000, hmmState = null) {
@@ -36,15 +42,40 @@ class TurtleStrategy {
 
             if (close < exitLevel || close < stopLoss2N) {
                 const isSL = close < stopLoss2N;
+                const exitPrice = close;
+                const pnl = (exitPrice - entryPrice) / entryPrice;
+                const gain = pnl * 100;
+
                 this.lastTradeWasWinner = (close > entryPrice);
                 this.currentPositions = [];
+
+                // REGISTRAR TRADE PARA KELLY
+                this.riskManager.recordTrade(pnl, entryPrice, exitPrice, 'BTCUSDT'); // Símbolo hardcodeado por ahora o pasado en params
+
+                // ACTUALIZAR VOLATILITY SCALER
+                this.riskManager.updateVolatilityScaler(pnl);
+
+                // ACCUMULAR PÉRDIDA DIARIA
+                if (pnl < 0) {
+                    this.dailyLossAccumulated += Math.abs(parseFloat(activePosition.amount || 0) * exitPrice * pnl);
+                }
+
+                // VERIFICAR Y ACTUALIZAR DRAWDOWN
+                const currentEquity = capital + (pnl * capital); // Simplificación para el log de drawdown
+                const circuitBreakerActive = this.riskManager.updateDrawdown(currentEquity);
+
+                logger.info(`[Turtle] 🟡 CIERRE ${isSL ? 'SL' : 'DONCHIAN'} (v2.7): ${gain.toFixed(2)}% | Kelly: ${(this.riskManager.kellyFraction * 100).toFixed(0)}% | DD: ${(this.riskManager.maxDrawdown * 100).toFixed(2)}%`);
+
+                if (circuitBreakerActive) {
+                    logger.warn(`[Turtle] ⚠️ CIRCUIT BREAKER ACTIVO - modo defensivo`);
+                }
 
                 return {
                     action: 'SELL',
                     price: close,
                     reason: isSL
                         ? `🐢 Stop Loss 2N ejecutado ($${stopLoss2N.toFixed(2)})`
-                        : `🐢 Salida Donchian ($${exitLevel.toFixed(2)}). PnL: ${((close / entryPrice - 1) * 100).toFixed(2)}%`,
+                        : `🐢 Salida Donchian ($${exitLevel.toFixed(2)}). PnL: ${gain.toFixed(2)}%`,
                     strategy: 'Turtle'
                 };
             }
@@ -64,20 +95,67 @@ class TurtleStrategy {
         }
 
         const s1High = this._getMaxHigh(candles, this.s1);
-        if (close > s1High) {
-            // S1: Solo si la probabilidad es alta o venimos de pérdida
-            if (!this.lastTradeWasWinner) {
-                const prob = hmmState ? hmmState.probability : 1;
-                if (prob > 0.70) {
-                    return this._createSignal('S1', close, N, capital);
-                }
+        const s2High = this._getMaxHigh(candles, this.s2);
+
+        let signalAction = null;
+        let system = '';
+
+        if (close > s1High && !this.lastTradeWasWinner) {
+            const prob = hmmState ? hmmState.probability : 1;
+            if (prob > 0.70) {
+                signalAction = 'BUY';
+                system = 'S1';
             }
+        } else if (close > s2High) {
+            signalAction = 'BUY';
+            system = 'S2';
         }
 
-        const s2High = this._getMaxHigh(candles, this.s2);
-        if (close > s2High) {
-            // S2: Failsafe (Largo plazo sempre entra si breakout es claro)
-            return this._createSignal('S2', close, N, capital);
+        if (signalAction === 'BUY') {
+            // VERIFICAR LÍMITE DIARIO ANTES DE ENTRAR
+            if (!this.riskManager.canTradeToday(this.dailyLossAccumulated)) {
+                logger.warn(`[Turtle] LÍMITE DIARIO ALCANZADO - No se puede entrar hoy`);
+                return null;
+            }
+
+            // CALCULAR TAMAÑO DE POSICIÓN CON KELLY + VOLATILITY SCALING
+            const currentEquity = capital;
+            const positionSize = this.riskManager.calculatePositionSize(
+                this.basePositionSize,
+                currentEquity
+            );
+
+            // VOLATILITY SCALING DEBUG
+            const volatilityScaler = this.riskManager.volatilityScaler;
+
+            const unitSize = this._calculateSafeUnit(close, N, positionSize); // Usar positionSize ajustado por riskManager
+            this.currentPositions = [{ entryPrice: close }];
+
+            logger.info(`[Turtle] 🟢 ENTRADA (v2.7) ${system}: $${close.toFixed(2)} | Size Adj: ${positionSize.toFixed(2)} | Kelly: ${(this.riskManager.kellyFraction * 100).toFixed(0)}% | Scaler: ${volatilityScaler.toFixed(2)}`);
+
+            return {
+                action: 'BUY',
+                price: close,
+                reason: `🐢 Entrada Turtle ${system}: Breakout. (N=${N.toFixed(2)})`,
+                strategy: 'Turtle',
+                riskFactor: N,
+                unitSize: unitSize,
+                // Metadata v2.7
+                v27: {
+                    kelly: this.riskManager.kellyFraction,
+                    volatilityScaler: volatilityScaler,
+                    positionSize: positionSize
+                }
+            };
+        }
+
+        // RESET DIARIO DE PÉRDIDAS
+        const candleTime = candle[0];
+        const currentDay = new Date(candleTime).getDate();
+        if (currentDay !== this.lastResetDay) {
+            this.dailyLossAccumulated = 0;
+            this.lastResetDay = currentDay;
+            logger.info(`[Turtle] 📅 Cambio de día detectado. Reset de límites diarios.`);
         }
 
         return null;
@@ -202,6 +280,14 @@ class TurtleStrategy {
             min = Math.min(min, parseFloat(candles[i][3]));
         }
         return min;
+    }
+
+    getV27Metrics() {
+        return this.riskManager.getMetrics();
+    }
+
+    printV27Metrics() {
+        this.riskManager.printMetrics();
     }
 }
 

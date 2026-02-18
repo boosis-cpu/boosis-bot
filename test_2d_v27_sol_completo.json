@@ -1,0 +1,38 @@
+{
+  "summary": {
+    "roi": "2.84%",
+    "maxDrawdown": "1.04%",
+    "calmarRatio": "0.54",
+    "sharpeRatio": "0.62",
+    "profitFactor": "284.53",
+    "winRate": "100.0%",
+    "totalTrades": 1,
+    "finalBalance": "10284.28"
+  },
+  "riskMetrics": {
+    "cagr": "0.56%",
+    "avgTradeWin": "56.98%",
+    "avgTradeLoss": "0.00%",
+    "avgTradeDurationDays": "11.0",
+    "circuitBreakerActivations": 0,
+    "volatilityScalerRange": "[1.00 - 1.00]",
+    "finalKelly": "0.25"
+  },
+  "trades": [
+    {
+      "symbol": "SOLUSDT",
+      "entryTime": "2023-01-09T00:00:00.000Z",
+      "exitTime": "2023-01-20T00:00:00.000Z",
+      "entryPrice": 16.25,
+      "exitPrice": 25.51,
+      "pnl": 56.98461538461539,
+      "profit": 284.53061538461543,
+      "durationDays": "11.0",
+      "v27": {
+        "kelly": 0.25,
+        "volatilityScaler": 1,
+        "positionSize": 500
+      }
+    }
+  ]
+}

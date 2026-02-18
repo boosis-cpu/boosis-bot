@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-02-18T19:50:38.714Z",
+  "v26": {
+    "roi": "10.28",
+    "maxDrawdown": "0.39",
+    "winRate": "100.0",
+    "trades": 2,
+    "finalBalance": "11027.74"
+  },
+  "v27": {
+    "roi": "9.42",
+    "maxDrawdown": "0.46",
+    "winRate": "0.0",
+    "trades": 2,
+    "finalBalance": "10941.86"
+  },
+  "improvement": {
+    "ddReduction": "-0.07",
+    "calmarBoost": "0.78"
+  }
+}
