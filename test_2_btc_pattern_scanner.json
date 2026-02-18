@@ -1,0 +1,170 @@
+{
+  "symbol": "BTCUSDT",
+  "version": "2.6",
+  "method": "HMM + Pattern Scanner",
+  "period": "1y",
+  "metrics": {
+    "totalTrades": 8883,
+    "winRate": "92.9",
+    "roi": "-100.00",
+    "maxDrawdown": "100.00",
+    "sharpeRatio": "-11.15",
+    "profitFactor": "1.10",
+    "avgReturn": "-0.009607",
+    "grossProfit": "1756.38",
+    "grossLoss": "1602.23",
+    "finalBalance": "0.00"
+  },
+  "patterns": {
+    "detected": 8884,
+    "bullish": 8884,
+    "bearish": 0,
+    "byType": {
+      "TRIANGLES": 8808,
+      "DOUBLE_TOP_BOTTOM": 65,
+      "WEDGES": 11
+    }
+  },
+  "trades": [
+    {
+      "pattern": "TRIANGLES",
+      "entry": 67274.15,
+      "exit": 67543.19,
+      "pnl": 0.3999158666441849,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68155.82,
+      "exit": 68507.65,
+      "pnl": 0.5162141692374833,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68665.97,
+      "exit": 68875.99,
+      "pnl": 0.3058574720491203,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69278.92,
+      "exit": 69386,
+      "pnl": 0.1545636104027137,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69251.56,
+      "exit": 69251.56,
+      "pnl": 0,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69212.02,
+      "exit": 69335,
+      "pnl": 0.1776858990678143,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69523.4,
+      "exit": 69624.47,
+      "pnl": 0.1453755138557833,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69615.19,
+      "exit": 69710.3,
+      "pnl": 0.1366224813866168,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69721.11,
+      "exit": 69870.99,
+      "pnl": 0.21497075993197612,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69872.89,
+      "exit": 69963.55,
+      "pnl": 0.12974989298424333,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70260.07,
+      "exit": 70389.36,
+      "pnl": 0.1840163267699424,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70359.64,
+      "exit": 70523.08,
+      "pnl": 0.2322922630076052,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70406.37,
+      "exit": 70423.67,
+      "pnl": 0.024571640321746635,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70694.09,
+      "exit": 70746.12,
+      "pnl": 0.07359879729691432,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70754.97,
+      "exit": 70787.55,
+      "pnl": 0.04604623533865926,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70852.22,
+      "exit": 69056.85,
+      "pnl": -2.5339643556687386,
+      "success": false
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69670.09,
+      "exit": 69714.94,
+      "pnl": 0.06437482713170795,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68193.99,
+      "exit": 68193.99,
+      "pnl": 0,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68256.8,
+      "exit": 68256.8,
+      "pnl": 0,
+      "success": true
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68234.86,
+      "exit": 68372.22,
+      "pnl": 0.20130472899042573,
+      "success": true
+    }
+  ]
+}

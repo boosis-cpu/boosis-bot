@@ -1,23 +1,43 @@
 const logger = require('./logger');
 const db = require('./database');
+const HMMEngine = require('./hmm-engine');
+const TurtleStrategy = require('../strategies/TurtleStrategy');
+const AssetClassifier = require('./asset-classifier');
+const PatternScanner = require('./pattern-scanner');
+const { getStrategyConfig } = require('../../config/asset-strategies');
 
 /**
- * TradingPairManager
+ * TradingPairManager - v2.6 (Medallion Professional)
  * 
- * Responsabilidad: Gestionar el ciclo de vida completo de un par de trading individual.
- * - Mantiene su propio estado (velas, indicadores, posición).
- * - Ejecuta su propia instancia de estrategia.
- * - Calcula sus propias métricas de rendimiento en tiempo real.
+ * Responsabilidad: Gestionar el ciclo de vida completo de un par de trading.
+ * - [OPTIMIZADO] 8 Estados HMM para detección de régimen James Ax.
+ * - [OPTIMIZADO] Balance dinámico para Position Sizing de Richard Dennis.
+ * - [OPTIMIZADO] Soporte para Piramidación (Acumulación de Unidades).
+ * - [FIX] Corrección de crash en getStatus().
  */
 class TradingPairManager {
     constructor(symbol, strategy, initialConfig = {}) {
         this.symbol = symbol;
-        this.strategy = strategy;
+        this.primaryStrategy = strategy;
+
+        // 🔹 ASSET CLASSIFIER (v2.6 Hybrid Architecture)
+        this.classifier = new AssetClassifier();
+        this.assetClass = 'UNKNOWN';
+        this.strategyConfig = null;
+
+        this.turtleStrategy = null; // Se inicializa dinámicamente según Asset Class
         this.config = initialConfig;
 
         // Estado de Mercado
         this.candles = [];
         this.indicators = {};
+
+        // CEREBRO HMM - UPGRADE 8 ESTADOS (James Ax Architecture)
+        this.hmm = new HMMEngine(8);
+        this.marketRegime = { state: 0, probability: 0, name: '🔄 INICIALIZANDO' };
+        this.shieldMode = false;
+        this.turtleMode = false;
+        this.lastHMMTrain = 0;
 
         // Estado de Trading
         this.activePosition = null;
@@ -39,15 +59,19 @@ class TradingPairManager {
     }
 
     async init() {
-        // Cargar estado inicial desde DB si existe (posición abierta, historial reciente)
         try {
+            // 0. Detectar Asset Class (NUEVO)
+            await this._detectAssetClass();
+
+            // 0.1 Seleccionar Estrategia según Asset Class
+            this._configureStrategy();
+
             // 1. Cargar Velas Recientes (Warmup)
-            const recentCandles = await db.getRecentCandles(this.symbol, 400); // 400 velas de 1m = ~6.6h para indicadores
-            // Convertir formato DB a formato interno si es necesario (array vs obj)
-            // Asumiendo formato array [time, open, high, low, close, vol]
+            const recentCandles = await db.getRecentCandles(this.symbol, 400);
             this.candles = recentCandles;
 
             // 2. Cargar Posición Activa
+            // Nota: En v2.6 permitimos múltiples unidades en activePosition.amount
             const posQuery = await db.pool.query('SELECT * FROM active_position WHERE symbol = $1', [this.symbol]);
             if (posQuery.rows.length > 0) {
                 const row = posQuery.rows[0];
@@ -57,15 +81,13 @@ class TradingPairManager {
                     entryPrice: parseFloat(row.entry_price),
                     amount: parseFloat(row.amount),
                     isPaper: row.is_paper,
-                    timestamp: parseInt(row.timestamp)
+                    timestamp: parseInt(row.timestamp),
+                    units: parseInt(row.units || 1)
                 };
             }
 
-            // 3. Cargar Métricas Históricas (Opcional, por ahora iniciamos en 0 para sesión)
-            // TODO: Implementar persistencia de métricas de sesión
-
             this.initialized = true;
-            logger.info(`[${this.symbol}] Pair Manager Initialized (${this.candles.length} candles, Position: ${!!this.activePosition})`);
+            logger.info(`[${this.symbol}] Pair Manager v2.6 Initialized (${this.candles.length} candles, Position: ${!!this.activePosition})`);
         } catch (error) {
             logger.error(`[${this.symbol}] Initialization Error: ${error.message}`);
             throw error;
@@ -74,25 +96,130 @@ class TradingPairManager {
 
     /**
      * Procesa una nueva vela cerrada.
-     * @param {Array} candle - [time, o, h, l, c, v, T]
-     * @returns {Object|null} Signal emitida por la estrategia o null
      */
-    async onCandleClosed(candle) {
+    async onCandleClosed(candle, currentCapital = null) {
         if (!this.initialized) return null;
 
-        // 1. Actualizar Datos
+        // [ASSET FILTER] Validar si la estrategia permite operar este asset class
+        if (this.strategyConfig && !this.strategyConfig.enabled) {
+            return null;
+        }
+
         this.candles.push(candle);
-        if (this.candles.length > 500) this.candles.shift(); // Mantener buffer manejable
+        if (this.candles.length > 5000) this.candles.shift();
 
-        // 2. Persistencia
-        await db.saveCandle(this.symbol, candle);
+        // Interpretamos capital: si viene por argumento (backtest) lo usamos, si no lo buscamos
+        const capital = currentCapital || 10000;
 
-        // 3. Ejecutar Estrategia
-        const signal = this.strategy.onCandle(candle, this.candles, !!this.activePosition, this.activePosition?.entryPrice);
+
+        // [OPTIMIZADO] No guardar en DB durante backtest
+        if (!this.config.isBacktest) {
+            await db.saveCandle(this.symbol, candle);
+        }
+
+        // 3. ACTUALIZAR CEREBRO HMM (Cada 1440 velas = ~1 día)
+        const candleTime = parseInt(candle[0]);
+        // En backtest usamos el tiempo de la vela, en live podemos seguir usando Date.now() o candleTime
+        if (candleTime - this.lastHMMTrain > 24 * 60 * 60 * 1000 && this.candles.length > 1000) {
+            await this.hmm.train(this.candles.slice(-5000), 20);
+            this.lastHMMTrain = candleTime;
+        }
+
+        // 4. PREDECIR RÉGIMEN ACTUAL
+        let currentHMMState = null;
+        if (this.hmm.isTrained && this.candles.length > 20) {
+            const prediction = this.hmm.predictState(this.candles.slice(-20));
+            if (prediction) {
+                currentHMMState = prediction;
+                this.marketRegime = {
+                    state: prediction.state,
+                    probability: prediction.probability,
+                    name: prediction.label,
+                    sequence: prediction.sequence
+                };
+
+                // MODO ESCUDO (Bloqueo de entradas en mercados ruidosos)
+                const isDeadMarket = prediction.label.includes('LATERAL') || prediction.label.includes('AGOTAMIENTO');
+                this.shieldMode = (isDeadMarket && prediction.probability > 0.60);
+
+                // MODO TORTUGA (Cazar tendencia en acumulación/alcista)
+                if (!this.config.disableTurtle) {
+                    const isTrendMarket = prediction.label.includes('ALCISTA') || prediction.label.includes('ACUMULACIÓN');
+                    this.turtleMode = (isTrendMarket && prediction.probability > 0.60);
+                } else {
+                    this.turtleMode = false;
+                }
+            }
+        }
+
+        // 5. 🛡️ SELECCIÓN DINÁMICA DE ESTRATEGIA + STRATEGY LOCK
+        let signal = null;
+
+        // LÓGICA SEGÚN ESTRATEGIA SELECCIONADA (v2.6 Hybrid)
+
+        // A. SI YA ESTAMOS EN UNA POSICIÓN DE PATTERN SCANNER
+        // (Dejar que el scanner o stop manageen la salida - Pendiente implementar gestión activa)
+
+        // B. SI ASSET ES CRYPTO: PATTERN SCANNER
+        if (this.primaryStrategy === 'PATTERN_SCANNER' && this.patternScanner) {
+            const patternSignal = this.patternScanner.detect(candle, this.candles);
+
+            // Confirmación con HMM (Shield Mode)
+            if (patternSignal && currentHMMState) {
+                const label = currentHMMState.label || currentHMMState.name || '';
+                const isBullishRegime = label.includes('ALCISTA') || label.includes('ACUMULACIÓN');
+                const isBearishRegime = label.includes('BAJISTA') || label.includes('DISTRIBUCIÓN');
+
+                if (patternSignal.action === 'BUY' && isBullishRegime) {
+                    signal = patternSignal;
+                } else if (patternSignal.action === 'SELL' && isBearishRegime) {
+                    signal = patternSignal;
+                } else {
+                    if (this.verbose) logger.info(`[${this.symbol}] 🛡️ Patrón ${patternSignal.pattern} ignorado por HMM (${label})`);
+                }
+            }
+        }
+
+        // C. SI ASSET ES FOREX/EQUITY: TURTLE STRATEGY
+        else if (this.turtleStrategy) {
+            // Personalidad Tortuga: Breakouts + Piramidación + Stop 2N
+            signal = this.turtleStrategy.onCandle(
+                candle,
+                this.candles,
+                !!this.activePosition,
+                this.activePosition,
+                capital,
+                currentHMMState
+            );
+        }
+
+        // D. FALLBACK: ESTRATEGIA PRIMARIA ORIGINAL
+        else {
+            signal = this.primaryStrategy.onCandle(candle, this.candles, !!this.activePosition, this.activePosition?.entryPrice);
+        }
 
         if (signal) {
+
+            // FILTRO DE MODO ESCUDO
+            if (this.shieldMode && signal.action === 'BUY') {
+                if (!this.config.isBacktest || this.config.verbose) logger.info(`[${this.symbol}] 🛡️ COMPRA BLOQUEADA: Mercado Lateral detectado por HMM.`);
+                return null;
+            }
+
+            // GESTIÓN DE RIESGO DE LAS TORTUGAS (RESPECT SAFE LIMITS)
+            if (signal.action === 'BUY' && signal.riskFactor) {
+                // Si la estrategia ya calculó un tamaño seguro (TurtleStrategy), lo usamos. 
+                // De lo contrario, usamos el fallback.
+                const safeAmount = signal.unitSize || (0.01 * capital) / signal.riskFactor;
+                signal.amount = safeAmount;
+
+                if (!this.config.isBacktest || this.config.verbose) {
+                    logger.info(`[${this.symbol}] 🐢 GESTIÓN RIESGO: N=${signal.riskFactor.toFixed(4)} | Unidad: $${safeAmount.toFixed(2)}`);
+                }
+            }
+
             this.lastSignal = signal;
-            logger.info(`[${this.symbol}] SIGNAL: ${signal.action} @ ${signal.price} (${signal.reason})`);
+            if (!this.config.isBacktest || this.config.verbose) logger.info(`[${this.symbol}] SIGNAL: ${signal.action} @ ${signal.price} (${signal.reason}) | Mode: ${this.turtleMode ? 'TURTLE' : 'PRIMARY'}`);
         }
 
         return signal;
@@ -100,7 +227,6 @@ class TradingPairManager {
 
     /**
      * Registra un trade ejecutado y actualiza métricas locales.
-     * @param {Object} tradeResult 
      */
     recordTrade(tradeResult) {
         this.metrics.totalTrades++;
@@ -108,17 +234,28 @@ class TradingPairManager {
         if (tradeResult.pnl > 0) {
             this.metrics.winningTrades++;
             this.metrics.grossProfit += tradeResult.pnlValue;
-        } else {
+        } else if (tradeResult.pnl < 0) {
             this.metrics.losingTrades++;
             this.metrics.grossLoss += Math.abs(tradeResult.pnlValue);
         }
 
-        this.metrics.netPnL += tradeResult.pnlValue;
+        this.metrics.netPnL += tradeResult.pnlValue || 0;
         this.metrics.winRate = (this.metrics.winningTrades / this.metrics.totalTrades) * 100;
 
         // Actualizar posición interna
         if (tradeResult.action === 'OPEN') {
-            this.activePosition = tradeResult.position;
+            this.activePosition = {
+                ...tradeResult.position,
+                strategy: tradeResult.strategy // Guardar qué estrategia abrió la posición
+            };
+        } else if (tradeResult.action === 'ADD') {
+
+            // Piramidación: Incrementar cantidad y unidades
+            if (this.activePosition) {
+                this.activePosition.amount += tradeResult.amount;
+                this.activePosition.units = (this.activePosition.units || 1) + 1;
+                // Opcional: Promediar precio de entrada o mantener el primero según estratega
+            }
         } else if (tradeResult.action === 'CLOSE') {
             this.activePosition = null;
         }
@@ -128,20 +265,19 @@ class TradingPairManager {
         const lastCandle = this.candles[this.candles.length - 1];
         const currentPrice = lastCandle ? lastCandle[4] : 0;
 
-        // Calcular cambio 24h aproximado (usando vela hace 1440 periodos de 1m = 24h)
-        // O simplemente cambio desde inicio de sesión si no hay suficientes datos
+        // Calcular cambio 24h aproximado
         let change24h = 0;
         if (this.candles.length > 1440) {
-            const openPrice = this.candles[this.candles.length - 1440][4]; // Precio hace 24h
+            const openPrice = this.candles[this.candles.length - 1440][4];
             change24h = ((currentPrice - openPrice) / openPrice) * 100;
         } else if (this.candles.length > 0) {
-            const openPrice = this.candles[0][4]; // Precio más antiguo en memoria
+            const openPrice = this.candles[0][4];
             change24h = ((currentPrice - openPrice) / openPrice) * 100;
         }
 
         return {
             symbol: this.symbol,
-            strategy: this.strategy.name,
+            strategy: this.primaryStrategy ? this.primaryStrategy.name : 'Unknown', // [FIX] name undefined
             latestCandle: {
                 close: currentPrice,
                 time: lastCandle ? lastCandle[0] : Date.now()
@@ -149,8 +285,61 @@ class TradingPairManager {
             change: change24h,
             activePosition: this.activePosition,
             metrics: this.metrics,
+            marketRegime: this.marketRegime,
+            shieldMode: this.shieldMode,
+            turtleMode: this.turtleMode,
             status: this.initialized ? 'ACTIVE' : 'INITIALIZING'
         };
+    }
+    /**
+     * DETECCIÓN DE ASSET CLASS Y CONFIGURACIÓN DINÁMICA
+     */
+    async _detectAssetClass() {
+        // Cargar velas suficientes para análisis si no hay
+        let analysisCandles = this.candles;
+        if (analysisCandles.length < 100) {
+            analysisCandles = await db.getRecentCandles(this.symbol, 200);
+        }
+
+        this.assetClass = this.classifier.detect(this.symbol, analysisCandles);
+        const report = this.classifier.getReport(this.symbol, this.assetClass, analysisCandles);
+
+        logger.info(`[${this.symbol}] 🧬 ASSET CLASS DETECTADO: ${this.assetClass}`);
+        logger.debug(`[${this.symbol}] Reporte Asset: ${JSON.stringify(report)}`);
+    }
+
+    _configureStrategy() {
+        this.strategyConfig = getStrategyConfig(this.assetClass);
+
+        logger.info(`[${this.symbol}] ⚙️  Configurando estrategia para ${this.assetClass}...`);
+
+        // Configurar HMM
+        if (this.strategyConfig.strategies.includes('HMM')) {
+            this.hmm = new HMMEngine(this.strategyConfig.hmmStates || 8);
+        }
+
+        // Configurar TURTLE (Solo si el asset lo requiere)
+        if (this.strategyConfig.turtleEnabled) {
+            const s1 = this.strategyConfig.turtleS1; // Escala H
+            const s2 = this.strategyConfig.turtleS2; // Escala H
+            // Convertir horas a velas base (aprox, asumiendo 1h o 4h candles)
+            // NOTA: Para backtest de 1m, multiplicamos por 60 si la config es en horas
+            const multiplier = this.assetClass === 'CRYPTO' ? 1 : 1;
+
+            this.turtleStrategy = new TurtleStrategy(s1, Math.floor(s1 / 2), s2, Math.floor(s2 / 3));
+            logger.info(`[${this.symbol}] ✅ Turtle Strategy ACTIVADA (S1=${s1}, S2=${s2})`);
+        } else {
+            this.turtleStrategy = null;
+            logger.info(`[${this.symbol}] 🚫 Turtle Strategy DESACTIVADA para ${this.assetClass}`);
+        }
+
+        // Configurar Pattern Scanner (v2.7)
+        if (this.strategyConfig.patternEnabled) {
+            this.patternScanner = new PatternScanner();
+            logger.info(`[${this.symbol}] ✅ Pattern Scanner ACTIVADO (v2.7)`);
+        } else {
+            this.patternScanner = null;
+        }
     }
 }
 

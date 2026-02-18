@@ -118,7 +118,21 @@ const DatabaseSchema = {
       )
     `);
 
-    logger.info('[DB] Esquema actualizado para Phase 8');
+    // 10. Tabla: strategy_library (Biblioteca de Estrategias Guardadas)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS strategy_library (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        symbol VARCHAR(20) NOT NULL,
+        strategy_name VARCHAR(100) NOT NULL,
+        params JSONB NOT NULL,
+        metrics JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(name)
+      )
+    `);
+
+    logger.info('[DB] Esquema actualizado con Strategy Library');
   }
 };
 

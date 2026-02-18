@@ -1,82 +1,80 @@
+
 const TI = require('technicalindicators');
 
+/**
+ * TechnicalIndicators v2.6 [ULTRA-FAST BACKTEST EDITION]
+ * Optimizaciones para evitar cálculos redundantes en millones de velas.
+ */
 class TechnicalIndicators {
     /**
-     * Calculate Simple Moving Average (SMA)
-     */
-    static calculateSMA(data, period) {
-        if (data.length < period) return null;
-        const results = TI.SMA.calculate({ period: period, values: data });
-        return results[results.length - 1];
-    }
-
-    /**
-     * Calculate Exponential Moving Average (EMA)
+     * EMA Optimizada (Calculada solo sobre el cierre)
      */
     static calculateEMA(data, period) {
         if (data.length < period) return null;
-        const results = TI.EMA.calculate({ period: period, values: data });
+        // Solo enviamos las últimas 'period * 2' velas para no saturar el motor de TI
+        const subset = data.slice(-(period * 2));
+        const results = TI.EMA.calculate({ period: period, values: subset });
         return results[results.length - 1];
     }
 
     /**
-     * Calculate Relative Strength Index (RSI)
+     * RSI Optimizado
      */
     static calculateRSI(data, period = 14) {
         if (data.length < period + 1) return null;
-        const results = TI.RSI.calculate({ period: period, values: data });
+        const subset = data.slice(-(period * 3)); // 3x periodo es suficiente para convergencia RSI
+        const results = TI.RSI.calculate({ period: period, values: subset });
         return results[results.length - 1];
     }
 
     /**
-     * Calculate Bollinger Bands
+     * Bollinger Bands Optimizadas
      */
     static calculateBollingerBands(data, period = 20, stdDev = 2) {
         if (data.length < period) return null;
+        const subset = data.slice(-period);
         const results = TI.BollingerBands.calculate({
             period: period,
             stdDev: stdDev,
-            values: data
+            values: subset
         });
-        return results[results.length - 1]; // Returns { upper: x, middle: y, lower: z }
+        return results[results.length - 1];
     }
 
     /**
-     * Calculate MACD
+     * ATR Optimizado
+     */
+    static calculateATR(high, low, close, period = 14) {
+        if (high.length < period) return null;
+
+        const hSub = high.slice(-(period + 1));
+        const lSub = low.slice(-(period + 1));
+        const cSub = close.slice(-(period + 1));
+
+        const results = TI.ATR.calculate({
+            high: hSub,
+            low: lSub,
+            close: cSub,
+            period: period
+        });
+        return results[results.length - 1];
+    }
+
+    /**
+     * MACD Optimizado
      */
     static calculateMACD(data, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
         if (data.length < slowPeriod + signalPeriod) return null;
+        const subset = data.slice(-(slowPeriod + signalPeriod + 50));
         const results = TI.MACD.calculate({
-            values: data,
-            fastPeriod: fastPeriod,
-            slowPeriod: slowPeriod,
-            signalPeriod: signalPeriod,
+            values: subset,
+            fastPeriod,
+            slowPeriod,
+            signalPeriod,
             SimpleMAOscillator: false,
             SimpleMASignal: false
         });
-        return results[results.length - 1]; // Returns { MACD: x, signal: y, histogram: z }
-    }
-
-    /**
-     * Calculate Average True Range (ATR)
-     */
-    static calculateATR(high, low, close, period = 14) {
-        if (high.length < period || low.length < period || close.length < period) return null;
-        if (high.length < 2) return null;
-
-        const trueRanges = [];
-        for (let i = 1; i < high.length; i++) {
-            const tr1 = high[i] - low[i];
-            const tr2 = Math.abs(high[i] - close[i - 1]);
-            const tr3 = Math.abs(low[i] - close[i - 1]);
-            trueRanges.push(Math.max(tr1, tr2, tr3));
-        }
-
-        if (trueRanges.length < period) return null;
-        const slice = trueRanges.slice(-period);
-        const atr = slice.reduce((sum, val) => sum + val, 0) / period;
-
-        return atr;
+        return results[results.length - 1];
     }
 }
 

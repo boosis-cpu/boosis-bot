@@ -24,6 +24,14 @@ class DataMiner {
         return this.currentJob;
     }
 
+    stopMining() {
+        if (this.currentJob.status === 'mining') {
+            this.currentJob.status = 'idle';
+            this.currentJob.stopRequested = true;
+            logger.warn(`[Miner] Stop signal received for ${this.currentJob.symbol}`);
+        }
+    }
+
     async mineToDatabase(symbol, interval, days) {
         if (this.currentJob.status === 'mining') {
             throw new Error('A mining job is already in progress');
@@ -37,16 +45,22 @@ class DataMiner {
             imported: 0,
             totalDays: days,
             startTime: Date.now(),
-            error: null
+            error: null,
+            stopRequested: false
         };
 
         logger.info(`[Miner] Starting job: ${symbol} for ${days} days`);
 
         try {
             await this._runMiningLoop(symbol, interval, days);
-            this.currentJob.status = 'completed';
-            this.currentJob.progress = 100;
-            logger.success(`[Miner] Job completed: ${symbol}`);
+            if (this.currentJob.stopRequested) {
+                this.currentJob.status = 'cancelled';
+                logger.warn(`[Miner] Job cancelled: ${symbol}`);
+            } else {
+                this.currentJob.status = 'completed';
+                this.currentJob.progress = 100;
+                logger.success(`[Miner] Job completed: ${symbol}`);
+            }
         } catch (error) {
             this.currentJob.status = 'error';
             this.currentJob.error = error.message;
@@ -70,7 +84,7 @@ class DataMiner {
         let totalImported = 0;
 
         while (currentStartTime < endTime) {
-            // Check for stop signal if implemented later
+            if (this.currentJob.stopRequested) break;
 
             const url = `${this.baseUrl}/klines`;
             const params = {
@@ -86,18 +100,17 @@ class DataMiner {
             if (!candles || candles.length === 0) break;
 
             // Batch Save to DB
-            for (const k of candles) {
-                const candle = [
-                    k[0], // open_time
-                    parseFloat(k[1]), // open
-                    parseFloat(k[2]), // high
-                    parseFloat(k[3]), // low
-                    parseFloat(k[4]), // close
-                    parseFloat(k[5]), // volume
-                    k[6]  // close_time
-                ];
-                await db.saveCandle(symbol, candle);
-            }
+            const candleArray = candles.map(k => [
+                k[0], // open_time
+                parseFloat(k[1]), // open
+                parseFloat(k[2]), // high
+                parseFloat(k[3]), // low
+                parseFloat(k[4]), // close
+                parseFloat(k[5]), // volume
+                k[6]  // close_time
+            ]);
+
+            await db.saveCandlesBatch(symbol, candleArray);
 
             totalImported += candles.length;
 

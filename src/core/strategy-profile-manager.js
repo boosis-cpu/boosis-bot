@@ -202,9 +202,52 @@ class StrategyProfileManager {
         }
     }
 
-    // PASO 7: Listar todos los perfiles
+    // PASO 7: Listar todos los perfiles activos
     listProfiles() {
         return Array.from(this.profiles.values());
+    }
+
+    // --- LIBRARY METHODS ---
+
+    async saveToLibrary(name, symbol, strategyName, params, metrics = null) {
+        try {
+            const query = `
+                INSERT INTO strategy_library (name, symbol, strategy_name, params, metrics)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (name) DO UPDATE SET
+                    symbol = $2,
+                    strategy_name = $3,
+                    params = $4,
+                    metrics = $5
+                RETURNING id;
+            `;
+            const result = await db.pool.query(query, [name, symbol, strategyName, params, metrics]);
+            logger.info(`[Library] ✅ Estrategia guardada en biblioteca: ${name}`);
+            return result.rows[0].id;
+        } catch (error) {
+            logger.error(`[Library] Error guardando: ${error.message}`);
+            throw error;
+        }
+    }
+
+    async listLibrary() {
+        try {
+            const result = await db.pool.query(`SELECT * FROM strategy_library ORDER BY created_at DESC`);
+            return result.rows;
+        } catch (error) {
+            logger.error(`[Library] Error listando: ${error.message}`);
+            return [];
+        }
+    }
+
+    async deleteFromLibrary(id) {
+        try {
+            await db.pool.query(`DELETE FROM strategy_library WHERE id = $1`, [id]);
+            return true;
+        } catch (error) {
+            logger.error(`[Library] Error borrando: ${error.message}`);
+            return false;
+        }
     }
 }
 

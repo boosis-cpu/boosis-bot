@@ -14,12 +14,12 @@ class BacktestEngine {
      * @param {string} period - '1m', '1w', '1y', etc
      * @returns {object} Resultados del backtest
      */
-    async runBacktest(symbol, params, period = '1y') {
+    async runBacktest(symbol, params, period = '1y', options = {}) {
         try {
             logger.info(`[Backtest] Iniciando para ${symbol} período ${period}`);
 
             // Cargar datos históricos
-            const candles = await this._loadHistoricalData(symbol, period);
+            const candles = await this._loadHistoricalData(symbol, period, options);
 
             if (candles.length === 0) {
                 // Return gracefully instead of throw for optimizer stability
@@ -58,11 +58,20 @@ class BacktestEngine {
     /**
      * Cargar datos históricos de la BD
      */
-    async _loadHistoricalData(symbol, period) {
+    async _loadHistoricalData(symbol, period, options = {}) {
         try {
-            // Calcular fecha inicio según período
-            const endDate = new Date();
-            const startDate = this._calculateStartDate(endDate, period);
+            let startDate, endDate;
+
+            if (options.startDate && options.endDate) {
+                // Rango personalizado (Selección de área de estudio)
+                startDate = new Date(options.startDate);
+                endDate = new Date(options.endDate);
+                logger.info(`[Backtest] Cargando rango personalizado: ${startDate.toISOString()} a ${endDate.toISOString()}`);
+            } else {
+                // Período relativo (1m, 1y, etc)
+                endDate = new Date();
+                startDate = this._calculateStartDate(endDate, period);
+            }
 
             const result = await db.pool.query(`
         SELECT 
@@ -332,6 +341,37 @@ class BacktestEngine {
             profitFactor: parseFloat(profitFactor.toFixed(2)),
             maxDD: parseFloat((maxDD * 100).toFixed(2)),
             sharpe: 0 // TODO: Implement proper Sharpe calculation
+        };
+    }
+    /**
+     * Entrenar y detectar regímenes usando HMM
+     */
+    async analyzeRegimes(symbol, period = '1y', options = {}) {
+        const HMMEngine = require('./hmm-engine');
+        const candles = await this._loadHistoricalData(symbol, period, options);
+
+        if (candles.length < 100) return null;
+
+        const engine = new HMMEngine(3); // 3 estados: Lateral, Tendencia, Volatilidad
+        await engine.train(candles, 30);
+
+        const currentState = engine.predictState(candles);
+
+        // Mapeo amigable de estados (basado en varianza/media)
+        // El estado con mayor varianza suele ser "Volatilidad"
+        // El estado con media cercana a 0 y baja varianza es "Lateral"
+        const statesInfo = engine.means.map((m, i) => ({
+            id: i,
+            mean: m,
+            variance: engine.vars[i]
+        }));
+
+        return {
+            symbol,
+            period,
+            currentState,
+            statesInfo,
+            isReliable: candles.length > 500
         };
     }
 }

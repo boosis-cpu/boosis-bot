@@ -1,0 +1,205 @@
+{
+  "symbol": "BTCUSDT",
+  "version": "2.6",
+  "method": "HMM + Pattern Scanner (Optimizado)",
+  "period": "1y",
+  "optimizations": {
+    "candles_limited": "500k (vs 3M)",
+    "hmmIterations": "10 (vs 20)",
+    "patternMinConfidence": "0.70-0.80 (vs 0.60-0.65)",
+    "cooldownMinutes": 60,
+    "lookbackPeriod": 100
+  },
+  "metrics": {
+    "totalTrades": 1781,
+    "winRate": "93.8",
+    "roi": "-97.39",
+    "maxDrawdown": "98.68",
+    "sharpeRatio": "3.50",
+    "profitFactor": "0.41",
+    "avgReturn": "0.088577",
+    "avgTradeDuration": "155",
+    "grossProfit": "132.29",
+    "grossLoss": "322.05",
+    "finalBalance": "261.34"
+  },
+  "patterns": {
+    "detected": 1781,
+    "bullish": 1781,
+    "bearish": 0,
+    "byType": {
+      "TRIANGLES": 1755,
+      "DOUBLE_TOP_BOTTOM": 25,
+      "WEDGES": 1
+    }
+  },
+  "evaluation": {
+    "passed": false,
+    "verdict": "❌ FALLÓ",
+    "recommendation": "Ajustar parámetros"
+  },
+  "trades": [
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69278.92,
+      "exit": 69386,
+      "pnl": 0.05456361040271371,
+      "success": true,
+      "durationMinutes": 123
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69251.56,
+      "exit": 69212.02,
+      "pnl": -0.15709618671405626,
+      "success": true,
+      "durationMinutes": 1
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68931.91,
+      "exit": 68999.98,
+      "pnl": -0.0012503788158534646,
+      "success": true,
+      "durationMinutes": 3
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68924.98,
+      "exit": 69079.4,
+      "pnl": 0.12404068887651451,
+      "success": true,
+      "durationMinutes": 114
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69792.67,
+      "exit": 70029,
+      "pnl": 0.2386172215506411,
+      "success": true,
+      "durationMinutes": 144
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70260.07,
+      "exit": 70389.36,
+      "pnl": 0.08401632676994239,
+      "success": true,
+      "durationMinutes": 3
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69418.49,
+      "exit": 69455.6,
+      "pnl": -0.046541620251316834,
+      "success": true,
+      "durationMinutes": 3
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69867.84,
+      "exit": 69908.48,
+      "pnl": -0.041833037918437205,
+      "success": true,
+      "durationMinutes": 245
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69887.62,
+      "exit": 69940.72,
+      "pnl": -0.024020878089692138,
+      "success": true,
+      "durationMinutes": 9
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70193.4,
+      "exit": 70454.31,
+      "pnl": 0.2717016129721751,
+      "success": true,
+      "durationMinutes": 55
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70406.37,
+      "exit": 70423.67,
+      "pnl": -0.07542835967825337,
+      "success": true,
+      "durationMinutes": 17
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 70852.22,
+      "exit": 69056.85,
+      "pnl": -2.6339643556687387,
+      "success": false,
+      "durationMinutes": 327
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68783.06,
+      "exit": 68862.51,
+      "pnl": 0.015508091672578134,
+      "success": true,
+      "durationMinutes": 19
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 69863.34,
+      "exit": 70029.97,
+      "pnl": 0.13850849386817252,
+      "success": true,
+      "durationMinutes": 1
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68825.08,
+      "exit": 68842.52,
+      "pnl": -0.07466039995885901,
+      "success": true,
+      "durationMinutes": 5
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68853.12,
+      "exit": 68880.67,
+      "pnl": -0.05998728888393359,
+      "success": true,
+      "durationMinutes": 4
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68948.06,
+      "exit": 68977.2,
+      "pnl": -0.05773630179007885,
+      "success": true,
+      "durationMinutes": 1
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 67529.13,
+      "exit": 67599.7,
+      "pnl": 0.004503049276649657,
+      "success": true,
+      "durationMinutes": 14
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68304.35,
+      "exit": 68451.7,
+      "pnl": 0.11572564558478557,
+      "success": true,
+      "durationMinutes": 2
+    },
+    {
+      "pattern": "TRIANGLES",
+      "entry": 68135.55,
+      "exit": 68215.81,
+      "pnl": 0.01779460208363179,
+      "success": true,
+      "durationMinutes": 2
+    }
+  ],
+  "timestamp": "2026-02-18T16:18:51.679Z",
+  "executionTime": "215 segundos"
+}

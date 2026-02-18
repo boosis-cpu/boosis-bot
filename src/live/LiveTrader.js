@@ -385,13 +385,13 @@ class LiveTrader {
         // POST /api/refinery/backtest (REAL - no mock)
         this.app.post('/api/refinery/backtest', authMiddleware, async (req, res) => {
             try {
-                const { symbol, params, period } = req.body;
+                const { symbol, params, period, startDate, endDate } = req.body;
                 if (!symbol || !params) return res.status(400).json({ error: 'symbol y params requeridos' });
 
                 const backtestEngine = require('../core/backtest-engine');
-                logger.info(`[API] Backtesting ${symbol} con período ${period || '1y'}`);
+                logger.info(`[API] Backtesting ${symbol} | Period: ${period || 'custom'} | Start: ${startDate || 'N/A'}`);
 
-                const results = await backtestEngine.runBacktest(symbol, params, period || '1y');
+                const results = await backtestEngine.runBacktest(symbol, params, period || '1y', { startDate, endDate });
                 res.json({ status: 'ok', data: results });
             } catch (error) {
                 logger.error(`[API] Error en backtest: ${error.message}`);
@@ -445,12 +445,61 @@ class LiveTrader {
             res.json(miner.getStatus());
         });
 
+        this.app.post('/api/miner/stop', authMiddleware, (req, res) => {
+            const miner = require('../core/data_miner');
+            miner.stopMining();
+            res.json({ status: 'stop_sent' });
+        });
+
         this.app.get('/api/refinery/history/:symbol', authMiddleware, async (req, res) => {
             try {
                 const { symbol } = req.params;
                 const limit = req.query.limit || 10;
                 const history = await profileManager.getChangeHistory(symbol, limit);
                 res.json({ status: 'ok', symbol, history });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // 📚 STRATEGY LIBRARY ENDPOINTS
+        this.app.post('/api/library/save', authMiddleware, async (req, res) => {
+            try {
+                const { name, symbol, strategy_name, params, metrics } = req.body;
+                if (!name || !symbol || !params) return res.status(400).json({ error: 'Faltan campos (name, symbol, params)' });
+
+                const id = await profileManager.saveToLibrary(name, symbol, strategy_name, params, metrics);
+                res.json({ status: 'ok', id, message: `Estrategia "${name}" guardada.` });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.get('/api/library/list', authMiddleware, async (req, res) => {
+            try {
+                const library = await profileManager.listLibrary();
+                res.json({ status: 'ok', library });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.delete('/api/library/:id', authMiddleware, async (req, res) => {
+            try {
+                await profileManager.deleteFromLibrary(req.params.id);
+                res.json({ status: 'ok' });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        this.app.get('/api/refinery/hmm/:symbol', authMiddleware, async (req, res) => {
+            try {
+                const { symbol } = req.params;
+                const { period, startDate, endDate } = req.query;
+                const backtestEngine = require('../core/backtest-engine');
+                const analysis = await backtestEngine.analyzeRegimes(symbol, period || '1y', { startDate, endDate });
+                res.json({ status: 'ok', analysis });
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }
@@ -548,40 +597,60 @@ class LiveTrader {
         const position = manager.activePosition;
 
         if (signal.action === 'BUY') {
-            // Position sizing: Global Balance / Active Pairs
-            const activePairsCount = Math.max(this.pairManagers.size, 1);
-            const maxAllocation = this.balance.usdt / activePairsCount;
+            // [V2.6] POSITION SIZING PROFESIONAL (Dennis Standard)
+            // Priorizamos el signal.amount calculado por el Manager basado en N
+            let amountAsset = 0;
+            let amountUsdt = 0;
 
-            // Limit to actual available global balance
-            const amountUsdt = Math.min(this.balance.usdt, maxAllocation);
+            if (signal.amount) {
+                // El manager ya calculó la unidad óptima
+                amountUsdt = signal.amount;
+            } else {
+                // Fallback: Position sizing original (Global Balance / Active Pairs)
+                const activePairsCount = Math.max(this.pairManagers.size, 1);
+                const maxAllocation = this.balance.usdt / activePairsCount;
+                amountUsdt = Math.min(this.balance.usdt, maxAllocation);
+            }
 
-            if (amountUsdt < 10) return; // Minimum trade size
+            if (amountUsdt < 5 || amountUsdt > this.balance.usdt) {
+                logger.warn(`[${symbol}] ⚠️ Transacción omitida: Balance insuficiente ($${this.balance.usdt.toFixed(2)}) para unidad de $${amountUsdt.toFixed(2)}`);
+                return;
+            }
 
-            const amountAsset = (amountUsdt / signal.price) * (1 - fee);
-            tradeAmount = amountAsset;
+            amountAsset = (amountUsdt / signal.price) * (1 - fee);
 
             // Deduct from Global Pool
             this.balance.usdt -= amountUsdt;
 
-            const newPos = {
-                symbol: symbol,
-                side: 'BUY',
-                entryPrice: signal.price,
-                amount: amountAsset,
-                isPaper: true,
-                timestamp: Date.now()
-            };
+            if (position) {
+                // --- ESCENARIO: PIRAMIDACIÓN (Sumar a posición existente) ---
+                manager.recordTrade({
+                    action: 'ADD',
+                    amount: amountAsset,
+                    pnl: 0,
+                    pnlValue: 0
+                });
+                logger.success(`[${symbol}] 🐢 PIRAMIDACIÓN: +${amountAsset.toFixed(4)} ${symbol} agregados.`);
+            } else {
+                // --- ESCENARIO: APERTURA (Posición nueva) ---
+                const newPos = {
+                    symbol: symbol,
+                    side: 'BUY',
+                    entryPrice: signal.price,
+                    amount: amountAsset,
+                    isPaper: true,
+                    timestamp: Date.now(),
+                    units: 1
+                };
 
-            // Register in Manager
-            manager.recordTrade({
-                action: 'OPEN',
-                position: newPos,
-                pnl: 0,
-                pnlValue: 0
-            });
-
-            await this.saveActivePosition(newPos);
-
+                manager.recordTrade({
+                    action: 'OPEN',
+                    position: newPos,
+                    pnl: 0,
+                    pnlValue: 0
+                });
+                await this.saveActivePosition(newPos);
+            }
         } else {
             // SELL
             if (!position) return;
@@ -621,46 +690,62 @@ class LiveTrader {
             notifications.notifyAlert(`🚨 LIVE TRADE: ${signal.action} ${symbol} @ $${signal.price}`);
 
             if (signal.action === 'BUY') {
-                // Get real USDT balance from Binance
-                const balances = await binanceService.getAccountBalance();
-                const usdtBalance = balances.find(b => b.asset === 'USDT');
-                const availableUsdt = usdtBalance ? parseFloat(usdtBalance.free) : 0;
-
                 // Position sizing
-                const activePairsCount = Math.max(this.pairManagers.size, 1);
-                const maxAllocation = availableUsdt / activePairsCount;
+                let allocation = 0;
 
-                if (maxAllocation < 10) {
-                    logger.warn(`[LIVE] Insufficient USDT balance for ${symbol}: $${availableUsdt.toFixed(2)}`);
+                if (signal.amount) {
+                    allocation = signal.amount;
+                } else {
+                    const balances = await binanceService.getAccountBalance();
+                    const usdtBalance = balances.find(b => b.asset === 'USDT');
+                    const availableUsdt = usdtBalance ? parseFloat(usdtBalance.free) : 0;
+                    const activePairsCount = Math.max(this.pairManagers.size, 1);
+                    allocation = availableUsdt / activePairsCount;
+                }
+
+                if (allocation < 10) {
+                    logger.warn(`[LIVE] Insufficient balance for ${symbol}: $${allocation.toFixed(2)}`);
                     return;
                 }
 
                 // Calculate quantity
-                const quantity = (maxAllocation / signal.price) * 0.999;
+                const quantity = (allocation / signal.price) * 0.999;
                 const order = await binanceService.executeOrder(symbol, 'BUY', quantity);
 
                 const filledQty = parseFloat(order.executedQty);
                 const filledPrice = parseFloat(order.fills?.[0]?.price || signal.price);
 
-                const newPos = {
-                    symbol: symbol,
-                    side: 'BUY',
-                    entryPrice: filledPrice,
-                    amount: filledQty,
-                    isPaper: false,
-                    orderId: order.orderId,
-                    timestamp: Date.now()
-                };
+                if (position) {
+                    // --- LIVE PIRAMIDACIÓN ---
+                    manager.recordTrade({
+                        action: 'ADD',
+                        amount: filledQty,
+                        pnl: 0,
+                        pnlValue: 0
+                    });
+                    logger.success(`[LIVE] 🐢 PIRAMIDACIÓN ejecutada: ${filledQty} ${symbol} @ $${filledPrice}`);
+                } else {
+                    // --- LIVE APERTURA ---
+                    const newPos = {
+                        symbol: symbol,
+                        side: 'BUY',
+                        entryPrice: filledPrice,
+                        amount: filledQty,
+                        isPaper: false,
+                        orderId: order.orderId,
+                        timestamp: Date.now(),
+                        units: 1
+                    };
 
-                manager.recordTrade({
-                    action: 'OPEN',
-                    position: newPos,
-                    pnl: 0,
-                    pnlValue: 0
-                });
-
-                await this.saveActivePosition(newPos);
-                logger.success(`[LIVE] BUY executed: ${filledQty} ${symbol} @ $${filledPrice}`);
+                    manager.recordTrade({
+                        action: 'OPEN',
+                        position: newPos,
+                        pnl: 0,
+                        pnlValue: 0
+                    });
+                    await this.saveActivePosition(newPos);
+                    logger.success(`[LIVE] BUY executed: ${filledQty} ${symbol} @ $${filledPrice}`);
+                }
 
                 db.saveTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });
                 notifications.notifyTrade({ ...signal, symbol, type: 'LIVE', amount: filledQty, price: filledPrice });

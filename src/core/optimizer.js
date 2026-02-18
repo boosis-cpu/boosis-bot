@@ -59,16 +59,20 @@ class Optimizer {
         // backtestEngine has a cache map, but it caches by key. If we change params, we probably miss cache 
         // unless we cache the DATA loading separately.
 
-        // Let's implement a simple mostly-parallel execution
-        const batchSize = 5;
+        // Batched execution to avoid DB overload
+        const batchSize = 10;
         for (let i = 0; i < tasks.length; i += batchSize) {
             const batch = tasks.slice(i, i + batchSize);
             const promises = batch.map(async (params) => {
                 try {
                     const res = await backtestEngine.runBacktest(symbol, params, period);
+                    // Puntuación Inteligente: ROI * ProfitFactor / (1 + MaxDD)
+                    const score = (res.metrics.roi * res.metrics.profitFactor) / (1 + (res.metrics.maxDD / 100));
+
                     return {
                         params,
-                        metrics: res.metrics
+                        metrics: res.metrics,
+                        score: score
                     };
                 } catch (e) {
                     logger.error(`[Optimizer] Config failed: ${e.message}`);
@@ -80,8 +84,8 @@ class Optimizer {
             results.push(...batchResults.filter(r => r !== null));
         }
 
-        // Sort by ROI
-        results.sort((a, b) => b.metrics.roi - a.metrics.roi);
+        // Sort by Score (Balance entre Ganancia y Riesgo)
+        results.sort((a, b) => b.score - a.score);
 
         if (results.length === 0) {
             logger.warn(`[Optimizer] No valid results found for ${symbol}`);
@@ -99,16 +103,29 @@ class Optimizer {
             r.params.rsi.buy === baseParams.rsi.buy &&
             r.params.rsi.sell === baseParams.rsi.sell &&
             r.params.stopLoss === baseParams.stopLoss
-        ) || { params: baseParams, metrics: { roi: 0, winRate: 0 } }; // Fallback if original not in grid
+        ) || { params: baseParams, metrics: { roi: 0, winRate: 0 }, score: 0 };
 
-        logger.info(`[Optimizer] Best ROI: ${bestResult.metrics.roi}% vs Original: ${originalResult.metrics.roi}%`);
+        logger.info(`[Optimizer] Best Score: ${bestResult.score.toFixed(2)} | ROI: ${bestResult.metrics.roi}% vs Original Score: ${originalResult.score.toFixed(2)}`);
+
+        // Generar Razonamiento (Para que el usuario sepa POR QUÉ es la mejor)
+        let reasoning = "";
+        if (bestResult.metrics.roi > originalResult.metrics.roi * 1.5) {
+            reasoning = `Esta configuración aumentó la rentabilidad un ${((bestResult.metrics.roi / (originalResult.metrics.roi || 1)) * 100).toFixed(0)}% manteniéndose dentro de niveles de riesgo aceptables. `;
+        }
+        if (bestResult.metrics.maxDD < originalResult.metrics.maxDD) {
+            reasoning += `Es más segura porque reduce el Drawdown (pérdida máxima) a un ${bestResult.metrics.maxDD}%. `;
+        }
+        if (bestResult.metrics.profitFactor > 1.5) {
+            reasoning += `Tiene un factor de beneficio sólido de ${bestResult.metrics.profitFactor.toFixed(2)}, lo que significa que el bot 'gana mucho más de lo que pierde'.`;
+        }
 
         return {
             symbol,
             period,
             bestConfig: bestResult,
             originalConfig: originalResult,
-            allResults: results.slice(0, 50) // Return top 50
+            reasoning: reasoning || "Optimización balanceada por ROI y Estabilidad.",
+            allResults: results.slice(0, 50)
         };
     }
 }

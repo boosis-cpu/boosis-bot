@@ -109,6 +109,40 @@ class DatabaseManager {
         return this.pool.query(query, values);
     }
 
+    /**
+     * Guarda múltiples velas de una sola vez (Batch Insert)
+     * Altamente eficiente para backtesting y minería masiva.
+     */
+    async saveCandlesBatch(symbol, candles) {
+        if (!candles || candles.length === 0) return;
+
+        const client = await this.pool.connect();
+        try {
+            await client.query('BEGIN');
+            const query = `
+                INSERT INTO candles (symbol, open_time, open, high, low, close, volume, close_time)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (symbol, open_time) DO UPDATE SET
+                    open = EXCLUDED.open,
+                    high = EXCLUDED.high,
+                    low = EXCLUDED.low,
+                    close = EXCLUDED.close,
+                    volume = EXCLUDED.volume,
+                    close_time = EXCLUDED.close_time;
+            `;
+
+            for (const candle of candles) {
+                await client.query(query, [symbol, ...candle]);
+            }
+            await client.query('COMMIT');
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
+    }
+
     async saveTrade(trade) {
         const query = `
             INSERT INTO trades (symbol, side, price, amount, timestamp, type, reason)

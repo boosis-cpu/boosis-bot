@@ -6,7 +6,7 @@ class BoosisTrend extends BaseStrategy {
         super('Boosis Trend Follower');
 
         // Parámetros por defecto (sobrescribibles por configure())
-        this.rsiBuyBound = 25;
+        this.rsiBuyBound = 30;
         this.rsiSellBound = 75;
         this.emaShort = 12;
         this.emaLong = 26;
@@ -19,10 +19,17 @@ class BoosisTrend extends BaseStrategy {
     }
 
     onCandle(candle, history, inPosition = false, entryPrice = 0) {
-        const prices = history.map(c => parseFloat(c[4]));
         const currentPrice = parseFloat(candle[4]);
+        const len = history.length;
+        if (len < this.emaTrend) return null;
 
-        if (prices.length < this.emaTrend) return null;
+        // [OPTIMIZACIÓN MEDALLION] Evitar history.map() completo. 
+        // Extraemos solo lo necesario para los indicadores.
+        const prices = [];
+        const maxNeeded = Math.max(this.emaTrend, this.bbPeriod, 50); // 50 para RSI
+        for (let i = Math.max(0, len - maxNeeded); i < len; i++) {
+            prices.push(parseFloat(history[i][4]));
+        }
 
         // --- INDICADORES ---
         const emaShortValue = TechnicalIndicators.calculateEMA(prices, this.emaShort);

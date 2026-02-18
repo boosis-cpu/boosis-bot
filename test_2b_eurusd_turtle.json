@@ -1,0 +1,196 @@
+{
+  "symbol": "EURUSDT",
+  "version": "2.6",
+  "method": "Turtle Strategy (Donchian Breakouts)",
+  "timeframe": "1h",
+  "period": "1y",
+  "parameters": {
+    "s1_period": 20,
+    "s2_period": 55,
+    "atr_period": 20,
+    "hmmStates": 8,
+    "hmmConfidence": 0.7
+  },
+  "metrics": {
+    "totalTrades": 90,
+    "winRate": "100.0",
+    "roi": "-0.56",
+    "maxDrawdown": "53.38",
+    "sharpeRatio": "3.40",
+    "profitFactor": "1.29",
+    "avgReturn": "0.076659",
+    "avgTradeDuration": "26.8",
+    "grossProfit": "17.99",
+    "grossLoss": "13.90",
+    "finalBalance": "9943.85"
+  },
+  "evaluation": {
+    "passed": false,
+    "verdict": "❌ FALLÓ",
+    "recommendation": "Necesita ajuste de parámetros"
+  },
+  "trades": [
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1499,
+      "exit": 1.1534,
+      "pnl": 0.25437429341683143,
+      "success": true,
+      "durationHours": 30
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1562,
+      "exit": 1.1568,
+      "pnl": 0.0018941359626490212,
+      "success": true,
+      "durationHours": 51
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1599,
+      "exit": 1.1579,
+      "pnl": -0.22242865764289793,
+      "success": true,
+      "durationHours": 12
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1611,
+      "exit": 1.1618,
+      "pnl": 0.010287658255098184,
+      "success": true,
+      "durationHours": 27
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1532,
+      "exit": 1.1514,
+      "pnl": -0.20608740894901273,
+      "success": true,
+      "durationHours": 20
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1557,
+      "exit": 1.1551,
+      "pnl": -0.1019165873496541,
+      "success": true,
+      "durationHours": 24
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1618,
+      "exit": 1.1607,
+      "pnl": -0.14468066792907014,
+      "success": true,
+      "durationHours": 11
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1624,
+      "exit": 1.165,
+      "pnl": 0.17367515485202106,
+      "success": true,
+      "durationHours": 45
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1648,
+      "exit": 1.1634,
+      "pnl": -0.1701923076923128,
+      "success": true,
+      "durationHours": 12
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1651,
+      "exit": 1.1725,
+      "pnl": 0.5851386147111837,
+      "success": true,
+      "durationHours": 48
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1741,
+      "exit": 1.1733,
+      "pnl": -0.11813729665274826,
+      "success": true,
+      "durationHours": 42
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1725,
+      "exit": 1.1785,
+      "pnl": 0.46172707889126646,
+      "success": true,
+      "durationHours": 62
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1802,
+      "exit": 1.178,
+      "pnl": -0.23640908320622928,
+      "success": true,
+      "durationHours": 12
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1729,
+      "exit": 1.1705,
+      "pnl": -0.254621024810292,
+      "success": true,
+      "durationHours": 9
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1671,
+      "exit": 1.168,
+      "pnl": 0.02711421472023083,
+      "success": true,
+      "durationHours": 17
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1634,
+      "exit": 1.1723,
+      "pnl": 0.7149991404504064,
+      "success": true,
+      "durationHours": 56
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1764,
+      "exit": 1.1753,
+      "pnl": -0.1435056103366083,
+      "success": true,
+      "durationHours": 11
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1849,
+      "exit": 1.1878,
+      "pnl": 0.19474639210059214,
+      "success": true,
+      "durationHours": 37
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1939,
+      "exit": 1.198,
+      "pnl": 0.29341234609263084,
+      "success": true,
+      "durationHours": 23
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 1.1816,
+      "exit": 1.1894,
+      "pnl": 0.6101218686526744,
+      "success": true,
+      "durationHours": 37
+    }
+  ],
+  "timestamp": "2026-02-18T16:15:17.465Z",
+  "executionTime": "1 segundos"
+}
