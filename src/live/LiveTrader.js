@@ -990,6 +990,10 @@ class LiveTrader {
             // Send to Telegram
             await notifications.send(initialLink, 'success');
 
+            // 🤖 ACTIVAR COMANDOS DE TELEGRAM
+            this.setupTelegramCommands();
+            notifications.startPolling();
+
             const server = this.app.listen(CONFIG.port, () => {
                 logger.success(`API listening on port ${CONFIG.port}`);
                 // Generar token después de que el servidor esté escuchando
@@ -1125,6 +1129,62 @@ class LiveTrader {
         } catch (err) {
             logger.error(`[Token] ❌ Error generando token inicial: ${err.message}`);
         }
+    }
+
+    // --- TELEGRAM COMMAND HANDLER ---
+    setupTelegramCommands() {
+        notifications.onCommand(async (command) => {
+            logger.info(`[Telegram] Comando recibido: ${command}`);
+
+            switch (command) {
+                case '/help':
+                case '/start':
+                case '/info':
+                    await notifications.send(`📜 **COMANDOS DISPONIBLES**\n\n` +
+                        `🔹 /status - Estado actual del bot\n` +
+                        `🔹 /balance - Balance actual (Paper/Real)\n` +
+                        `🔹 /pairs - Lista de pares activos\n` +
+                        `🔹 /stop - Detener trading (Emergencia)\n` +
+                        `🔹 /help - Mostrar esta lista`);
+                    break;
+
+                case '/status':
+                    const mode = this.liveTrading ? '💰 LIVE' : '📝 PAPER';
+                    const pairsCount = this.pairManagers.size;
+                    const equity = this.calculateTotalEquity().toFixed(2);
+                    await notifications.send(`📊 **ESTADO DEL BOT**\n\n` +
+                        `Modo: ${mode}\n` +
+                        `Pares Activos: ${pairsCount}\n` +
+                        `Equity Total: $${equity} USD\n` +
+                        `Status: ${this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO'}`);
+                    break;
+
+                case '/balance':
+                    const b = this.balance;
+                    await notifications.send(`💰 **BALANCE ACTUAL (PAPER)**\n\n` +
+                        `USDT: $${parseFloat(b.usdt).toFixed(2)}\n` +
+                        `Asset Value: $${(this.calculateTotalEquity() - b.usdt).toFixed(2)}\n` +
+                        `Total: $${this.calculateTotalEquity().toFixed(2)}`);
+                    break;
+
+                case '/pairs':
+                    const pairs = Array.from(this.pairManagers.keys()).join(', ') || 'Ninguno';
+                    await notifications.send(`🐜 **PARES ACTIVOS**\n\n${pairs}`);
+                    break;
+
+                case '/stop':
+                    this.liveTrading = false;
+                    this.paperTrading = true;
+                    this.emergencyStopped = true;
+                    await this.saveTradingMode();
+                    logger.error('🚨 EMERGENCY STOP ACTIVATED VIA TELEGRAM');
+                    await notifications.send('🚨 **EMERGENCY STOP ACTIVATED**\nTrading detenido y modo LIVE desactivado.');
+                    break;
+
+                default:
+                    await notifications.send(`❓ Comando no reconocido: ${command}\nUsa /help para ver la lista.`);
+            }
+        });
     }
 }
 
