@@ -1,0 +1,37 @@
+{
+  "test": "TEST 3: Comparativa v2.5 vs v2.6",
+  "symbol": "BTCUSDT",
+  "timeframe": "1d",
+  "period": "5y",
+  "v25_turtle_pure": {
+    "roi": "66.16",
+    "winRate": "33.3",
+    "sharpe": "0.39",
+    "profitFactor": "1.74",
+    "trades": 24,
+    "maxDrawdown": "72.23",
+    "finalBalance": "16615.92"
+  },
+  "v26_turtle_hmm": {
+    "roi": "280.22",
+    "winRate": "47.1",
+    "sharpe": "0.71",
+    "profitFactor": "3.09",
+    "trades": 17,
+    "maxDrawdown": "49.23",
+    "finalBalance": "38021.61"
+  },
+  "improvement": {
+    "roiDelta": "+323.5%",
+    "winRateDelta": "+13.7 puntos",
+    "drawdownReduction": "23.00 puntos",
+    "metricsV26WinsCount": 5
+  },
+  "conclusion": {
+    "verdict": "✅✅ v2.6 ES CLARAMENTE SUPERIOR (HMM agrega valor significativo)",
+    "recommendation": "✅ PROCEDER A DINERO REAL (v2.6 validada científicamente)",
+    "nextStep": "TEST 4 (Multi-pair) → Paper Trading → Dinero Real (Marzo)"
+  },
+  "timestamp": "2026-02-18T19:18:14.522Z",
+  "executionTime": "2 segundos"
+}

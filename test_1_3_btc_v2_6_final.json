@@ -1,0 +1,17 @@
+{
+  "BTCUSDT": {
+    "v25": {
+      "roi": "0",
+      "totalTrades": 0
+    },
+    "v26": {
+      "roi": "-100.00",
+      "winRate": "12.4",
+      "maxDD": "100.00",
+      "sharpe": "-4.57",
+      "profitFactor": "0.94",
+      "totalTrades": 2761
+    },
+    "delta": {}
+  }
+}

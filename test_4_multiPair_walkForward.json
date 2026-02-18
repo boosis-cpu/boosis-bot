@@ -1,0 +1,44 @@
+{
+  "test": "TEST 4: Multi-pair + Walk-Forward",
+  "multiPair": {
+    "BTCUSDT": {
+      "roi": "-28.51",
+      "trades": 13,
+      "winRate": "23.1",
+      "maxDrawdown": "69.46",
+      "profitFactor": "0.83",
+      "finalBalance": "7149.04"
+    },
+    "ETHUSDT": {
+      "roi": "479.96",
+      "trades": 16,
+      "winRate": "62.5",
+      "maxDrawdown": "42.17",
+      "profitFactor": "4.04",
+      "finalBalance": "57995.56"
+    },
+    "SOLUSDT": {
+      "roi": "4752.52",
+      "trades": 25,
+      "winRate": "44.0",
+      "maxDrawdown": "53.56",
+      "profitFactor": "5.18",
+      "finalBalance": "485252.39"
+    }
+  },
+  "walkForward": {
+    "Period 1": {
+      "roi": "38.61",
+      "trades": 6,
+      "winRate": "50.0",
+      "maxDrawdown": "32.87"
+    },
+    "Period 2": {
+      "roi": "67.97",
+      "trades": 12,
+      "winRate": "33.3",
+      "maxDrawdown": "43.31"
+    }
+  },
+  "timestamp": "2026-02-18T19:31:05.736Z"
+}

@@ -1,0 +1,26 @@
+{
+  "BTCUSDT": {
+    "v25": {
+      "roi": "-11.41",
+      "winRate": "52.9",
+      "maxDD": "12.67",
+      "sharpe": "-0.87",
+      "profitFactor": "0.62",
+      "totalTrades": 51
+    },
+    "v26": {
+      "roi": "NaN",
+      "winRate": "5.3",
+      "maxDD": "2410999.45",
+      "sharpe": "NaN",
+      "profitFactor": "0.02",
+      "totalTrades": 23661
+    },
+    "delta": {
+      "winRateImprovement": "-47.6%",
+      "roiGain": "NaN%",
+      "drawdownReduction": "-2410986.8%",
+      "sharpeImprovement": "NaN"
+    }
+  }
+}
