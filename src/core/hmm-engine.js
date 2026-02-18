@@ -207,11 +207,17 @@ class HMMEngine {
 
     _identifyStates() {
         this.stateLabels = this.means.map((m, i) => {
-            const pM = m[0]; const pV = this.vars[i][0];
-            if (pV > 1e-4) return "⚡ ALTA VARIANZA";
-            if (pM > 1e-5) return "📈 ALCISTA";
-            if (pM < -1e-5) return "📉 BAJISTA";
-            return "💤 LATERAL";
+            const pM = m[0];
+            const pV = this.vars[i][0];
+            const direction = pM > 0 ? "ALCISTA" : "BAJISTA";
+            const volatility = pV > 1e-4 ? "VOLÁTIL" : "ESTABLE";
+
+            if (volatility === "VOLÁTIL") {
+                return `🎰 ${volatility} ${direction}`;
+            } else {
+                if (Math.abs(pM) < 1e-5) return "💤 LATERAL";
+                return `📈 ${direction} ${volatility}`;
+            }
         });
     }
 

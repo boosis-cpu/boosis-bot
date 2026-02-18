@@ -1,0 +1,243 @@
+{
+  "symbol": "BTCUSDT",
+  "version": "2.6",
+  "method": "Turtle Strategy (MARGIN Simulation)",
+  "timeframe": "1h",
+  "period": "1y",
+  "parameters": {
+    "s1_period": 20,
+    "s2_period": 55,
+    "atr_period": 20,
+    "leverage": 2,
+    "hmmStates": 8,
+    "tradingMode": "MARGIN",
+    "commissionRate": "0.025%"
+  },
+  "comparison": {
+    "test2b_roi_spot_ref": "-0.56%",
+    "test2c_roi_margin": "-46.49%",
+    "commission_difference": "0.075%",
+    "hypothesis": "Comisión era el problema principal"
+  },
+  "metrics": {
+    "totalTrades": 110,
+    "winRate": "31.8",
+    "roi": "-46.49",
+    "maxDrawdown": "70.33",
+    "sharpeRatio": "-0.92",
+    "profitFactor": "0.77",
+    "avgReturn": "-0.001405",
+    "avgTradeDuration": "29.5",
+    "finalBalance": "5351.38"
+  },
+  "evaluation": {
+    "passed": false,
+    "hypothesis_confirmed": false,
+    "verdict": "❌ FALLÓ - La estrategia necesita revisión profunda",
+    "recommendation": "Analizar otros factores (volatilidad, SL/TP)"
+  },
+  "trades": [
+    {
+      "strategy": "TURTLE",
+      "entry": 121804.04,
+      "exit": 119548.96,
+      "pnl": -1.9014000028241982,
+      "success": false,
+      "durationHours": 15,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 122876.34,
+      "exit": 120680.9,
+      "pnl": -1.836706863176428,
+      "success": false,
+      "durationHours": 15,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 112438.03,
+      "exit": 109984.98,
+      "pnl": -2.2316906610690377,
+      "success": false,
+      "durationHours": 25,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 114109.89,
+      "exit": 114819.09,
+      "pnl": 0.5715061639267175,
+      "success": true,
+      "durationHours": 115,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 116773.38,
+      "exit": 114495.3,
+      "pnl": -2.000855580270094,
+      "success": false,
+      "durationHours": 125,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 113947.92,
+      "exit": 121595.84,
+      "pnl": 6.661767972596603,
+      "success": true,
+      "durationHours": 190,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 114979.43,
+      "exit": 112549.76,
+      "pnl": -2.1631344971878868,
+      "success": false,
+      "durationHours": 50,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 105267.85,
+      "exit": 101477.33,
+      "pnl": -3.65083349284706,
+      "success": false,
+      "durationHours": 65,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 89828.69,
+      "exit": 87532.28,
+      "pnl": -2.6064326942761866,
+      "success": false,
+      "durationHours": 100,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 92839.33,
+      "exit": 89643.69,
+      "pnl": -3.492118765829093,
+      "success": false,
+      "durationHours": 60,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 93980.18,
+      "exit": 90804.98,
+      "pnl": -3.428584718607686,
+      "success": false,
+      "durationHours": 30,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 90156.62,
+      "exit": 87315.68,
+      "pnl": -3.2011163572902377,
+      "success": false,
+      "durationHours": 20,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 90463.22,
+      "exit": 91241.07,
+      "pnl": 0.8098522139716072,
+      "success": true,
+      "durationHours": 120,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 95499.99,
+      "exit": 94982.4,
+      "pnl": -0.5919791143433744,
+      "success": false,
+      "durationHours": 114.78333333333333,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 90839.5,
+      "exit": 89409.33,
+      "pnl": -1.6243921972269753,
+      "success": false,
+      "durationHours": 20,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 89112.6,
+      "exit": 88706.54,
+      "pnl": -0.5056706907889706,
+      "success": false,
+      "durationHours": 28,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 78807.89,
+      "exit": 77376.57,
+      "pnl": -1.8662140871935444,
+      "success": false,
+      "durationHours": 23,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 68011.51,
+      "exit": 68550.39,
+      "pnl": 0.7423364736351313,
+      "success": true,
+      "durationHours": 16,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 72117.62,
+      "exit": 70282.92,
+      "pnl": -2.594038474924709,
+      "success": false,
+      "durationHours": 3,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    },
+    {
+      "strategy": "TURTLE",
+      "entry": 67874.51,
+      "exit": 69058.15,
+      "pnl": 1.6938652595797736,
+      "success": true,
+      "durationHours": 47,
+      "leverage": 2,
+      "reason": "STRATEGY_EXIT"
+    }
+  ],
+  "timestamp": "2026-02-18T18:29:09.263Z",
+  "executionTime": "3 segundos"
+}

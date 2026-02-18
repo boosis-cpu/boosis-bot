@@ -1,6 +1,7 @@
 import React from 'react';
 import {
-    PieChart, Pie, Cell, Tooltip, ResponsiveContainer
+    PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 
 export default function PortfolioCard({ portfolio, colors = ['#00ff88', '#00ffff', '#ff0080', '#ffaa00', '#ffea00'] }) {
@@ -46,17 +47,49 @@ export default function PortfolioCard({ portfolio, colors = ['#00ff88', '#00ffff
                 </div>
             </div>
 
+            <div className="pnl-bar-section" style={{ marginTop: '20px', borderTop: '1px solid #1a1f26', paddingTop: '15px' }}>
+                <h4 style={{ fontSize: '10px', color: '#71717a', marginBottom: '10px' }}>ESTATUS DE COMBATE (PNL $)</h4>
+                <ResponsiveContainer width="100%" height={120}>
+                    <BarChart data={portfolio.pairBreakdown}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1a1f26" vertical={false} />
+                        <XAxis
+                            dataKey="name"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#888', fontSize: 10 }}
+                        />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <Tooltip
+                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                            contentStyle={{ backgroundColor: '#111', border: '1px solid #00ffff', borderRadius: '4px' }}
+                            itemStyle={{ color: '#fff' }}
+                        />
+                        <Bar
+                            dataKey="pnl"
+                            radius={[4, 4, 0, 0]}
+                        >
+                            {portfolio.pairBreakdown.map((entry, index) => (
+                                <Cell
+                                    key={`cell-bar-${index}`}
+                                    fill={entry.pnl >= 0 ? '#00ff88' : '#ff0064'}
+                                />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+
             <div className="portfolio-total-metric">
                 <div className="metric-row">
-                    <span>Profit/Loss $</span>
+                    <span>Profit/Loss Total</span>
                     <span className={portfolio.pnl >= 0 ? 'positive' : 'negative'}>
-                        ${portfolio.pnl.toFixed(2)}
+                        {portfolio.pnl >= 0 ? '+' : ''}${portfolio.pnl.toFixed(2)}
                     </span>
                 </div>
                 <div className="metric-row">
-                    <span>Rendimiento %</span>
+                    <span>Rendimiento Global</span>
                     <span className={portfolio.pnl >= 0 ? 'positive' : 'negative'}>
-                        {portfolio.pnlPercent}%
+                        {portfolio.pnl >= 0 ? '+' : ''}{portfolio.pnlPercent}%
                     </span>
                 </div>
             </div>

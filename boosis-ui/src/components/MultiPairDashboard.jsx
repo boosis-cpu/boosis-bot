@@ -75,6 +75,7 @@ export default function MultiPairDashboard({ token }) {
                 name: symbol.replace('USDT', ''),
                 value: (Number(pairData.balance?.usdt) || 0) + assetValue,
                 trades: trades,
+                pnl: Number(pairData.metrics?.netPnL) || 0,
             });
         }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CandlestickChart from './Charts/CandlestickChart';
 import { addTradingPair, removeTradingPair } from '../services/api';
-import { Play, Square } from 'lucide-react';
+import { Play, Square, Shield, Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle }) {
     const [actionLoading, setActionLoading] = useState(false);
@@ -59,14 +59,56 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
     const winRate = trades > 0 ? (winningTrades / trades * 100).toFixed(1) : 0;
     const balance = (Number(data.balance?.usdt) || 0) + (Number(data.balance?.assetValue) || 0);
 
+    const regime = data.marketRegime || { name: 'DESCONOCIDO', state: 0 };
+    const isShieldActive = data.shieldMode;
+    const isTurtleActive = data.turtleMode;
+
+    const getRegimeColor = (name) => {
+        if (name.includes('ALCISTA')) return '#00ff88';
+        if (name.includes('BAJISTA')) return '#ff0064';
+        if (name.includes('LATERAL') || name.includes('RUIDO')) return '#ffaa00';
+        if (name.includes('ACUMULACION')) return '#00ffff';
+        return '#8b949e';
+    };
+
+    const getRegimeIcon = (name) => {
+        if (name.includes('ALCISTA')) return <TrendingUp size={12} />;
+        if (name.includes('BAJISTA')) return <TrendingDown size={12} />;
+        if (name.includes('LATERAL')) return <Minus size={12} />;
+        return null;
+    };
+
     return (
         <div className={`pair-card ${data.status === 'inactive' ? 'is-inactive' : ''}`}>
             <div className="pair-card-header">
                 <div className="title-area">
-                    <h3>{symbol}</h3>
-                    <span className={`status-pill ${data.status === 'inactive' ? 'inactive' : (data.activePosition ? 'active' : 'idle')}`}>
-                        {data.status === 'inactive' ? '⚪ INACTIVE' : (data.activePosition ? '🔵 IN POSITION' : '🟢 WAITING')}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3>{symbol}</h3>
+                        {isShieldActive && <Shield size={14} color="#ffaa00" className="shield-pulse" title="Modo Escudo Activo" />}
+                        {isTurtleActive && <Zap size={14} color="#00ffff" className="turtle-pulse" title="Modo Tortuga Activo" />}
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <span className={`status-pill ${data.status === 'inactive' ? 'inactive' : (data.activePosition ? 'active' : 'idle')}`}>
+                            {data.status === 'inactive' ? 'OFF' : (data.activePosition ? 'LIVE' : 'WAIT')}
+                        </span>
+                        {data.status !== 'inactive' && (
+                            <span className="regime-badge" style={{
+                                fontSize: '9px',
+                                background: 'rgba(255,255,255,0.05)',
+                                color: getRegimeColor(regime.name),
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: `1px solid ${getRegimeColor(regime.name)}44`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontWeight: 'bold'
+                            }}>
+                                {getRegimeIcon(regime.name)}
+                                {regime.name}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <button
@@ -79,71 +121,75 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
                 </button>
             </div>
 
-            {confirmStop && (
-                <div style={{
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    marginBottom: '8px',
-                    background: 'rgba(255, 0, 100, 0.1)',
-                    border: '1px solid #ff0064',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                }}>
-                    <span style={{ color: '#ff0064' }}>Detener {symbol}?</span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                            onClick={() => executeToggle('stop')}
-                            style={{
-                                background: '#ff0064',
-                                color: 'white',
-                                border: 'none',
-                                padding: '4px 12px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                fontWeight: 'bold',
-                            }}
-                        >
-                            Si
-                        </button>
-                        <button
-                            onClick={() => setConfirmStop(false)}
-                            style={{
-                                background: 'transparent',
-                                color: '#8b949e',
-                                border: '1px solid #30363d',
-                                padding: '4px 12px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                            }}
-                        >
-                            No
-                        </button>
+            {
+                confirmStop && (
+                    <div style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        marginBottom: '8px',
+                        background: 'rgba(255, 0, 100, 0.1)',
+                        border: '1px solid #ff0064',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                    }}>
+                        <span style={{ color: '#ff0064' }}>Detener {symbol}?</span>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                                onClick={() => executeToggle('stop')}
+                                style={{
+                                    background: '#ff0064',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                }}
+                            >
+                                Si
+                            </button>
+                            <button
+                                onClick={() => setConfirmStop(false)}
+                                style={{
+                                    background: 'transparent',
+                                    color: '#8b949e',
+                                    border: '1px solid #30363d',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                }}
+                            >
+                                No
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {feedback && (
-                <div style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    marginBottom: '8px',
-                    background: feedback.type === 'error' ? 'rgba(255, 0, 100, 0.15)' : 'rgba(0, 255, 136, 0.15)',
-                    color: feedback.type === 'error' ? '#ff0064' : '#00ff88',
-                    border: `1px solid ${feedback.type === 'error' ? '#ff0064' : '#00ff88'}`,
-                }}>
-                    {feedback.msg}
-                </div>
-            )}
+            {
+                feedback && (
+                    <div style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        marginBottom: '8px',
+                        background: feedback.type === 'error' ? 'rgba(255, 0, 100, 0.15)' : 'rgba(0, 255, 136, 0.15)',
+                        color: feedback.type === 'error' ? '#ff0064' : '#00ff88',
+                        border: `1px solid ${feedback.type === 'error' ? '#ff0064' : '#00ff88'}`,
+                    }}>
+                        {feedback.msg}
+                    </div>
+                )
+            }
 
             <div className="chart-container" style={{ minWidth: 0, minHeight: 150 }}>
                 <CandlestickChart symbol={symbol} token={token} height={150} mini={true} />
@@ -169,6 +215,6 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
                     <div className="val">{trades} / {winRate}%</div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

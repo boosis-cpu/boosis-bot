@@ -1,0 +1,143 @@
+{
+  "symbol": "BTCUSDT",
+  "roi": "116.79",
+  "winRate": "42.1",
+  "totalTrades": 19,
+  "maxDrawdown": "68.28",
+  "finalBalance": "21679.03",
+  "trades": [
+    {
+      "entry": 37237.6,
+      "exit": 46048.31,
+      "pnl": 23.66078909489333,
+      "success": true,
+      "durationDays": 44
+    },
+    {
+      "entry": 55315,
+      "exit": 58413.44,
+      "pnl": 5.601446262315831,
+      "success": true,
+      "durationDays": 21
+    },
+    {
+      "entry": 67525.83,
+      "exit": 60058.87,
+      "pnl": -11.05793146119048,
+      "success": false,
+      "durationDays": 8
+    },
+    {
+      "entry": 43839.99,
+      "exit": 40515.7,
+      "pnl": -7.582780014320262,
+      "success": false,
+      "durationDays": 10
+    },
+    {
+      "entry": 44313.16,
+      "exit": 43170.47,
+      "pnl": -2.578669632226639,
+      "success": false,
+      "durationDays": 12
+    },
+    {
+      "entry": 23223.3,
+      "exit": 20834.39,
+      "pnl": -10.286694828039082,
+      "success": false,
+      "durationDays": 30
+    },
+    {
+      "entry": 20771.59,
+      "exit": 18547.23,
+      "pnl": -10.708665056454516,
+      "success": false,
+      "durationDays": 13
+    },
+    {
+      "entry": 17440.66,
+      "exit": 21796.35,
+      "pnl": 24.974341567348933,
+      "success": true,
+      "durationDays": 30
+    },
+    {
+      "entry": 24324.05,
+      "exit": 22354.34,
+      "pnl": -8.097787991720125,
+      "success": false,
+      "durationDays": 16
+    },
+    {
+      "entry": 26907.49,
+      "exit": 27262.84,
+      "pnl": 1.3206360013512912,
+      "success": true,
+      "durationDays": 34
+    },
+    {
+      "entry": 33922.73,
+      "exit": 41327.5,
+      "pnl": 21.828343414577766,
+      "success": true,
+      "durationDays": 86
+    },
+    {
+      "entry": 49699.59,
+      "exit": 61937.4,
+      "pnl": 24.623563292976876,
+      "success": true,
+      "durationDays": 35
+    },
+    {
+      "entry": 67074.14,
+      "exit": 97700.59,
+      "pnl": 45.66059289019583,
+      "success": true,
+      "durationDays": 110
+    },
+    {
+      "entry": 96489.91,
+      "exit": 101508.68,
+      "pnl": 5.201341777601398,
+      "success": true,
+      "durationDays": 35
+    },
+    {
+      "entry": 116010,
+      "exit": 113297.93,
+      "pnl": -2.3377898457029627,
+      "success": false,
+      "durationDays": 22
+    },
+    {
+      "entry": 123306.43,
+      "exit": 117342.05,
+      "pnl": -4.837038911920482,
+      "success": false,
+      "durationDays": 2
+    },
+    {
+      "entry": 116788.96,
+      "exit": 112650.99,
+      "pnl": -3.5431174316476493,
+      "success": false,
+      "durationDays": 6
+    },
+    {
+      "entry": 124658.54,
+      "exit": 112774.5,
+      "pnl": -9.53327385352018,
+      "success": false,
+      "durationDays": 4
+    },
+    {
+      "entry": 91529.73,
+      "exit": 88427.66,
+      "pnl": -3.389139244702232,
+      "success": false,
+      "durationDays": 16
+    }
+  ]
+}

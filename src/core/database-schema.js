@@ -8,13 +8,14 @@ const DatabaseSchema = {
       CREATE TABLE IF NOT EXISTS candles (
         id SERIAL PRIMARY KEY,
         symbol VARCHAR(20) NOT NULL,
+        timeframe VARCHAR(10) NOT NULL DEFAULT '1m',
         open_time BIGINT NOT NULL,
         open NUMERIC, high NUMERIC,
         low NUMERIC, close NUMERIC,
         volume NUMERIC,
         close_time BIGINT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(symbol, open_time)
+        UNIQUE(symbol, open_time, timeframe)
       )
     `);
 

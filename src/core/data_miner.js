@@ -71,9 +71,9 @@ class DataMiner {
     async _runMiningLoop(symbol, interval, days) {
         const intervalMsMap = {
             '1m': 60000, '3m': 180000, '5m': 300000, '15m': 900000,
-            '30m': 1800000, '1h': 3600000
+            '30m': 1800000, '1h': 3600000, '1d': 86400000
         };
-        const intervalMs = intervalMsMap[interval] || 300000;
+        const intervalMs = intervalMsMap[interval] || 86400000;
 
         const endTime = Date.now();
         const startTime = endTime - (days * 24 * 60 * 60 * 1000);
@@ -110,7 +110,7 @@ class DataMiner {
                 k[6]  // close_time
             ]);
 
-            await db.saveCandlesBatch(symbol, candleArray);
+            await db.saveCandlesBatch(symbol, candleArray, interval);
 
             totalImported += candles.length;
 

@@ -34,7 +34,9 @@ class DatabaseManager {
             // 1. Candles Table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS candles (
+                    id SERIAL PRIMARY KEY,
                     symbol VARCHAR(20) NOT NULL,
+                    timeframe VARCHAR(10) NOT NULL DEFAULT '1m',
                     open_time BIGINT NOT NULL,
                     open NUMERIC NOT NULL,
                     high NUMERIC NOT NULL,
@@ -42,7 +44,8 @@ class DatabaseManager {
                     close NUMERIC NOT NULL,
                     volume NUMERIC NOT NULL,
                     close_time BIGINT NOT NULL,
-                    PRIMARY KEY (symbol, open_time)
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(symbol, open_time, timeframe)
                 );
             `);
 
@@ -93,11 +96,11 @@ class DatabaseManager {
         }
     }
 
-    async saveCandle(symbol, candle) {
+    async saveCandle(symbol, candle, timeframe = '1m') {
         const query = `
-            INSERT INTO candles (symbol, open_time, open, high, low, close, volume, close_time)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (symbol, open_time) DO UPDATE SET
+            INSERT INTO candles (symbol, timeframe, open_time, open, high, low, close, volume, close_time)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (symbol, open_time, timeframe) DO UPDATE SET
                 open = EXCLUDED.open,
                 high = EXCLUDED.high,
                 low = EXCLUDED.low,
@@ -105,7 +108,7 @@ class DatabaseManager {
                 volume = EXCLUDED.volume,
                 close_time = EXCLUDED.close_time;
         `;
-        const values = [symbol, ...candle];
+        const values = [symbol, timeframe, ...candle];
         return this.pool.query(query, values);
     }
 
@@ -113,16 +116,16 @@ class DatabaseManager {
      * Guarda múltiples velas de una sola vez (Batch Insert)
      * Altamente eficiente para backtesting y minería masiva.
      */
-    async saveCandlesBatch(symbol, candles) {
+    async saveCandlesBatch(symbol, candles, timeframe = '1m') {
         if (!candles || candles.length === 0) return;
 
         const client = await this.pool.connect();
         try {
             await client.query('BEGIN');
             const query = `
-                INSERT INTO candles (symbol, open_time, open, high, low, close, volume, close_time)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (symbol, open_time) DO UPDATE SET
+                INSERT INTO candles (symbol, timeframe, open_time, open, high, low, close, volume, close_time)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (symbol, open_time, timeframe) DO UPDATE SET
                     open = EXCLUDED.open,
                     high = EXCLUDED.high,
                     low = EXCLUDED.low,
@@ -132,7 +135,7 @@ class DatabaseManager {
             `;
 
             for (const candle of candles) {
-                await client.query(query, [symbol, ...candle]);
+                await client.query(query, [symbol, timeframe, ...candle]);
             }
             await client.query('COMMIT');
         } catch (e) {
@@ -160,15 +163,15 @@ class DatabaseManager {
         return this.pool.query(query, values);
     }
 
-    async getRecentCandles(symbol, limit = 500) {
+    async getRecentCandles(symbol, limit = 500, timeframe = '1m') {
         const query = `
             SELECT open_time, open, high, low, close, volume, close_time
             FROM candles
-            WHERE symbol = $1
+            WHERE symbol = $1 AND timeframe = $2
             ORDER BY open_time DESC
-            LIMIT $2;
+            LIMIT $3;
         `;
-        const res = await this.pool.query(query, [symbol, limit]);
+        const res = await this.pool.query(query, [symbol, timeframe, limit]);
         // Convert back to array format used by indicators
         return res.rows.reverse().map(r => [
             parseInt(r.open_time),

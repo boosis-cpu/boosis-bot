@@ -8,6 +8,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "backtest": "node run_backtest.js",
+    "backtest:compare": "node scripts/execute_mass_backtest.js",
     "start": "node src/live/LiveTrader.js"
   },
   "keywords": [],

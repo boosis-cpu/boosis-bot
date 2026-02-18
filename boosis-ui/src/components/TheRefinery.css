@@ -14,7 +14,48 @@
   font-size: 28px;
   background: linear-gradient(90deg, #00ff88 0%, #00ffff 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* STRATEGY LOGIC PANEL */
+.strategy-logic-panel {
+  background: rgba(88, 166, 255, 0.05);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  border-left: 5px solid #58a6ff;
+  position: relative;
+  overflow: hidden;
+}
+
+.logic-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #58a6ff;
+  color: #000;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-bottom-left-radius: 8px;
+  letter-spacing: 1px;
+}
+
+.strategy-logic-panel h2 {
+  margin: 0 0 10px 0;
+  color: #58a6ff;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.strategy-logic-panel p {
+  margin: 0;
+  font-size: 14px;
+  color: #e6edf3;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .refinery-header {
@@ -32,6 +73,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.symbol-selector label {
+  font-size: 14px;
+  color: #8b949e;
 }
 
 .symbol-selector select {
@@ -217,6 +263,60 @@
 
 .param-group {
   margin-bottom: 20px;
+}
+
+/* Custom Date Range Styles */
+.custom-date-range {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.date-input-wrapper {
+  flex: 1;
+}
+
+.date-input-wrapper label {
+  font-size: 10px !important;
+  color: #888 !important;
+  margin-bottom: 2px !important;
+}
+
+.custom-date-range input[type="date"] {
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  color: #fff;
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.custom-date-range input[type="date"]:hover {
+  border-color: #00ffff !important;
+}
+
+.custom-date-range input[type="date"]:focus {
+  border-color: #00ff88 !important;
+  box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+}
+
+.param-group select {
+  width: 100%;
+  padding: 10px;
+  background: #111;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.param-group select:hover {
+  border-color: #58a6ff;
 }
 
 .param-group label {
@@ -447,6 +547,69 @@
   font-size: 16px;
 }
 
+/* STRATEGY LIBRARY (EL ARCA) */
+.strategy-library-panel {
+  background: rgba(88, 166, 255, 0.05);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  padding: 25px;
+  border-radius: 10px;
+  border-top: 4px solid #58a6ff;
+}
+
+.strategy-library-panel h3 {
+  color: #58a6ff;
+  font-size: 18px;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.save-to-lib {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.save-to-lib input {
+  flex: 1;
+  background: #0a0e27;
+  border: 1px solid #30363d;
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-family: inherit;
+}
+
+.btn-save-lib {
+  background: #58a6ff;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-save-lib:hover {
+  background: #00ffff;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+.library-card {
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.library-card:hover {
+  transform: translateY(-3px);
+  border-color: #58a6ff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.btn-load-lib:hover {
+  background: #58a6ff !important;
+  color: #000 !important;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .refinery-container {
@@ -459,5 +622,9 @@
 
   .metrics {
     grid-template-columns: 1fr;
+  }
+
+  .save-to-lib {
+    flex-direction: column;
   }
 }
