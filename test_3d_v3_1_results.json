@@ -1,0 +1,26 @@
+{
+  "BTCUSDT": {
+    "roi": "516.3",
+    "trades": 74,
+    "winRate": "73.0",
+    "maxDrawdown": "0.75",
+    "calmarRatio": "58.70",
+    "dailyAvgPercent": "0.283"
+  },
+  "ETHUSDT": {
+    "roi": "250.1",
+    "trades": 58,
+    "winRate": "72.4",
+    "maxDrawdown": "1.43",
+    "calmarRatio": "19.88",
+    "dailyAvgPercent": "0.137"
+  },
+  "SOLUSDT": {
+    "roi": "239.0",
+    "trades": 63,
+    "winRate": "68.3",
+    "maxDrawdown": "1.50",
+    "calmarRatio": "18.48",
+    "dailyAvgPercent": "0.131"
+  }
+}

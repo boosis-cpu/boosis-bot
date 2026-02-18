@@ -1,0 +1,13 @@
+{
+  "p1": {
+    "roi": "11.89",
+    "maxDrawdown": "0.23",
+    "calmarRatio": "20.11"
+  },
+  "p2": {
+    "roi": "22.39",
+    "maxDrawdown": "0.11",
+    "calmarRatio": "73.58"
+  },
+  "robust": true
+}
