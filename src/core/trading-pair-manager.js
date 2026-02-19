@@ -52,7 +52,8 @@ class TradingPairManager {
             grossLoss: 0,
             netPnL: 0,
             maxDrawdown: 0,
-            winRate: 0
+            winRate: 0,
+            pnlHistory: [{ time: Date.now(), pnl: 0 }] // Para Sparklines
         };
 
         this.initialized = false;
@@ -242,6 +243,13 @@ class TradingPairManager {
         this.metrics.netPnL += tradeResult.pnlValue || 0;
         this.metrics.winRate = (this.metrics.winningTrades / this.metrics.totalTrades) * 100;
 
+        // Historial para gráficas
+        this.metrics.pnlHistory.push({
+            time: tradeResult.timestamp || Date.now(),
+            pnl: this.metrics.netPnL
+        });
+        if (this.metrics.pnlHistory.length > 50) this.metrics.pnlHistory.shift();
+
         // Actualizar posición interna
         if (tradeResult.action === 'OPEN') {
             this.activePosition = {
@@ -288,7 +296,8 @@ class TradingPairManager {
             marketRegime: this.marketRegime,
             shieldMode: this.shieldMode,
             turtleMode: this.turtleMode,
-            status: this.initialized ? 'ACTIVE' : 'INITIALIZING'
+            status: this.initialized ? 'ACTIVE' : 'INITIALIZING',
+            priceHistory: this.candles.slice(-30).map(c => ({ time: c[0], price: c[4] }))
         };
     }
     /**

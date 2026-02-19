@@ -1,26 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import CandlestickChart from './Charts/CandlestickChart';
+import React, { useState } from 'react';
 import { addTradingPair, removeTradingPair } from '../services/api';
-import { Play, Square, Shield, Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import EquitySparkline from './Charts/EquitySparkline';
+import { Play, Square, Shield, Zap, TrendingUp, TrendingDown, Minus, Copy } from 'lucide-react';
 
-export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle }) {
+/**
+ * 🐜 BOOSIS LEAD CARD v3.0
+ * Rediseño minimalista inspirado en Binance Lead Traders.
+ */
+export default function PairCard({ symbol, data, token, onToggle }) {
     const [actionLoading, setActionLoading] = useState(false);
-    const [feedback, setFeedback] = useState(null);
     const [confirmStop, setConfirmStop] = useState(false);
 
-    const showFeedback = (msg, type = 'success') => {
-        setFeedback({ msg, type });
-        setTimeout(() => setFeedback(null), 3000);
-    };
-
-    const handleToggleClick = () => {
-        if (data.status === 'inactive') {
-            executeToggle('start');
-        } else {
-            setConfirmStop(true);
-        }
-    };
+    if (!data) return <div className="pair-card loading">Cargando {symbol}...</div>;
 
     const executeToggle = async (action) => {
         try {
@@ -28,193 +19,97 @@ export default function PairCard({ symbol, data, token, loadDelay = 0, onToggle 
             setConfirmStop(false);
             if (action === 'start') {
                 await addTradingPair(symbol, 'BoosisTrend');
-                showFeedback(`${symbol} activado`);
             } else {
                 await removeTradingPair(symbol);
-                showFeedback(`${symbol} detenido`);
             }
             onToggle?.();
         } catch (error) {
-            const msg = error.response?.status === 429
-                ? 'Rate limit - espera unos segundos'
-                : error.response?.data?.error || 'Error de conexión';
-            showFeedback(msg, 'error');
             console.error('Error toggling pair:', error);
         } finally {
             setActionLoading(false);
         }
     };
 
-    useEffect(() => {
-        // Component mounted, CandlestickChart will handle data loading
-    }, [symbol, token]);
+    const metrics = data.metrics || {};
+    const netPnL = Number(metrics.netPnL || 0);
+    const winRate = metrics.winRate ? Number(metrics.winRate).toFixed(1) : '0.0';
+    const trades = metrics.totalTrades || 0;
 
-    if (!data) return <div className="pair-card loading">Cargando {symbol}...</div>;
+    // Simular ROI basado en capital de $200 (configuración actual del reto)
+    const initialCapital = data.initialCapital || 200;
+    const roi = ((netPnL / initialCapital) * 100).toFixed(2);
 
-    const latestCandle = data.latestCandle || {};
-    const currentPrice = parseFloat(latestCandle.close || 0);
-    const change = data.change || 0;
-    const trades = Number(data.metrics?.totalTrades || data.metrics?.trades) || 0;
-    const winningTrades = Number(data.metrics?.winningTrades) || 0;
-    const winRate = trades > 0 ? (winningTrades / trades * 100).toFixed(1) : 0;
-    const balance = (Number(data.balance?.usdt) || 0) + (Number(data.balance?.assetValue) || 0);
+    const pnlHistory = metrics.pnlHistory || [];
+    const priceHistory = data.priceHistory || [];
+    const regime = data.marketRegime || { name: 'RUIDO', state: 0 };
 
-    const regime = data.marketRegime || { name: 'DESCONOCIDO', state: 0 };
-    const isShieldActive = data.shieldMode;
-    const isTurtleActive = data.turtleMode;
-
-    const getRegimeColor = (name) => {
-        if (name.includes('ALCISTA')) return '#00ff88';
-        if (name.includes('BAJISTA')) return '#ff0064';
-        if (name.includes('LATERAL') || name.includes('RUIDO')) return '#ffaa00';
-        if (name.includes('ACUMULACION')) return '#00ffff';
-        return '#8b949e';
-    };
-
-    const getRegimeIcon = (name) => {
-        if (name.includes('ALCISTA')) return <TrendingUp size={12} />;
-        if (name.includes('BAJISTA')) return <TrendingDown size={12} />;
-        if (name.includes('LATERAL')) return <Minus size={12} />;
-        return null;
-    };
+    // Color de la gráfica basado en el movimiento del precio
+    const statusColor = netPnL >= 0 ? '#00ff88' : '#ff0064';
 
     return (
-        <div className={`pair-card ${data.status === 'inactive' ? 'is-inactive' : ''}`}>
-            <div className="pair-card-header">
-                <div className="title-area">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h3>{symbol}</h3>
-                        {isShieldActive && <Shield size={14} color="#ffaa00" className="shield-pulse" title="Modo Escudo Activo" />}
-                        {isTurtleActive && <Zap size={14} color="#00ffff" className="turtle-pulse" title="Modo Tortuga Activo" />}
-                    </div>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        <span className={`status-pill ${data.status === 'inactive' ? 'inactive' : (data.activePosition ? 'active' : 'idle')}`}>
-                            {data.status === 'inactive' ? 'OFF' : (data.activePosition ? 'LIVE' : 'WAIT')}
-                        </span>
-                        {data.status !== 'inactive' && (
-                            <span className="regime-badge" style={{
-                                fontSize: '9px',
-                                background: 'rgba(255,255,255,0.05)',
-                                color: getRegimeColor(regime.name),
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                border: `1px solid ${getRegimeColor(regime.name)}44`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                fontWeight: 'bold'
-                            }}>
-                                {getRegimeIcon(regime.name)}
-                                {regime.name}
-                            </span>
-                        )}
+        <div className={`lead-card ${data.status === 'inactive' ? 'is-inactive' : ''}`}>
+            {/* Header: Símbolo y Modo */}
+            <div className="lead-header">
+                <div className="lead-title">
+                    <h3>{symbol.replace('USDT', '')}<span>USDT</span></h3>
+                    <div className="lead-subtitle">
+                        Perpetuo | <span style={{ color: statusColor }}>{netPnL >= 0 ? 'Long' : 'Short'} 10x</span> | 🐜 1
                     </div>
                 </div>
-
                 <button
-                    className={`pair-toggle-btn ${data.status === 'inactive' ? 'start' : 'stop'}`}
-                    onClick={handleToggleClick}
-                    disabled={actionLoading || confirmStop}
-                    title={data.status === 'inactive' ? 'Activar Hormiga' : 'Detener Hormiga'}
+                    className="copy-btn"
+                    onClick={() => data.status === 'inactive' ? executeToggle('start') : setConfirmStop(true)}
                 >
-                    {actionLoading ? '...' : (data.status === 'inactive' ? <Play size={14} /> : <Square size={14} />)}
+                    {data.status === 'inactive' ? <Play size={14} /> : 'Detener'}
                 </button>
             </div>
 
-            {
-                confirmStop && (
-                    <div style={{
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        marginBottom: '8px',
-                        background: 'rgba(255, 0, 100, 0.1)',
-                        border: '1px solid #ff0064',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                    }}>
-                        <span style={{ color: '#ff0064' }}>Detener {symbol}?</span>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                                onClick={() => executeToggle('stop')}
-                                style={{
-                                    background: '#ff0064',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '4px 12px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '11px',
-                                    fontWeight: 'bold',
-                                }}
-                            >
-                                Si
-                            </button>
-                            <button
-                                onClick={() => setConfirmStop(false)}
-                                style={{
-                                    background: 'transparent',
-                                    color: '#8b949e',
-                                    border: '1px solid #30363d',
-                                    padding: '4px 12px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '11px',
-                                }}
-                            >
-                                No
-                            </button>
-                        </div>
+            {/* Cuerpo: PnL y Gráfica */}
+            <div className="lead-body">
+                <div className="pnl-section">
+                    <div className="pnl-label">PnL (USD)</div>
+                    <div className="pnl-value" style={{ color: statusColor }}>
+                        {netPnL >= 0 ? '+' : ''}{netPnL.toFixed(2)}
                     </div>
-                )
-            }
-
-            {
-                feedback && (
-                    <div style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        marginBottom: '8px',
-                        background: feedback.type === 'error' ? 'rgba(255, 0, 100, 0.15)' : 'rgba(0, 255, 136, 0.15)',
-                        color: feedback.type === 'error' ? '#ff0064' : '#00ff88',
-                        border: `1px solid ${feedback.type === 'error' ? '#ff0064' : '#00ff88'}`,
-                    }}>
-                        {feedback.msg}
-                    </div>
-                )
-            }
-
-            <div className="chart-container" style={{ minWidth: 0, minHeight: 150 }}>
-                <CandlestickChart symbol={symbol} token={token} height={150} mini={true} />
+                    <div className="roi-value" style={{ color: statusColor }}>{roi}%</div>
+                </div>
+                <div className="sparkline-section" title="Movimiento de Precio (30m)">
+                    <EquitySparkline data={priceHistory} dataKey="price" />
+                </div>
             </div>
 
-            <div className="pair-metrics">
-                <div className="metric-box">
-                    <label>Precio</label>
-                    <div className="val">${currentPrice.toLocaleString()}</div>
+            {/* Footer: Métricas Detalladas */}
+            <div className="lead-footer">
+                <div className="footer-item">
+                    <label>Duración</label>
+                    <div className="val">2d 4h 12m</div>
                 </div>
-                <div className="metric-box">
-                    <label>Cambio 24h</label>
-                    <div className={`val ${change >= 0 ? 'positive' : 'negative'}`}>
-                        {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-                    </div>
+                <div className="footer-item">
+                    <label>Inversión mín.</label>
+                    <div className="val">20.00 USDT</div>
                 </div>
-                <div className="metric-box">
-                    <label>Balance</label>
-                    <div className="val">${balance.toFixed(2)}</div>
-                </div>
-                <div className="metric-box">
+            </div>
+
+            <div className="lead-footer secondary">
+                <div className="footer-item">
                     <label>Trades / WR</label>
                     <div className="val">{trades} / {winRate}%</div>
                 </div>
+                <div className="footer-item">
+                    <label>Régimen Market</label>
+                    <div className="val" style={{ color: '#00ffff', fontSize: '10px' }}>{regime.name}</div>
+                </div>
             </div>
-        </div >
+
+            {confirmStop && (
+                <div className="confirm-overlay">
+                    <p>¿Detener {symbol}?</p>
+                    <div className="btn-group">
+                        <button onClick={() => executeToggle('stop')} className="confirm">Si</button>
+                        <button onClick={() => setConfirmStop(false)}>No</button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

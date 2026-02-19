@@ -5,14 +5,14 @@ import PortfolioCard from './PortfolioCard';
 import './MultiPairDashboard.css';
 
 export default function MultiPairDashboard({ token }) {
-    const [gridMode, setGridMode] = useState('2x2');
-    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'DOGEUSDT', 'SHIBUSDT']);
+    const [gridMode, setGridMode] = useState('4');
+    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'DOGEUSDT', 'SHIBUSDT', 'LINKUSDT']);
     const [pairsData, setPairsData] = useState({});
     const [portfolio, setPortfolio] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Lista de soldados disponibles para el dashboard
-    const ALL_SOLDIERS = ['BTC', 'SOL', 'PEPE', 'WIF', 'BONK', 'DOGE', 'SHIB', 'ETH', 'XRP', 'ADA'];
+    const ALL_SOLDIERS = ['BTC', 'SOL', 'PEPE', 'WIF', 'BONK', 'DOGE', 'SHIB', 'LINK', 'ETH', 'XRP', 'ADA'];
 
     useEffect(() => {
         loadMultiPairData();
@@ -83,6 +83,7 @@ export default function MultiPairDashboard({ token }) {
 
         setPortfolio({
             totalBalance,
+            totalEquity: totalBalance,
             totalTrades,
             winRate: totalTrades > 0 ? (winningTrades / totalTrades * 100).toFixed(2) : 0,
             pairBreakdown,
@@ -204,33 +205,10 @@ export default function MultiPairDashboard({ token }) {
                         onToggle={() => setTimeout(loadMultiPairData, 500)}
                     />
                 ))}
-
-                {portfolio && (
-                    <PortfolioCard portfolio={portfolio} colors={COLORS} />
-                )}
             </div>
 
             {portfolio && (
-                <div className="status-bar">
-                    <div className="metric">
-                        <label>Balance Total</label>
-                        <div className="value">${portfolio.totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    </div>
-                    <div className="metric">
-                        <label>P&L Global</label>
-                        <div className={`value ${portfolio.pnl >= 0 ? 'positive' : 'positive'}`} style={{ color: portfolio.pnl >= 0 ? '#00ff88' : '#ff0064' }}>
-                            ${portfolio.pnl.toFixed(2)} ({portfolio.pnlPercent}%)
-                        </div>
-                    </div>
-                    <div className="metric">
-                        <label>Hormigas en Combate</label>
-                        <div className="value">{portfolio.totalTrades} Trades</div>
-                    </div>
-                    <div className="metric">
-                        <label>Efectividad (WR)</label>
-                        <div className="value">{portfolio.winRate}%</div>
-                    </div>
-                </div>
+                <PortfolioCard portfolio={portfolio} colors={COLORS} />
             )}
         </div>
     );

@@ -608,7 +608,7 @@ class LiveTrader {
             } else {
                 // Fallback: Position sizing original (Global Balance / Active Pairs)
                 const activePairsCount = Math.max(this.pairManagers.size, 1);
-                const maxAllocation = this.balance.usdt / activePairsCount;
+                const maxAllocation = 20; // Default $20 per trade for safety if not specified
                 amountUsdt = Math.min(this.balance.usdt, maxAllocation);
             }
 
@@ -618,6 +618,7 @@ class LiveTrader {
             }
 
             amountAsset = (amountUsdt / signal.price) * (1 - fee);
+            tradeAmount = amountAsset;
 
             // Deduct from Global Pool
             this.balance.usdt -= amountUsdt;
@@ -677,10 +678,19 @@ class LiveTrader {
 
         await this.savePaperBalance();
 
-        // Log & Notify
-        const tradeData = { ...signal, symbol: symbol, type: 'PAPER', amount: tradeAmount };
-        db.saveTrade(tradeData);
-        notifications.notifyTrade(tradeData);
+        // [FIX] Validar y formatear Trade Data para Notifications y DB
+        const tradeData = {
+            symbol: symbol,
+            side: signal.action || 'BUY',
+            price: signal.price || 0,
+            amount: tradeAmount,
+            type: 'PAPER',
+            reason: signal.reason || 'No reason',
+            timestamp: Date.now()
+        };
+
+        db.saveTrade(tradeData).catch(err => logger.error(`Error saving trade: ${err.message}`));
+        notifications.notifyTrade(tradeData).catch(err => logger.error(`Error notifying trade: ${err.message}`));
     }
 
     async executeRealTrade(symbol, signal, manager) {

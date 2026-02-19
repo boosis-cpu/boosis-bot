@@ -64,17 +64,21 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'co
                                     marginBottom: '8px'
                                 }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} BTC</span>
+                                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} {trade.symbol ? trade.symbol.replace('USDT', '') : '???'}</span>
                                         <span style={{ fontSize: '10px', color: '#8b949e' }}>{trade.reason || 'Trend'}</span>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '11px', fontWeight: 'bold' }}>${trade.price}</div>
+                                        <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                                            ${trade.price < 1 ? Number(trade.price).toFixed(6) : Number(trade.price).toFixed(2)}
+                                        </div>
                                         {trade.slippage && (
                                             <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
                                                 Slip: {trade.slippage}%
                                             </div>
                                         )}
-                                        <div style={{ fontSize: '9px', color: '#58a6ff' }}>{new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                        <div style={{ fontSize: '9px', color: '#58a6ff' }}>
+                                            {trade.timestamp ? new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                        </div>
                                     </div>
                                 </div>
                             ))

@@ -96,11 +96,14 @@ class NotificationManager {
         const emoji = trade.side === 'BUY' ? '🟢' : '🔴';
         const tradeType = trade.type === 'REAL' ? '💰 REAL' : '📝 PAPER';
 
+        const formatPrice = (p) => p < 1 ? p.toFixed(8) : p.toFixed(2);
+        const formatAmount = (a) => a < 1 ? a.toFixed(6) : a.toLocaleString();
+
         let message = `${emoji} **TRADE EJECUTADO** (${tradeType})\n\n`;
         message += `**Símbolo:** ${trade.symbol}\n`;
-        message += `**Acción:** ${trade.side}\n`;
-        message += `**Precio:** $${trade.price.toFixed(2)}\n`;
-        message += `**Cantidad:** ${trade.amount.toFixed(6)}\n`;
+        message += `**Acción:** ${trade.side || trade.action || 'BUY'}\n`;
+        message += `**Precio:** $${formatPrice(trade.price)}\n`;
+        message += `**Cantidad:** ${formatAmount(trade.amount)}\n`;
 
         if (trade.slippage) {
             message += `**Slippage:** ${trade.slippage.toFixed(4)}%\n`;
