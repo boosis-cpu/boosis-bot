@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart } from 'lightweight-charts';
 import { getCandles } from '../services/api';
+import { Clock, Settings, Search, LayoutGrid, Zap, BarChart3, Layers } from 'lucide-react';
 import './PatternVision.css';
 
 const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', priceType = 'candle', showIndicators = false, onSymbolChange, onTimeframeChange }) => {
@@ -205,7 +206,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                 timeVisible: true,
             },
             width: chartContainerRef.current.clientWidth,
-            height: 400
+            height: chartContainerRef.current.clientHeight || 400
         });
 
         let mainSeries;
@@ -515,8 +516,11 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         };
 
         const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+            if (chartContainerRef.current && chartRef.current) {
+                chartRef.current.applyOptions({
+                    width: chartContainerRef.current.clientWidth,
+                    height: chartContainerRef.current.clientHeight
+                });
             }
         };
         window.addEventListener('resize', handleResize);
@@ -734,19 +738,6 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                         </div>
                     )}
                 </div>
-                {onTimeframeChange ? (
-                    <div className="timeframe-selector">
-                        {timeframes.map(tf => (
-                            <button
-                                key={tf}
-                                className={`tf-btn ${timeframe === tf ? 'active' : ''}`}
-                                onClick={() => handleTimeframeChange(tf)}
-                            >
-                                {tf}
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
             </div>
             <div ref={chartContainerRef} className="mini-chart" />
         </div>
@@ -757,82 +748,105 @@ const PatternVision = ({ token }) => {
     const [detections, setDetections] = useState({});
     const [focusSymbol, setFocusSymbol] = useState('BTCUSDT');
     const [focusTimeframe, setFocusTimeframe] = useState('4h');
+    const [showTfMenu, setShowTfMenu] = useState(false);
 
-    // Default pairs for bottom row
-    const bottomPairs = ['SOLUSDT', 'XRPUSDT'];
+    const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
     const handleNewPattern = (msg) => {
         setDetections(prev => ({ ...prev, [msg.symbol]: msg }));
     };
 
-    const handleFocusSymbolChange = (newSymbol) => {
-        setFocusSymbol(newSymbol);
-    };
-
-    const handleFocusTimeframeChange = (newTf) => {
-        setFocusTimeframe(newTf);
-    };
-
     return (
         <div className="pattern-vision-container">
-            <div className="vision-grid">
-                {/* TOP LEFT (1): Main Focus Chart */}
-                <VisionChart
-                    mode="price"
-                    initialSymbol="BTCUSDT"
-                    token={token}
-                    onPattern={handleNewPattern}
-                    onSymbolChange={handleFocusSymbolChange}
-                    onTimeframeChange={handleFocusTimeframeChange}
-                    showIndicators={false}
-                />
-
-                {/* TOP RIGHT (2): Volume Focus (Follows Panel 1) */}
-                <VisionChart
-                    mode="volume"
-                    symbol={focusSymbol}
-                    timeframe={focusTimeframe}
-                    token={token}
-                    onPattern={handleNewPattern}
-                />
-
-                {/* BOTTOM LEFT (3): MACD Focus (Follows Panel 1) */}
-                <VisionChart
-                    mode="macd"
-                    symbol={focusSymbol}
-                    timeframe={focusTimeframe}
-                    token={token}
-                    onPattern={handleNewPattern}
-                />
-
-                {/* BOTTOM RIGHT (4): Macro Price View (Sync with Panel 1) */}
-                <VisionChart
-                    mode="price"
-                    priceType="line"
-                    showIndicators={true}
-                    symbol={focusSymbol}
-                    timeframe={focusTimeframe}
-                    token={token}
-                    onPattern={handleNewPattern}
-                />
-            </div>
-
-            <div className="vision-footer-panel">
-                <h3>Últimos Eventos Estructurales</h3>
-                <div className="events-scroll">
-                    {Object.values(detections).length > 0 ? (
-                        Object.values(detections).map(d => (
-                            <div key={d.symbol} className={`event-pill ${d.data.direction} animate-in`}>
-                                <strong>{d.symbol}</strong>: {d.data.type.replace(/_/g, ' ')}
-                                <span className="conf">{(d.data.confidence * 100).toFixed(0)}% Conf.</span>
-                                <span className="target">Target: ${d.data.target.toFixed(2)}</span>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="no-events">Escaneando estructuras en los 4 pares...</p>
+            <aside className="vision-sidebar">
+                <button
+                    className={`sidebar-icon-btn ${showTfMenu ? 'active' : ''}`}
+                    onClick={() => setShowTfMenu(!showTfMenu)}
+                    title="Temporalidad"
+                >
+                    <Clock size={20} />
+                    {showTfMenu && (
+                        <div className="tf-popover">
+                            {timeframes.map(tf => (
+                                <button
+                                    key={tf}
+                                    className={`tf-popover-item ${focusTimeframe === tf ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFocusTimeframe(tf);
+                                        setShowTfMenu(false);
+                                    }}
+                                >
+                                    {tf}
+                                </button>
+                            ))}
+                        </div>
                     )}
+                </button>
+
+                <button className="sidebar-icon-btn" title="Indicadores">
+                    <BarChart3 size={20} />
+                </button>
+
+                <button className="sidebar-icon-btn" title="Capas">
+                    <Layers size={20} />
+                </button>
+
+                <button className="sidebar-icon-btn" title="Estrategias">
+                    <Zap size={20} />
+                </button>
+
+                <div style={{ marginTop: 'auto' }}>
+                    <button className="sidebar-icon-btn" title="Configuración Sistema">
+                        <Settings size={20} />
+                    </button>
                 </div>
-            </div>
+            </aside>
+
+            <main className="vision-main-content">
+                <div className="vision-grid">
+                    {/* TOP LEFT (1): Main Focus Chart */}
+                    <VisionChart
+                        mode="price"
+                        initialSymbol="BTCUSDT"
+                        token={token}
+                        onPattern={handleNewPattern}
+                        onSymbolChange={(s) => setFocusSymbol(s)}
+                        symbol={focusSymbol}
+                        timeframe={focusTimeframe}
+                        showIndicators={false}
+                    />
+
+                    {/* TOP RIGHT (2): Volume Focus (Follows Panel 1) */}
+                    <VisionChart
+                        mode="volume"
+                        symbol={focusSymbol}
+                        timeframe={focusTimeframe}
+                        token={token}
+                        onPattern={handleNewPattern}
+                    />
+
+                    {/* BOTTOM LEFT (3): MACD Focus (Follows Panel 1) */}
+                    <VisionChart
+                        mode="macd"
+                        symbol={focusSymbol}
+                        timeframe={focusTimeframe}
+                        token={token}
+                        onPattern={handleNewPattern}
+                    />
+
+                    {/* BOTTOM RIGHT (4): Macro Price View (Sync with Panel 1) */}
+                    <VisionChart
+                        mode="price"
+                        priceType="line"
+                        showIndicators={true}
+                        symbol={focusSymbol}
+                        timeframe={focusTimeframe}
+                        token={token}
+                        onPattern={handleNewPattern}
+                    />
+                </div>
+            </main>
         </div>
     );
 };

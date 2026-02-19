@@ -14,7 +14,7 @@
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   margin-bottom: 10px;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .emergency-banner button {
@@ -22,7 +22,7 @@
   background: white;
   color: #f85149;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-weight: 900;
   font-size: 11px;
@@ -94,5 +94,5 @@
   border: 1px solid #30363d;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  border-radius: 6px;
+  border-radius: 0;
 }
