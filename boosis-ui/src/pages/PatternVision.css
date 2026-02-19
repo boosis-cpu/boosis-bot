@@ -100,6 +100,19 @@
     font-weight: 700;
 }
 
+.price-label-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+}
+
+.indicator-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .m-badge.c1 {
     background: rgba(0, 188, 212, 0.15);
     color: #00bcd4;
