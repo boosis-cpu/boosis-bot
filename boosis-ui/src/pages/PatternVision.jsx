@@ -814,7 +814,7 @@ const PatternVision = ({ token }) => {
                         onSymbolChange={(s) => setFocusSymbol(s)}
                         symbol={focusSymbol}
                         timeframe={focusTimeframe}
-                        showIndicators={false}
+                        showIndicators={true}
                     />
 
                     {/* TOP RIGHT (2): Volume Focus (Follows Panel 1) */}
