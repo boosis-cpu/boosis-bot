@@ -142,6 +142,35 @@
     opacity: 1;
 }
 
+.compact-header-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.header-top-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-bottom-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    flex-wrap: wrap;
+}
+
+.boll-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
 .volume-settings-popover {
     position: absolute;
     top: 100%;

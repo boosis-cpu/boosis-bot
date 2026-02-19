@@ -4,7 +4,7 @@ import { createChart } from 'lightweight-charts';
 import { getCandles } from '../services/api';
 import './PatternVision.css';
 
-const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', onSymbolChange, onTimeframeChange }) => {
+const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', priceType = 'candle', onSymbolChange, onTimeframeChange }) => {
     const volumeOnly = mode === 'volume';
     const macdOnly = mode === 'macd';
 
@@ -27,6 +27,10 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     const [ma3Period, setMa3Period] = useState(() => Number(localStorage.getItem('boosis_ma3')) || 99);
     const [bollPeriod, setBollPeriod] = useState(() => Number(localStorage.getItem('boosis_boll_period')) || 20);
     const [bollStd, setBollStd] = useState(() => Number(localStorage.getItem('boosis_boll_std')) || 2);
+
+    // Current values for premium labels
+    const [maValues, setMaValues] = useState({ ma1: 0, ma2: 0, ma3: 0 });
+    const [bollValues, setBollValues] = useState({ upper: 0, mid: 0, lower: 0 });
 
     const [showSettings, setShowSettings] = useState(false);
     const chartContainerRef = useRef();
@@ -156,6 +160,11 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         return { upper, mid, lower };
     };
 
+    const formatVal = (val) => {
+        if (!val && val !== 0) return '0.00';
+        return val.toFixed(val > 100 ? 2 : 5);
+    };
+
     // Re-calculate MAVOLs or MACD when periods change
     useEffect(() => {
         if (volumeOnly && lastDataRef.current.length > 0) {
@@ -253,10 +262,19 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                 borderVisible: true,
             });
         } else {
-            mainSeries = chart.addCandlestickSeries({
-                upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
-                wickUpColor: '#26a69a', wickDownColor: '#ef5350',
-            });
+            if (priceType === 'line') {
+                mainSeries = chart.addLineSeries({
+                    color: '#26a69a',
+                    lineWidth: 2,
+                    priceFormat: { type: 'price', precision: 6, minMove: 0.000001 },
+                });
+            } else {
+                mainSeries = chart.addCandlestickSeries({
+                    upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+                    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+                    priceFormat: { type: 'price', precision: 6, minMove: 0.000001 },
+                });
+            }
 
             // Overlay Indicators
             ma1Ref.current = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }); // Yellow
@@ -299,18 +317,37 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                             });
                         }
                     } else {
-                        mainSeries.setData(res.data.candles);
+                        if (priceType === 'line') {
+                            mainSeries.setData(res.data.candles.map(c => ({ time: c.time, value: c.close })));
+                        } else {
+                            mainSeries.setData(res.data.candles);
+                        }
 
                         // Indicators for Panel 1 and 4
                         const maData = res.data.candles.map(c => ({ time: c.time, value: c.close }));
-                        ma1Ref.current.setData(calculateEMA(maData, ma1Period));
-                        ma2Ref.current.setData(calculateEMA(maData, ma2Period));
-                        ma3Ref.current.setData(calculateEMA(maData, ma3Period));
+                        const m1D = calculateEMA(maData, ma1Period);
+                        const m2D = calculateEMA(maData, ma2Period);
+                        const m3D = calculateEMA(maData, ma3Period);
+
+                        ma1Ref.current.setData(m1D);
+                        ma2Ref.current.setData(m2D);
+                        ma3Ref.current.setData(m3D);
 
                         const { upper, mid, lower } = calculateBollingerBands(res.data.candles, bollPeriod, bollStd);
                         bollUpperRef.current.setData(upper);
                         bollMidRef.current.setData(mid);
                         bollLowerRef.current.setData(lower);
+
+                        if (m1D.length > 0) setMaValues({
+                            ma1: m1D[m1D.length - 1].value,
+                            ma2: m2D[m2D.length - 1].value,
+                            ma3: m3D[m3D.length - 1].value
+                        });
+                        if (upper.length > 0) setBollValues({
+                            upper: upper[upper.length - 1].value,
+                            mid: mid[mid.length - 1].value,
+                            lower: lower[lower.length - 1].value
+                        });
                     }
                     chart.timeScale().fitContent();
 
@@ -425,7 +462,11 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                         });
                     }
                 } else if (!volumeOnly && !macdOnly) {
-                    mainSeries.update(msg);
+                    if (priceType === 'line') {
+                        mainSeries.update({ time: msg.time, value: msg.close });
+                    } else {
+                        mainSeries.update(msg);
+                    }
 
                     // Update rolling data for indicators
                     const existingIdx = lastDataRef.current.findIndex(d => d.time === msg.time);
@@ -436,14 +477,29 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                     }
 
                     const maData = lastDataRef.current.map(c => ({ time: c.time, value: c.close }));
-                    ma1Ref.current.setData(calculateEMA(maData, ma1Period));
-                    ma2Ref.current.setData(calculateEMA(maData, ma2Period));
-                    ma3Ref.current.setData(calculateEMA(maData, ma3Period));
+                    const m1D = calculateEMA(maData, ma1Period);
+                    const m2D = calculateEMA(maData, ma2Period);
+                    const m3D = calculateEMA(maData, ma3Period);
+
+                    ma1Ref.current.setData(m1D);
+                    ma2Ref.current.setData(m2D);
+                    ma3Ref.current.setData(m3D);
 
                     const { upper, mid, lower } = calculateBollingerBands(lastDataRef.current, bollPeriod, bollStd);
                     bollUpperRef.current.setData(upper);
                     bollMidRef.current.setData(mid);
                     bollLowerRef.current.setData(lower);
+
+                    if (m1D.length > 0) setMaValues({
+                        ma1: m1D[m1D.length - 1].value,
+                        ma2: m2D[m2D.length - 1].value,
+                        ma3: m3D[m3D.length - 1].value
+                    });
+                    if (upper.length > 0) setBollValues({
+                        upper: upper[upper.length - 1].value,
+                        mid: mid[mid.length - 1].value,
+                        lower: lower[lower.length - 1].value
+                    });
                 }
             }
             if (!volumeOnly && !macdOnly && msg.type === 'PATTERN_DETECTION' && msg.symbol === symbol) {
@@ -516,21 +572,28 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         <div className={`vision-chart-card ${mode !== 'price' ? 'special-mode' : ''}`}>
             <div className="card-header binance-style">
                 <div className="left-controls" ref={settingsRef}>
-                    {!volumeOnly && !macdOnly ? (
-                        <div className="price-label-group">
-                            <select
-                                value={symbol}
-                                onChange={(e) => handleSymbolChange(e.target.value)}
-                                className="symbol-selector"
-                            >
-                                {availablePairs.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            <div className="indicator-badges">
-                                <span className="m-badge" style={{ color: '#f0b90b' }}>MA({ma1Period})</span>
-                                <span className="m-badge" style={{ color: '#ff4081' }}>MA({ma2Period})</span>
-                                <span className="m-badge" style={{ color: '#bb86fc' }}>MA({ma3Period})</span>
-                                <span className="m-badge" style={{ color: 'rgba(187, 134, 252, 0.8)' }}>BOLL({bollPeriod}, {bollStd})</span>
+                    {(!volumeOnly && !macdOnly && onSymbolChange) ? (
+                        <div className="compact-header-container">
+                            <div className="header-top-row">
+                                <select
+                                    value={symbol}
+                                    onChange={(e) => handleSymbolChange(e.target.value)}
+                                    className="symbol-selector"
+                                >
+                                    {availablePairs.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
                                 <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
+                            </div>
+                            <div className="header-bottom-row indicator-badges">
+                                <span className="m-val-label" style={{ color: '#f0b90b' }}>MA{ma1Period} <span className="val">{formatVal(maValues.ma1)}</span></span>
+                                <span className="m-val-label" style={{ color: '#ff4081' }}>MA{ma2Period} <span className="val">{formatVal(maValues.ma2)}</span></span>
+                                <span className="m-val-label" style={{ color: '#bb86fc' }}>MA{ma3Period} <span className="val">{formatVal(maValues.ma3)}</span></span>
+                                <span className="m-val-label boll-group">
+                                    <span style={{ color: 'rgba(187, 134, 252, 0.8)' }}>B{bollPeriod}</span>
+                                    <span style={{ color: '#bb86fc', marginLeft: '4px' }}>U:{formatVal(bollValues.upper)}</span>
+                                    <span style={{ color: '#ff4081', marginLeft: '4px' }}>M:{formatVal(bollValues.mid)}</span>
+                                    <span style={{ color: '#bb86fc', marginLeft: '4px' }}>D:{formatVal(bollValues.lower)}</span>
+                                </span>
                             </div>
 
                             {showSettings && (
@@ -565,25 +628,38 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                             )}
                         </div>
                     ) : (
-                        <div className="volume-label-group">
-                            <span className="symbol-label">{symbol} ({mode.toUpperCase()}) — {timeframe}</span>
-                            <div className="mavol-badges">
-                                {volumeOnly && (
-                                    <>
-                                        <span className="m-badge c1">MA{mav1Period}</span>
-                                        <span className="m-badge c2">MA{mav2Period}</span>
-                                    </>
-                                )}
-                                {macdOnly && (
-                                    <>
-                                        <span className="m-badge c1">MACD({macdFast},{macdSlow},{macdSignal})</span>
-                                        <span className="m-val" style={{ color: '#bb86fc' }}>{macdValues.macd.toFixed(4)}</span>
-                                        <span className="m-val" style={{ color: '#ff4081' }}>{macdValues.signal.toFixed(4)}</span>
-                                        <span className="m-val" style={{ color: macdValues.hist >= 0 ? '#26a69a' : '#ef5350' }}>{macdValues.hist.toFixed(4)}</span>
-                                    </>
-                                )}
+                        <div className="compact-header-container">
+                            <div className="header-top-row">
+                                <span className="symbol-label">{symbol} ({mode.toUpperCase()}) — {timeframe}</span>
                                 <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
                             </div>
+                            {!volumeOnly && !macdOnly && (
+                                <div className="header-bottom-row indicator-badges">
+                                    <span className="m-val-label" style={{ color: '#f0b90b' }}>MA{ma1Period} <span className="val">{formatVal(maValues.ma1)}</span></span>
+                                    <span className="m-val-label" style={{ color: '#ff4081' }}>MA{ma2Period} <span className="val">{formatVal(maValues.ma2)}</span></span>
+                                    <span className="m-val-label" style={{ color: '#bb86fc' }}>MA{ma3Period} <span className="val">{formatVal(maValues.ma3)}</span></span>
+                                    <span className="m-val-label boll-group">
+                                        <span style={{ color: 'rgba(187, 134, 252, 0.8)' }}>B{bollPeriod}</span>
+                                        <span style={{ color: '#bb86fc', marginLeft: '4px' }}>U:{formatVal(bollValues.upper)}</span>
+                                        <span style={{ color: '#ff4081', marginLeft: '4px' }}>M:{formatVal(bollValues.mid)}</span>
+                                        <span style={{ color: '#bb86fc', marginLeft: '4px' }}>D:{formatVal(bollValues.lower)}</span>
+                                    </span>
+                                </div>
+                            )}
+                            {volumeOnly && (
+                                <div className="header-bottom-row indicator-badges">
+                                    <span className="m-badge c1">MA{mav1Period}</span>
+                                    <span className="m-badge c2">MA{mav2Period}</span>
+                                </div>
+                            )}
+                            {macdOnly && (
+                                <div className="header-bottom-row indicator-badges">
+                                    <span className="m-badge c1">MACD({macdFast},{macdSlow},{macdSignal})</span>
+                                    <span className="m-val" style={{ color: '#bb86fc' }}>{macdValues.macd.toFixed(4)}</span>
+                                    <span className="m-val" style={{ color: '#ff4081' }}>{macdValues.signal.toFixed(4)}</span>
+                                    <span className="m-val" style={{ color: macdValues.hist >= 0 ? '#26a69a' : '#ef5350' }}>{macdValues.hist.toFixed(4)}</span>
+                                </div>
+                            )}
 
                             {showSettings && (
                                 <div className="volume-settings-popover">
@@ -599,7 +675,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                                                     <input type="number" value={mav2Period} onChange={(e) => setMav2Period(Number(e.target.value))} min="2" max="50" />
                                                 </div>
                                             </>
-                                        ) : (
+                                        ) : macdOnly ? (
                                             <>
                                                 <div className="setting-item">
                                                     <label>Rápida:</label>
@@ -614,6 +690,29 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                                                     <input type="number" value={macdSignal} onChange={(e) => setMacdSignal(Number(e.target.value))} min="2" max="50" />
                                                 </div>
                                             </>
+                                        ) : (
+                                            <>
+                                                <div className="setting-item">
+                                                    <label>MA 1:</label>
+                                                    <input type="number" value={ma1Period} onChange={(e) => setMa1Period(Number(e.target.value))} min="2" max="200" />
+                                                </div>
+                                                <div className="setting-item">
+                                                    <label>MA 2:</label>
+                                                    <input type="number" value={ma2Period} onChange={(e) => setMa2Period(Number(e.target.value))} min="2" max="200" />
+                                                </div>
+                                                <div className="setting-item">
+                                                    <label>MA 3:</label>
+                                                    <input type="number" value={ma3Period} onChange={(e) => setMa3Period(Number(e.target.value))} min="2" max="200" />
+                                                </div>
+                                                <div className="setting-item">
+                                                    <label>BOLL Período:</label>
+                                                    <input type="number" value={bollPeriod} onChange={(e) => setBollPeriod(Number(e.target.value))} min="5" max="100" />
+                                                </div>
+                                                <div className="setting-item">
+                                                    <label>BOLL Desv.:</label>
+                                                    <input type="number" value={bollStd} onChange={(e) => setBollStd(Number(e.target.value))} min="1" max="5" />
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                     <div className="settings-actions">
@@ -625,7 +724,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                         </div>
                     )}
                 </div>
-                {!volumeOnly && !macdOnly ? (
+                {onTimeframeChange ? (
                     <div className="timeframe-selector">
                         {timeframes.map(tf => (
                             <button
@@ -687,10 +786,12 @@ const PatternVision = ({ token }) => {
                     onPattern={handleNewPattern}
                 />
 
-                {/* BOTTOM RIGHT (4): Independent Price Chart (SOLUSDT default) */}
+                {/* BOTTOM RIGHT (4): Macro Price View (Sync with Panel 1) */}
                 <VisionChart
                     mode="price"
-                    initialSymbol="SOLUSDT"
+                    priceType="line"
+                    symbol={focusSymbol}
+                    timeframe={focusTimeframe}
                     token={token}
                     onPattern={handleNewPattern}
                 />
