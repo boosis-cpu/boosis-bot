@@ -56,12 +56,14 @@ export default function MultiPairDashboard({ token }) {
 
         const dataValues = Object.values(data);
         if (dataValues.length > 0) {
+            // El USDT es global, lo tomamos del primer par disponible
             globalUSDT = Number(dataValues[0].balance?.usdt) || 0;
         }
 
         const firstPair = dataValues[0];
         const initialCapital = Number(firstPair?.initialCapital) || 200;
 
+        // 1. Desglose de Activos (Solo el valor en trading)
         for (const [symbol, pairData] of Object.entries(data)) {
             const assetValue = Number(pairData.balance?.assetValue) || 0;
             totalAssetValue += assetValue;
@@ -70,11 +72,25 @@ export default function MultiPairDashboard({ token }) {
             totalTrades += trades;
             winningTrades += Number(pairData.metrics?.winningTrades) || 0;
 
-            pairBreakdown.push({
-                name: symbol.replace('USDT', ''),
-                value: (Number(pairData.balance?.usdt) || 0) + assetValue,
-                trades: trades,
-                pnl: Number(pairData.metrics?.netPnL) || 0,
+            if (assetValue > 0 || trades > 0) {
+                pairBreakdown.push({
+                    name: symbol.replace('USDT', ''),
+                    value: assetValue, // Solo el valor del activo procesado
+                    trades: trades,
+                    pnl: Number(pairData.metrics?.netPnL) || 0,
+                    isAsset: true
+                });
+            }
+        }
+
+        // 2. Añadir USDT líquido como una categoría de "Asset" para el gráfico
+        if (globalUSDT > 0) {
+            pairBreakdown.unshift({
+                name: 'USDT (Cash)',
+                value: globalUSDT,
+                trades: 0,
+                pnl: 0,
+                isAsset: false
             });
         }
 

@@ -545,6 +545,9 @@ class LiveTrader {
         ];
 
         try {
+            // [V2.6] CALCULAR EQUIDAD REAL PARA POSITION SIZING
+            const currentEquity = this.calculateTotalEquity();
+
             // Emit to frontend clients
             if (this.clients && this.clients.size > 0) {
                 const candleData = {
@@ -553,7 +556,8 @@ class LiveTrader {
                     high: parseFloat(kline.h),
                     low: parseFloat(kline.l),
                     close: parseFloat(kline.c),
-                    volume: parseFloat(kline.v)
+                    volume: parseFloat(kline.v),
+                    symbol: symbol // Asegurar que el frontend sepa de qué par es
                 };
 
                 this.clients.forEach(client => {
@@ -563,8 +567,8 @@ class LiveTrader {
                 });
             }
 
-            // Process (Manager handles DB and logic)
-            const signal = await manager.onCandleClosed(candle);
+            // Process (Manager handles DB and logic) - PASAR EQUIDAD ACTUAL
+            const signal = await manager.onCandleClosed(candle, currentEquity);
 
             // Heartbeat
             if (symbol === CONFIG.symbol) {

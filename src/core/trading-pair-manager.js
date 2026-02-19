@@ -72,7 +72,6 @@ class TradingPairManager {
             this.candles = recentCandles;
 
             // 2. Cargar Posición Activa
-            // Nota: En v2.6 permitimos múltiples unidades en activePosition.amount
             const posQuery = await db.pool.query('SELECT * FROM active_position WHERE symbol = $1', [this.symbol]);
             if (posQuery.rows.length > 0) {
                 const row = posQuery.rows[0];
@@ -87,12 +86,57 @@ class TradingPairManager {
                 };
             }
 
+            // 3. PERSISTENCIA DE MÉTRICAS: Cargar historial desde DB
+            const tradesQuery = await db.pool.query('SELECT * FROM trades WHERE symbol = $1 ORDER BY timestamp ASC', [this.symbol]);
+            if (tradesQuery.rows.length > 0) {
+                this._reconstructMetricsFromTrades(tradesQuery.rows);
+            }
+
             this.initialized = true;
-            logger.info(`[${this.symbol}] Pair Manager v2.6 Initialized (${this.candles.length} candles, Position: ${!!this.activePosition})`);
+            logger.info(`[${this.symbol}] Pair Manager v2.6 Initialized (${this.candles.length} candles, History: ${tradesQuery.rows.length} trades)`);
         } catch (error) {
             logger.error(`[${this.symbol}] Initialization Error: ${error.message}`);
             throw error;
         }
+    }
+
+    /**
+     * Reconstruye las métricas del soldado basándose en el historial de trades guardado.
+     */
+    _reconstructMetricsFromTrades(trades) {
+        let currentPnl = 0;
+        let buyStack = [];
+
+        for (const t of trades) {
+            this.metrics.totalTrades++;
+            const price = parseFloat(t.price);
+            const amount = parseFloat(t.amount);
+
+            if (t.side === 'BUY') {
+                buyStack.push({ price, amount });
+            } else if (t.side === 'SELL' && buyStack.length > 0) {
+                // Cálculo simplificado de PnL para la métrica histórica
+                const avgEntry = buyStack.reduce((sum, b) => sum + b.price, 0) / buyStack.length;
+                const pnlVal = (price - avgEntry) * amount;
+                const pnlPerc = ((price - avgEntry) / avgEntry) * 100;
+
+                if (pnlPerc > 0) {
+                    this.metrics.winningTrades++;
+                    this.metrics.grossProfit += pnlVal;
+                } else {
+                    this.metrics.losingTrades++;
+                    this.metrics.grossLoss += Math.abs(pnlVal);
+                }
+
+                currentPnl += pnlVal;
+                this.metrics.pnlHistory.push({ time: parseInt(t.timestamp), pnl: currentPnl });
+                buyStack = []; // Reset para el siguiente ciclo
+            }
+        }
+
+        this.metrics.netPnL = currentPnl;
+        this.metrics.winRate = this.metrics.totalTrades > 0 ? (this.metrics.winningTrades / Math.ceil(this.metrics.totalTrades / 2) * 100) : 0;
+        if (this.metrics.pnlHistory.length > 50) this.metrics.pnlHistory = this.metrics.pnlHistory.slice(-50);
     }
 
     /**
