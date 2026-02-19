@@ -1,0 +1,168 @@
+.pattern-vision-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 100px);
+    background: #0d1117;
+    padding: 15px;
+    gap: 15px;
+    overflow-y: auto;
+}
+
+.vision-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #161b22;
+    padding: 12px 20px;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+}
+
+.vision-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.vision-title h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: #58a6ff;
+    letter-spacing: 2px;
+}
+
+.vision-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 15px;
+    flex: 1;
+}
+
+.vision-chart-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #21262d;
+    border-bottom: 1px solid #30363d;
+}
+
+.pair-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c9d1d9;
+}
+
+.tf-badge {
+    font-size: 10px;
+    color: #8b949e;
+    background: #0d1117;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.mini-chart {
+    flex: 1;
+    min-height: 250px;
+}
+
+.vision-footer-panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.vision-footer-panel h3 {
+    margin: 0 0 10px 0;
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+}
+
+.events-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+}
+
+.event-pill {
+    flex: 0 0 auto;
+    background: #21262d;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-size: 12px;
+    border-left: 4px solid #58a6ff;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.event-pill.BULLISH {
+    border-left-color: #3fb950;
+}
+
+.event-pill.BEARISH {
+    border-left-color: #f85149;
+}
+
+.event-pill .conf {
+    color: #8b949e;
+    font-size: 10px;
+}
+
+.event-pill .target {
+    color: #ffa657;
+    font-weight: 700;
+}
+
+.no-events {
+    font-size: 12px;
+    color: #484f58;
+    margin: 0;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.4;
+    }
+}
+
+.radar-icon {
+    animation: pulse 2s infinite;
+}
+
+.animate-in {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

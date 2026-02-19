@@ -68,6 +68,7 @@ class LiveTrader {
 
         // MULTI-ASSET: Handled by pairManagers map
         this.health = new HealthChecker(this);
+        this.alertEngine = require('./AlertEngine');
         this.token = null;
         this.lastMessageTime = Date.now();
         this.sosSent = false;
@@ -270,22 +271,22 @@ class LiveTrader {
                 const timeframe = req.query.timeframe || '1m';
                 const limit = Math.min(validators.validateLimit(req.query.limit || 500), 500);
 
+                const tfMultipliers = {
+                    '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440
+                };
+                const multiplier = tfMultipliers[timeframe] || 1;
+                const needed1m = limit * multiplier * 1.2; // Extra 20% cushion for aggregation alignment
+
                 let candles1m = [];
-
-                // 1. Try Memory Buffer (Multi-Asset V2)
                 const manager = this.pairManagers.get(symbol);
-                if (manager && manager.candles.length > 0) {
-                    candles1m = manager.candles;
-                }
 
-                // 2. If memory is empty, try DB
-                if (candles1m.length === 0) {
-                    candles1m = await db.getRecentCandles(symbol, limit * 60);
+                // Use DB if buffer is insufficient or it's a high timeframe request
+                if (!manager || manager.candles.length < needed1m) {
+                    candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
                 } else {
-                    candles1m = candles1m.slice(-(limit * 60));
+                    candles1m = manager.candles.slice(-Math.ceil(needed1m));
                 }
 
-                // 3. If 1m requested, convert format directly
                 if (timeframe === '1m') {
                     const response = candles1m.slice(-limit).map(c => ({
                         time: Math.floor(c[0] / 1000),
@@ -298,7 +299,6 @@ class LiveTrader {
                     return res.json({ candles: response, timeframe: '1m', symbol, count: response.length });
                 }
 
-                // 4. For other timeframes, aggregate
                 const aggregated = this._aggregateCandles(candles1m, timeframe);
                 const response = aggregated.slice(-limit).map(c => ({
                     time: c.time,
@@ -309,13 +309,41 @@ class LiveTrader {
                     volume: c.volume
                 }));
 
-                res.json({ candles: response, timeframe, symbol, count: response.length });
+                // 🏁 PATTERN SCAN ON AGGREGATED DATA (Structural Vision)
+                let detectedPattern = null;
+                if (manager && manager.patternScanner) {
+                    const scannerInput = aggregated.map(c => [
+                        c.time * 1000,
+                        c.open, c.high, c.low, c.close, c.volume
+                    ]);
+
+                    // Look back up to 30 candles to find the most recent structural pattern
+                    const lookback = Math.min(30, scannerInput.length - 20); // Safety margin
+                    if (lookback > 0) {
+                        for (let i = 0; i < lookback; i++) {
+                            const idx = scannerInput.length - 1 - i;
+                            const subInput = scannerInput.slice(0, idx + 1);
+                            const p = manager.patternScanner.detect(subInput[subInput.length - 1], subInput);
+                            if (p && p.detected) {
+                                detectedPattern = p;
+                                break; // Found the most recent one
+                            }
+                        }
+                    }
+                }
+
+                res.json({
+                    candles: response,
+                    timeframe,
+                    symbol,
+                    count: response.length,
+                    pattern: detectedPattern
+                });
             } catch (error) {
+                logger.error(`[API/Candles] Error: ${error.message}`);
                 res.status(400).json({ error: error.message });
             }
         });
-
-        // ... trades endpoint ...
 
         this.app.get('/api/trades', authMiddleware, async (req, res) => {
             const trades = await db.getRecentTrades(50);
@@ -540,9 +568,262 @@ class LiveTrader {
         this.app.get('/api/portfolio/report', authMiddleware, (req, res) => {
             res.json(this.portfolioManager.getReport());
         });
+        // ============================================================
+        // THE SNIPER — RUTAS BACKEND
+        // ============================================================
+
+        // ─── SNIPER: CREAR ORDEN MANUAL ────────────────────────────
+        this.app.post('/api/sniper/shoot', authMiddleware, async (req, res) => {
+            try {
+                const { symbol, action, entryPrice, stopLoss, target, riskUsd, notes, mode } = req.body;
+
+                if (!symbol || !action || !entryPrice || !stopLoss || !target || !riskUsd) {
+                    return res.status(400).json({ error: 'Faltan campos: symbol, action, entryPrice, stopLoss, target, riskUsd' });
+                }
+
+                const entry = parseFloat(entryPrice);
+                const sl = parseFloat(stopLoss);
+                const tp = parseFloat(target);
+                const risk = parseFloat(riskUsd);
+
+                // Validaciones básicas
+                if (action === 'BUY' && sl >= entry) return res.status(400).json({ error: 'Stop Loss debe ser menor al precio de entrada en un LONG' });
+                if (action === 'SELL' && sl <= entry) return res.status(400).json({ error: 'Stop Loss debe ser mayor al precio de entrada en un SHORT' });
+                if (risk <= 0 || risk > 1000) return res.status(400).json({ error: 'riskUsd debe estar entre 0 y 1000' });
+
+                // Calcular position size basado en riesgo
+                const riskPerUnit = Math.abs(entry - sl);
+                const positionSize = risk / riskPerUnit;          // Unidades del activo
+                const positionUsdt = positionSize * entry;        // Valor en USDT
+                const rrRatio = Math.abs(tp - entry) / riskPerUnit;
+
+                // Crear orden Sniper
+                const sniperOrder = {
+                    id: `SNP-${Date.now()}`,
+                    symbol,
+                    action,                             // BUY | SELL
+                    entryPrice: entry,
+                    stopLoss: sl,
+                    target: tp,
+                    riskUsd: risk,
+                    positionSize,
+                    positionUsdt,
+                    rrRatio: parseFloat(rrRatio.toFixed(2)),
+                    notes: notes || '',
+                    mode: mode || (this.liveTrading ? 'LIVE' : 'PAPER'),
+                    status: 'PENDING',           // PENDING | ACTIVE | CLOSED | CANCELLED
+                    createdAt: new Date(),
+                    filledAt: null,
+                    closedAt: null,
+                    exitPrice: null,
+                    pnl: null,
+                    pnlPercent: null,
+                };
+
+                // Guardar en DB
+                await db.pool.query(`
+                    INSERT INTO sniper_orders
+                        (id, symbol, action, entry_price, stop_loss, target, risk_usd,
+                         position_size, position_usdt, rr_ratio, notes, mode, status, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                `, [
+                    sniperOrder.id, symbol, action, entry, sl, tp, risk,
+                    positionSize, positionUsdt, rrRatio,
+                    sniperOrder.notes, sniperOrder.mode, 'PENDING', sniperOrder.createdAt
+                ]);
+
+                // Si es orden a mercado (entryPrice ≈ precio actual), ejecutar YA
+                const manager = this.pairManagers.get(symbol);
+                const currentPrice = manager?.getStatus()?.latestCandle?.close || 0;
+                const priceDeviation = currentPrice > 0 ? Math.abs(currentPrice - entry) / currentPrice : 1;
+
+                if (priceDeviation < 0.005) { // Dentro del 0.5% — ejecutar a mercado
+                    const signal = {
+                        action,
+                        price: currentPrice,
+                        amount: positionUsdt,
+                        reason: `SNIPER: ${sniperOrder.id} | RR:${rrRatio} | SL:${sl} | TP:${tp}`
+                    };
+
+                    // Ejecutar trade real o paper según corresponda
+                    if (sniperOrder.mode === 'LIVE') {
+                        await this.executeRealTrade(symbol, signal, manager);
+                    } else {
+                        await this.executePaperTrade(symbol, signal, manager);
+                    }
+
+                    // Actualizar estado a ACTIVE
+                    sniperOrder.status = 'ACTIVE';
+                    sniperOrder.filledAt = new Date();
+                    await db.pool.query(
+                        `UPDATE sniper_orders SET status='ACTIVE', filled_at=$1 WHERE id=$2`,
+                        [sniperOrder.filledAt, sniperOrder.id]
+                    );
+
+                    logger.info(`[Sniper] ✅ DISPARADO: ${action} ${symbol} @ $${entry} | RR:${rrRatio} | SL:$${sl} | TP:$${tp}`);
+                } else {
+                    // Orden límite pendiente — el monitoreo la activará cuando el precio llegue
+                    logger.info(`[Sniper] 🎯 PENDIENTE: ${action} ${symbol} | Entry:$${entry} | Precio actual:$${currentPrice.toFixed(2)}`);
+                }
+
+                res.json({ status: 'ok', order: sniperOrder });
+
+            } catch (error) {
+                logger.error(`[Sniper] Error: ${error.message}`);
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // ─── SNIPER: LISTAR ÓRDENES ─────────────────────────────────
+        this.app.get('/api/sniper/orders', authMiddleware, async (req, res) => {
+            try {
+                const { status, symbol, limit = 50 } = req.query;
+
+                let query = 'SELECT * FROM sniper_orders';
+                const params = [];
+                const conditions = [];
+
+                if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
+                if (symbol) { params.push(symbol); conditions.push(`symbol = $${params.length}`); }
+
+                if (conditions.length > 0) {
+                    query += ' WHERE ' + conditions.join(' AND ');
+                }
+
+                query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+                params.push(parseInt(limit));
+
+                const result = await db.pool.query(query, params);
+
+                // Enriquecer con PnL flotante si están activas
+                const enriched = result.rows.map(order => {
+                    if (order.status === 'ACTIVE') {
+                        const manager = this.pairManagers.get(order.symbol);
+                        const currentPrice = manager?.getStatus()?.latestCandle?.close || 0;
+                        if (currentPrice > 0) {
+                            const floatingPnl = order.action === 'BUY'
+                                ? (currentPrice - parseFloat(order.entry_price)) * parseFloat(order.position_size)
+                                : (parseFloat(order.entry_price) - currentPrice) * parseFloat(order.position_size);
+                            return { ...order, currentPrice, floatingPnl: parseFloat(floatingPnl.toFixed(2)) };
+                        }
+                    }
+                    return order;
+                });
+
+                res.json({ status: 'ok', orders: enriched, count: enriched.length });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // ─── SNIPER: CANCELAR / CERRAR ORDEN ───────────────────────
+        this.app.post('/api/sniper/cancel', authMiddleware, async (req, res) => {
+            try {
+                const { orderId, exitPrice, reason } = req.body;
+                if (!orderId) return res.status(400).json({ error: 'orderId requerido' });
+
+                const result = await db.pool.query('SELECT * FROM sniper_orders WHERE id = $1', [orderId]);
+                if (!result.rows.length) return res.status(404).json({ error: 'Orden no encontrada' });
+
+                const order = result.rows[0];
+
+                if (order.status === 'ACTIVE' && exitPrice) {
+                    // Cerrar posición activa
+                    const exit = parseFloat(exitPrice);
+                    const entry = parseFloat(order.entry_price);
+                    const size = parseFloat(order.position_size);
+
+                    const pnl = order.action === 'BUY'
+                        ? (exit - entry) * size
+                        : (entry - exit) * size;
+
+                    const pnlPct = ((exit - entry) / entry) * 100 * (order.action === 'BUY' ? 1 : -1);
+
+                    const manager = this.pairManagers.get(order.symbol);
+                    if (manager) {
+                        const signal = {
+                            action: order.action === 'BUY' ? 'SELL' : 'BUY',
+                            price: exit,
+                            reason: `SNIPER CLOSE: ${reason || 'Manual'}`
+                        };
+
+                        if (order.mode === 'LIVE') {
+                            await this.executeRealTrade(order.symbol, signal, manager);
+                        } else {
+                            await this.executePaperTrade(order.symbol, signal, manager);
+                        }
+                    }
+
+                    await db.pool.query(
+                        `UPDATE sniper_orders SET status='CLOSED', closed_at=$1, exit_price=$2, pnl=$3, pnl_percent=$4 WHERE id=$5`,
+                        [new Date(), exit, pnl.toFixed(2), pnlPct.toFixed(2), orderId]
+                    );
+
+                    logger.info(`[Sniper] 🔒 CERRADA: ${orderId} | Exit:$${exit} | PnL: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT`);
+                    res.json({ status: 'ok', message: 'Orden cerrada', pnl: pnl.toFixed(2), pnlPercent: pnlPct.toFixed(2) });
+
+                } else {
+                    // Cancelar orden pendiente
+                    await db.pool.query(
+                        `UPDATE sniper_orders SET status='CANCELLED', closed_at=$1 WHERE id=$2`,
+                        [new Date(), orderId]
+                    );
+                    res.json({ status: 'ok', message: 'Orden cancelada' });
+                }
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+        // ─── SNIPER: STATS / EDGE TRACKING ─────────────────────────
+        this.app.get('/api/sniper/stats', authMiddleware, async (req, res) => {
+            try {
+                const stats = await db.pool.query(`
+                    SELECT
+                        COUNT(*)                                            AS total_trades,
+                        COUNT(*) FILTER (WHERE pnl > 0)                    AS wins,
+                        COUNT(*) FILTER (WHERE pnl < 0)                    AS losses,
+                        COUNT(*) FILTER (WHERE pnl = 0)                    AS breakeven,
+                        COALESCE(SUM(pnl), 0)                              AS total_pnl,
+                        COALESCE(AVG(pnl) FILTER (WHERE pnl > 0), 0)       AS avg_win,
+                        COALESCE(AVG(ABS(pnl)) FILTER (WHERE pnl < 0), 0)  AS avg_loss,
+                        COALESCE(AVG(rr_ratio), 0)                         AS avg_rr_planned,
+                        COUNT(*) FILTER (WHERE symbol = 'BTCUSDT')         AS btc_trades,
+                        COUNT(*) FILTER (WHERE symbol = 'ETHUSDT')         AS eth_trades,
+                        COUNT(*) FILTER (WHERE symbol = 'SOLUSDT')         AS sol_trades,
+                        COUNT(*) FILTER (WHERE symbol = 'XRPUSDT')         AS xrp_trades
+                    FROM sniper_orders
+                    WHERE status = 'CLOSED'
+                `);
+
+                const row = stats.rows[0];
+                const total = parseInt(row.total_trades) || 0;
+                const wins = parseInt(row.wins) || 0;
+                const avgWin = parseFloat(row.avg_win) || 0;
+                const avgLoss = parseFloat(row.avg_loss) || 1;
+
+                res.json({
+                    totalTrades: total,
+                    wins,
+                    losses: parseInt(row.losses) || 0,
+                    winRate: total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0',
+                    totalPnl: parseFloat(row.total_pnl).toFixed(2),
+                    avgWin: avgWin.toFixed(2),
+                    avgLoss: avgLoss.toFixed(2),
+                    profitFactor: avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : '∞',
+                    avgRRPlanned: parseFloat(row.avg_rr_planned).toFixed(2),
+                    bySymbol: {
+                        BTCUSDT: parseInt(row.btc_trades),
+                        ETHUSDT: parseInt(row.eth_trades),
+                        SOLUSDT: parseInt(row.sol_trades),
+                        XRPUSDT: parseInt(row.xrp_trades),
+                    }
+                });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
     }
-
-
     async handleKlineMessage(kline, symbol) {
         if (!kline.x || this.emergencyStopped) return; // Detener todo si hay emergencia
 
@@ -578,6 +859,23 @@ class LiveTrader {
 
             // Process (Manager handles DB and logic) - PASAR EQUIDAD ACTUAL
             await manager.onCandleClosed(candle, currentEquity); // Solo actualiza estado, no usamos signal reactiva
+
+            // 🚨 ALERT ENGINE: Buscar confluencias y enviar a clientes para dibujo
+            this.alertEngine.processCandle(symbol, manager.candles)
+                .then(result => {
+                    if (result && result.pattern && this.clients && this.clients.size > 0) {
+                        const patternMsg = {
+                            type: 'PATTERN_DETECTION',
+                            symbol: symbol,
+                            data: result.pattern,
+                            regime: result.regime
+                        };
+                        this.clients.forEach(client => {
+                            if (client.readyState === 1) client.send(JSON.stringify(patternMsg));
+                        });
+                    }
+                })
+                .catch(err => logger.error(`[AlertEngine] ${err.message}`));
 
             // ACTUALIZAR RÉGIMEN EN PORTFOLIO MANAGER
             this.portfolioManager.updateRegime(symbol, manager.candles)

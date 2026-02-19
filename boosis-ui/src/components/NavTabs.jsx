@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart2, FlaskConical, Cpu } from 'lucide-react';
+import { BarChart2, FlaskConical, Cpu, Eye } from 'lucide-react';
 
 const NavTabs = () => {
     const navigate = useNavigate();
@@ -94,6 +94,44 @@ const NavTabs = () => {
                 }}
             >
                 <Cpu size={14} /> The Lab
+            </button>
+            <button
+                onClick={() => navigate('/sniper')}
+                style={{
+                    padding: '6px 16px',
+                    background: isActive('/sniper') ? '#0d1117' : 'transparent',
+                    border: '1px solid #30363d',
+                    borderBottom: isActive('/sniper') ? 'none' : '1px solid #30363d',
+                    color: isActive('/sniper') ? '#ff4d4d' : '#8b949e',
+                    borderRadius: '6px 6px 0 0',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                }}
+            >
+                <span style={{ fontSize: '14px', lineHeight: 1 }}>⊕</span> THE SNIPER
+            </button>
+            <button
+                onClick={() => navigate('/vision')}
+                style={{
+                    padding: '6px 16px',
+                    background: isActive('/vision') ? '#0d1117' : 'transparent',
+                    border: '1px solid #30363d',
+                    borderBottom: isActive('/vision') ? 'none' : '1px solid #30363d',
+                    color: isActive('/vision') ? '#58a6ff' : '#8b949e',
+                    borderRadius: '6px 6px 0 0',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                }}
+            >
+                <Eye size={14} /> PATTERN VISION
             </button>
         </div>
     );

@@ -32,7 +32,8 @@ if (savedToken) {
 
 export const login = (password) => api.post('/login', { password });
 export const getStatus = (symbol) => api.get(`/status${symbol ? `?symbol=${symbol}` : ''}`);
-export const getCandles = (limit = 100) => api.get(`/candles?limit=${limit}`);
+export const getCandles = (symbol, timeframe = '1m', limit = 100) =>
+    api.get(`/candles?symbol=${symbol}&timeframe=${timeframe}&limit=${limit}`);
 export const getTrades = (limit = 20) => api.get(`/trades?limit=${limit}`);
 export const getHealth = () => api.get('/health');
 export const getMetrics = () => api.get('/metrics');

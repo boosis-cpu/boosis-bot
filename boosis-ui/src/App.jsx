@@ -12,6 +12,8 @@ import TheRefinery from './components/TheRefinery';
 import MultiPairDashboard from './components/MultiPairDashboard';
 import ConfirmationModal from './components/ConfirmationModal';
 import OptimizerPage from './pages/OptimizerPage';
+import SniperTerminal from './pages/SniperTerminal'; // SNIPER
+import PatternVision from './pages/PatternVision'; // VISION 360
 import './App.css';
 
 function App() {
@@ -117,6 +119,8 @@ function App() {
             <Route path="/refinery" element={<TheRefinery token={token} />} />
             <Route path="/multi" element={<MultiPairDashboard token={token} />} />
             <Route path="/lab" element={<OptimizerPage token={token} />} />
+            <Route path="/sniper" element={<SniperTerminal token={token} />} />
+            <Route path="/vision" element={<PatternVision token={token} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
 

@@ -1,310 +1,285 @@
 /**
- * 🎯 PATTERN SCANNER v2.7
- * 
- * Detección de patrones visuales en gráficos:
- * - Head & Shoulders (Cabeza y Hombros)
- * - Triangles (Triángulos ascendentes/descendentes)
- * - Double Top/Bottom (Doble Techo/Piso)
- * - Wedges (Cuñas alcistas/bajistas)
- * 
- * ML básico: Calcula probabilidad de éxito histórica
- * Integración: Solo opera si HMM + Pattern confirman
+ * 🎯 PATTERN SCANNER v3.1 — ZigZag Edition (Fixed Focus)
+ *
+ * Cambios vs v3.0:
+ * - Deduplicación: Un mismo patrón se silencia por 12 velas (48h).
+ * - Recency: El patrón debe haber terminado recientemente (últimas 30 velas).
+ * - Separación: Mínimo 8 velas entre picos para filtrar ruido de corto plazo.
  */
 
-const logger = require('./logger');
+const logger = require('../core/logger');
 
 class PatternScanner {
-    constructor(patterns = ['HEAD_AND_SHOULDERS', 'TRIANGLES', 'DOUBLE_TOP_BOTTOM', 'WEDGES']) {
-        this.patterns = patterns;
+    constructor() {
+        logger.info('[PatternScanner] 🔧 Inicializando nuevo escaneador estructural...');
+        this.ZIGZAG_THRESHOLD = 0.01; // 1% mínimo (muy sensible para visualización)
+        this.SIMILARITY = 0.15;  // 15% tolerancia (muy flexible)
+        this.NECKLINE_ZONE = 0.03; // 3% zona de gatillo
+        this.RECENT_CANDLES = 120;    // Aceptar patrones de los últimos 20 días en 4H
+        this.MIN_SEPARATION = 5;     // 5 velas entre picos (mínimo estructural)
 
-        /**
-         * HISTÓRICO DE PATRONES
-         * Basado en análisis histórico de Bitcoin (2020-2025)
-         * Formato: { pattern: { successRate, avgReturn%, winRate%, trades } }
-         */
+        // Deduplicación: evitar el mismo patrón en bucle
+        this._lastDetected = new Map();
+        this.DEDUP_CANDLES = 12;        // 2 días de silencio nada más
+
         this.historicalData = {
-            HEAD_AND_SHOULDERS: {
-                successRate: 0.62,      // 62% de veces va al target
-                avgReturn: 3.5,         // Retorno promedio 3.5%
-                winRate: 65,            // Win rate 65%
-                trades: 142,
-                description: 'Patrón de reversión bajista (alcista inverso)',
-                minConfidence: 0.70
-            },
-            TRIANGLES: {
-                successRate: 0.58,      // 58%
-                avgReturn: 2.8,
-                winRate: 58,
-                trades: 156,
-                description: 'Triángulos ascendentes/descendentes (continuación)',
-                minConfidence: 0.65
-            },
-            DOUBLE_TOP_BOTTOM: {
-                successRate: 0.60,      // 60%
-                avgReturn: 4.2,
-                winRate: 62,
-                trades: 98,
-                description: 'Doble techo/piso (reversión)',
-                minConfidence: 0.68
-            },
-            WEDGES: {
-                successRate: 0.55,      // 55%
-                avgReturn: 2.1,
-                winRate: 56,
-                trades: 67,
-                description: 'Cuñas alcistas/bajistas (breakout)',
-                minConfidence: 0.60
+            HEAD_AND_SHOULDERS: { successRate: 0.62, avgReturn: 3.5, winRate: 65, minConfidence: 0.55 },
+            DOUBLE_TOP_BOTTOM: { successRate: 0.60, avgReturn: 4.2, winRate: 62, minConfidence: 0.55 },
+            TRIANGLES: { successRate: 0.58, avgReturn: 2.8, winRate: 58, minConfidence: 0.50 },
+            WEDGES: { successRate: 0.55, avgReturn: 2.1, winRate: 56, minConfidence: 0.50 },
+        };
+    }
+
+    // ─── ZIGZAG ──────────────────────────────────────────────
+    _buildZigZag(candles, threshold = this.ZIGZAG_THRESHOLD) {
+        if (candles.length < 10) return [];
+
+        const points = [];
+        let lastHigh = parseFloat(candles[0][2]);
+        let lastLow = parseFloat(candles[0][3]);
+        let lastIdx = 0;
+        let trend = null; // 'up' | 'down'
+
+        for (let i = 1; i < candles.length; i++) {
+            const high = parseFloat(candles[i][2]);
+            const low = parseFloat(candles[i][3]);
+
+            if (trend === null) {
+                if (high > lastHigh * (1 + threshold)) { trend = 'up'; lastHigh = high; lastIdx = i; }
+                else if (low < lastLow * (1 - threshold)) { trend = 'down'; lastLow = low; lastIdx = i; }
+                continue;
             }
-        };
 
-        this.detectedPatterns = [];
-        this.patternHistory = [];
-    }
-
-    /**
-     * 🎯 MÉTODO PRINCIPAL: Analiza candles y detecta patrones
-     */
-    detect(candle, candles) {
-        if (!candles || candles.length < 50) {
-            return null; // Necesita mínimo histórico
-        }
-
-        const close = parseFloat(candle[4]);
-        const high = parseFloat(candle[2]);
-        const low = parseFloat(candle[3]);
-
-        // Detección de todos los patrones
-        const patterns = {
-            headAndShoulders: this._detectHeadAndShoulders(candles),
-            triangles: this._detectTriangles(candles),
-            doubleTopBottom: this._detectDoubleTopBottom(candles),
-            wedges: this._detectWedges(candles)
-        };
-
-        // Filtrar patrones detectados con confianza suficiente
-        const validPatterns = Object.values(patterns).filter(p =>
-            p && p.detected && p.confidence >= this.historicalData[p.type]?.minConfidence
-        );
-
-        if (validPatterns.length > 0) {
-            // Generar señal si hay patrón válido
-            return this._generateSignal(validPatterns, close);
-        }
-
-        return null;
-    }
-
-    /**
-     * 🔵 HEAD AND SHOULDERS (Cabeza y Hombros)
-     * 
-     * Estructura:
-     * - Hombro izquierdo: Pico
-     * - Cabeza: Pico más alto
-     * - Hombro derecho: Pico similar al izquierdo
-     * - Neckline: Línea de soporte que conecta los mínimos
-     */
-    _detectHeadAndShoulders(candles) {
-        const lookback = 50;
-        if (candles.length < lookback) return null;
-
-        const slice = candles.slice(-lookback);
-        const highs = slice.map(c => parseFloat(c[2]));
-        const lows = slice.map(c => parseFloat(c[3]));
-        const closes = slice.map(c => parseFloat(c[4]));
-
-        // Encontrar 5 puntos clave: 2 hombros, 1 cabeza, 2 puntos de neckline
-        const peaks = this._findPeaks(highs, 5);
-        const valleys = this._findValleys(lows, 4);
-
-        if (peaks.length < 3 || valleys.length < 2) {
-            return { detected: false };
-        }
-
-        // Validar estructura H&S
-        const leftShoulder = peaks[0];
-        const head = peaks[1];
-        const rightShoulder = peaks[2];
-        const leftValley = valleys[0];
-        const rightValley = valleys[1];
-
-        // Criterios:
-        // 1. Cabeza > Hombro izquierdo y Hombro derecho
-        // 2. Hombros similares en altura (±5%)
-        // 3. Neckline debajo de ambos hombros
-        const shoulderSimilarity = Math.abs(highs[leftShoulder] - highs[rightShoulder]) /
-            ((highs[leftShoulder] + highs[rightShoulder]) / 2);
-
-        const isValid =
-            highs[head] > highs[leftShoulder] &&
-            highs[head] > highs[rightShoulder] &&
-            shoulderSimilarity < 0.05 && // Hombros dentro del 5%
-            lows[leftValley] > Math.min(lows[rightValley] * 0.98) &&
-            rightShoulder > rightValley; // Cabeza después del segundo valle
-
-        if (!isValid) {
-            return { detected: false };
-        }
-
-        const confidence = Math.min(
-            1.0,
-            0.9 - shoulderSimilarity + (highs[head] / highs[leftShoulder] - 1) * 50
-        );
-
-        return {
-            detected: true,
-            type: 'HEAD_AND_SHOULDERS',
-            confidence: Math.max(0.50, Math.min(0.95, confidence)),
-            target: lows[rightValley] - (highs[head] - lows[rightValley]), // Precio target
-            entryPrice: closes[closes.length - 1],
-            stopLoss: highs[rightShoulder] * 1.02,
-            direction: 'BEARISH',
-            description: 'Cabeza y Hombros: reversión bajista esperada'
-        };
-    }
-
-    /**
-     * 🔺 TRIANGLES (Triángulos)
-     * 
-     * Tipos:
-     * - Triángulo ascendente: Soporte horizontal, resistencia alcista
-     * - Triángulo descendente: Resistencia horizontal, soporte bajista
-     * - Triángulo simétrico: Ambos lados convergen
-     */
-    _detectTriangles(candles) {
-        const lookback = 50;
-        if (candles.length < lookback) return null;
-
-        const slice = candles.slice(-lookback);
-        const highs = slice.map(c => parseFloat(c[2]));
-        const lows = slice.map(c => parseFloat(c[3]));
-        const closes = slice.map(c => parseFloat(c[4]));
-
-        // Encontrar líneas de tendencia (resistance y support)
-        const resistance = this._fitTrendline(highs, 'descending');
-        const support = this._fitTrendline(lows, 'ascending');
-
-        if (!resistance || !support) {
-            return { detected: false };
-        }
-
-        // Validar convergencia (triángulo se estrecha)
-        const startGap = resistance.startPoint - support.startPoint;
-        const endGap = resistance.endPoint - support.endPoint;
-
-        if (endGap >= startGap * 0.95) {
-            return { detected: false }; // No está convergiendo
-        }
-
-        // Contar toques: debe tocar resistance y support múltiples veces
-        const resistanceTouches = this._countTouches(highs, resistance);
-        const supportTouches = this._countTouches(lows, support);
-
-        if (resistanceTouches < 2 || supportTouches < 2) {
-            return { detected: false };
-        }
-
-        // Determinar tipo de triángulo
-        const resistanceSlope = (resistance.endPoint - resistance.startPoint) / lookback;
-        const supportSlope = (support.endPoint - support.startPoint) / lookback;
-
-        let type = 'SYMMETRIC';
-        let direction = 'NEUTRAL';
-
-        if (resistanceSlope < 0 && supportSlope > 0) {
-            type = 'SYMMETRIC';
-            direction = 'BREAKOUT_UP_OR_DOWN'; // Necesita confirmación
-        } else if (resistanceSlope >= 0 && supportSlope > 0) {
-            type = 'ASCENDING';
-            direction = 'BULLISH';
-        } else if (resistanceSlope < 0 && supportSlope <= 0) {
-            type = 'DESCENDING';
-            direction = 'BEARISH';
-        }
-
-        const confidence = Math.min(
-            0.95,
-            0.60 + (Math.min(resistanceTouches, supportTouches) - 2) * 0.15
-        );
-
-        return {
-            detected: true,
-            type: 'TRIANGLES',
-            subType: type,
-            confidence: confidence,
-            direction: direction,
-            target: support.endPoint + (closes[closes.length - 1] - support.endPoint) * 1.5,
-            entryPrice: closes[closes.length - 1],
-            stopLoss: support.endPoint * 0.98,
-            description: `Triángulo ${type} (${direction})`
-        };
-    }
-
-    /**
-     * 🏔️ DOUBLE TOP/BOTTOM (Doble Techo/Piso)
-     * 
-     * Doble techo: Dos picos en niveles similares (reversión bajista)
-     * Doble piso: Dos valles en niveles similares (reversión alcista)
-     */
-    _detectDoubleTopBottom(candles) {
-        const lookback = 50;
-        if (candles.length < lookback) return null;
-
-        const slice = candles.slice(-lookback);
-        const highs = slice.map(c => parseFloat(c[2]));
-        const lows = slice.map(c => parseFloat(c[3]));
-        const closes = slice.map(c => parseFloat(c[4]));
-
-        // Encontrar picos y valles significativos
-        const peaks = this._findPeaks(highs, 10); // Últimos 10 máximos locales
-        const valleys = this._findValleys(lows, 10); // Últimos 10 mínimos locales
-
-        // Buscar dos picos similares (Doble Techo)
-        for (let i = 0; i < peaks.length - 1; i++) {
-            for (let j = i + 1; j < peaks.length; j++) {
-                const peak1 = peaks[i];
-                const peak2 = peaks[j];
-                const similarity = Math.abs(highs[peak1] - highs[peak2]) / highs[peak1];
-
-                if (similarity < 0.03 && peak2 - peak1 >= 5) { // Similares y separados
-                    const neckline = Math.min(...lows.slice(peak1, peak2 + 1));
-                    const target = neckline - (highs[peak2] - neckline);
-
-                    return {
-                        detected: true,
-                        type: 'DOUBLE_TOP_BOTTOM',
-                        subType: 'DOUBLE_TOP',
-                        confidence: Math.min(0.95, 0.65 + (1 - similarity) * 10),
-                        direction: 'BEARISH',
-                        target: target,
-                        entryPrice: closes[closes.length - 1],
-                        stopLoss: highs[peak2] * 1.02,
-                        description: 'Doble Techo: reversión bajista esperada'
-                    };
+            if (trend === 'up') {
+                if (high > lastHigh) { lastHigh = high; lastIdx = i; }
+                else if (low < lastHigh * (1 - threshold)) {
+                    points.push({ idx: lastIdx, price: lastHigh, type: 'HIGH' });
+                    trend = 'down'; lastLow = low; lastIdx = i;
+                }
+            } else {
+                if (low < lastLow) { lastLow = low; lastIdx = i; }
+                else if (high > lastLow * (1 + threshold)) {
+                    points.push({ idx: lastIdx, price: lastLow, type: 'LOW' });
+                    trend = 'up'; lastHigh = high; lastIdx = i;
                 }
             }
         }
 
-        // Buscar dos valles similares (Doble Piso)
-        for (let i = 0; i < valleys.length - 1; i++) {
-            for (let j = i + 1; j < valleys.length; j++) {
-                const valley1 = valleys[i];
-                const valley2 = valleys[j];
-                const similarity = Math.abs(lows[valley1] - lows[valley2]) / lows[valley1];
+        if (trend === 'up') points.push({ idx: lastIdx, price: lastHigh, type: 'HIGH' });
+        if (trend === 'down') points.push({ idx: lastIdx, price: lastLow, type: 'LOW' });
 
-                if (similarity < 0.03 && valley2 - valley1 >= 5) { // Similares y separados
-                    const neckline = Math.max(...highs.slice(valley1, valley2 + 1));
-                    const target = neckline + (neckline - lows[valley2]);
+        return points;
+    }
 
+    // ─── DETECTOR PRINCIPAL ──────────────────────────────────
+    detect(lastCandle, candles) {
+        if (!candles || candles.length < 20) return null;
+
+        const close = parseFloat(lastCandle[4]);
+        const candleIdx = candles.length - 1;
+        const zz = this._buildZigZag(candles);
+
+        if (zz.length < 3) return null;
+
+        const results = [
+            this._detectDoubleTopBottom(zz, close, candles, candleIdx),
+            this._detectHeadAndShoulders(zz, close, candles, candleIdx),
+            this._detectTriangle(zz, close, candles, candleIdx),
+            this._detectWedge(zz, close, candles, candleIdx),
+        ].filter(p => p && p.detected);
+
+        if (results.length === 0) return null;
+
+        const best = results.sort((a, b) => b.confidence - a.confidence)[0];
+        this._lastDetected.set(best.type + '_' + (best.subType || ''), candleIdx);
+
+        logger.info(`[Scanner] ✅ Detectado ${best.type} en index ${candleIdx} | Config: Thr=${this.ZIGZAG_THRESHOLD}`);
+        return best;
+    }
+
+    // ─── DEDUP CHECK ─────────────────────────────────────────
+    _isDuplicate(type, subType, candleIdx) {
+        const key = type + '_' + (subType || '');
+        const last = this._lastDetected.get(key);
+        if (last === undefined) return false;
+        return (candleIdx - last) < this.DEDUP_CANDLES;
+    }
+
+    // ─── DOBLE TECHO / DOBLE PISO ────────────────────────────
+    _detectDoubleTopBottom(zz, currentPrice, candles, candleIdx) {
+        const highs = zz.filter(p => p.type === 'HIGH');
+        const lows = zz.filter(p => p.type === 'LOW');
+        const totalCandles = candles.length;
+
+        // DOBLE TECHO
+        if (!this._isDuplicate('DOUBLE_TOP_BOTTOM', 'DOUBLE_TOP', candleIdx)) {
+            for (let i = 0; i < highs.length - 1; i++) {
+                const h1 = highs[i], h2 = highs[i + 1];
+
+                // RECENT: El punto culminante (h2) debe ser reciente
+                if (totalCandles - h2.idx > this.RECENT_CANDLES) continue;
+
+                // SEPARATION: Distancia mínima para que sea una estructura real
+                if (h2.idx - h1.idx < this.MIN_SEPARATION) continue;
+
+                const sim = Math.abs(h1.price - h2.price) / h1.price;
+                if (sim > this.SIMILARITY) continue;
+
+                const between = lows.filter(p => p.idx > h1.idx && p.idx < h2.idx);
+                if (between.length === 0) continue;
+                const neckline = Math.min(...between.map(p => p.price));
+
+                const nearNeckline = Math.abs(currentPrice - neckline) / neckline < this.NECKLINE_ZONE * 2;
+                const belowNeckline = currentPrice < neckline * 1.002;
+                if (!nearNeckline && !belowNeckline) continue;
+
+                const target = neckline - (h2.price - neckline);
+                const confidence = Math.min(0.88, 0.60 + (1 - sim) * 2 + (belowNeckline ? 0.1 : 0));
+
+                return {
+                    detected: true, type: 'DOUBLE_TOP_BOTTOM', subType: 'DOUBLE_TOP',
+                    direction: 'BEARISH', confidence,
+                    target, entryPrice: currentPrice,
+                    stopLoss: h2.price * 1.015,
+                    neckline,
+                    drawingPoints: [
+                        { time: candles[h1.idx][0] / 1000, price: h1.price, label: 'T1' },
+                        { time: candles[between[0].idx][0] / 1000, price: neckline, label: 'N' },
+                        { time: candles[h2.idx][0] / 1000, price: h2.price, label: 'T2' }
+                    ],
+                    description: `Doble Techo: $${h1.price.toFixed(0)} / $${h2.price.toFixed(0)} | Neck: $${neckline.toFixed(0)}`
+                };
+            }
+        }
+
+        // DOBLE PISO
+        if (!this._isDuplicate('DOUBLE_TOP_BOTTOM', 'DOUBLE_BOTTOM', candleIdx)) {
+            for (let i = 0; i < lows.length - 1; i++) {
+                const l1 = lows[i], l2 = lows[i + 1];
+
+                if (totalCandles - l2.idx > this.RECENT_CANDLES) continue;
+                if (l2.idx - l1.idx < this.MIN_SEPARATION) continue;
+
+                const sim = Math.abs(l1.price - l2.price) / l1.price;
+                if (sim > this.SIMILARITY) continue;
+
+                const between = highs.filter(p => p.idx > l1.idx && p.idx < l2.idx);
+                if (between.length === 0) continue;
+                const neckline = Math.max(...between.map(p => p.price));
+
+                const nearNeckline = Math.abs(currentPrice - neckline) / neckline < this.NECKLINE_ZONE * 2;
+                const aboveNeckline = currentPrice > neckline * 0.998;
+                if (!nearNeckline && !aboveNeckline) continue;
+
+                const target = neckline + (neckline - l2.price);
+                const confidence = Math.min(0.88, 0.60 + (1 - sim) * 2 + (aboveNeckline ? 0.1 : 0));
+
+                return {
+                    detected: true, type: 'DOUBLE_TOP_BOTTOM', subType: 'DOUBLE_BOTTOM',
+                    direction: 'BULLISH', confidence,
+                    target, entryPrice: currentPrice,
+                    stopLoss: l2.price * 0.985,
+                    neckline,
+                    drawingPoints: [
+                        { time: candles[l1.idx][0] / 1000, price: l1.price, label: 'B1' },
+                        { time: candles[between[0].idx][0] / 1000, price: neckline, label: 'N' },
+                        { time: candles[l2.idx][0] / 1000, price: l2.price, label: 'B2' }
+                    ],
+                    description: `Doble Piso: $${l1.price.toFixed(0)} / $${l2.price.toFixed(0)} | Neck: $${neckline.toFixed(0)}`
+                };
+            }
+        }
+
+        return { detected: false };
+    }
+
+    // ─── CABEZA Y HOMBROS ────────────────────────────────────
+    _detectHeadAndShoulders(zz, currentPrice, candles, candleIdx) {
+        if (this._isDuplicate('HEAD_AND_SHOULDERS', 'BEARISH', candleIdx) &&
+            this._isDuplicate('HEAD_AND_SHOULDERS', 'INVERSE', candleIdx)) return { detected: false };
+
+        const highs = zz.filter(p => p.type === 'HIGH');
+        const lows = zz.filter(p => p.type === 'LOW');
+        const totalCandles = candles.length;
+
+        if (highs.length < 3) return { detected: false };
+
+        // BEARISH H&S
+        if (!this._isDuplicate('HEAD_AND_SHOULDERS', 'BEARISH', candleIdx)) {
+            for (let i = 0; i < highs.length - 2; i++) {
+                const ls = highs[i], head = highs[i + 1], rs = highs[i + 2];
+
+                if (totalCandles - rs.idx > this.RECENT_CANDLES) continue;
+                if (rs.idx - ls.idx < this.MIN_SEPARATION * 1.5) continue;
+
+                if (head.price <= ls.price || head.price <= rs.price) continue;
+                const sim = Math.abs(ls.price - rs.price) / ls.price;
+                if (sim > this.SIMILARITY) continue;
+
+                const v1 = lows.filter(p => p.idx > ls.idx && p.idx < head.idx);
+                const v2 = lows.filter(p => p.idx > head.idx && p.idx < rs.idx);
+                if (v1.length === 0 || v2.length === 0) continue;
+
+                const neckline = (Math.min(...v1.map(p => p.price)) + Math.min(...v2.map(p => p.price))) / 2;
+                const nearNeck = Math.abs(currentPrice - neckline) / neckline < this.NECKLINE_ZONE * 3;
+                const belowNeck = currentPrice < neckline * 1.01;
+                if (!nearNeck && !belowNeck) continue;
+
+                const confidence = Math.min(0.88, 0.60 + (1 - sim) * 1.5 + (belowNeck ? 0.1 : 0));
+                return {
+                    detected: true, type: 'HEAD_AND_SHOULDERS', subType: 'BEARISH',
+                    direction: 'BEARISH', confidence,
+                    target: neckline - (head.price - neckline), entryPrice: currentPrice,
+                    stopLoss: rs.price * 1.02, neckline,
+                    drawingPoints: [
+                        { time: candles[ls.idx][0] / 1000, price: ls.price, label: 'LS' },
+                        { time: candles[v1[0].idx][0] / 1000, price: v1[0].price, label: 'N1' },
+                        { time: candles[head.idx][0] / 1000, price: head.price, label: 'H' },
+                        { time: candles[v2[0].idx][0] / 1000, price: v2[0].price, label: 'N2' },
+                        { time: candles[rs.idx][0] / 1000, price: rs.price, label: 'RS' }
+                    ],
+                    description: `H&S: LS$${ls.price.toFixed(0)} Head$${head.price.toFixed(0)} RS$${rs.price.toFixed(0)}`
+                };
+            }
+        }
+
+        // BULLISH INVERSE H&S
+        if (!this._isDuplicate('HEAD_AND_SHOULDERS', 'INVERSE', candleIdx)) {
+            const lows2 = zz.filter(p => p.type === 'LOW');
+            if (lows2.length >= 3) {
+                for (let i = 0; i < lows2.length - 2; i++) {
+                    const ls = lows2[i], head = lows2[i + 1], rs = lows2[i + 2];
+
+                    if (totalCandles - rs.idx > this.RECENT_CANDLES) continue;
+                    if (rs.idx - ls.idx < this.MIN_SEPARATION * 1.5) continue;
+
+                    if (head.price >= ls.price || head.price >= rs.price) continue;
+                    const sim = Math.abs(ls.price - rs.price) / ls.price;
+                    if (sim > this.SIMILARITY) continue;
+
+                    const v1 = highs.filter(p => p.idx > ls.idx && p.idx < head.idx);
+                    const v2 = highs.filter(p => p.idx > head.idx && p.idx < rs.idx);
+                    if (v1.length === 0 || v2.length === 0) continue;
+
+                    const neckline = (Math.max(...v1.map(p => p.price)) + Math.max(...v2.map(p => p.price))) / 2;
+                    const nearNeck = Math.abs(currentPrice - neckline) / neckline < this.NECKLINE_ZONE * 3;
+                    const aboveNeck = currentPrice > neckline * 0.99;
+                    if (!nearNeck && !aboveNeck) continue;
+
+                    const confidence = Math.min(0.88, 0.60 + (1 - sim) * 1.5 + (aboveNeck ? 0.1 : 0));
                     return {
-                        detected: true,
-                        type: 'DOUBLE_TOP_BOTTOM',
-                        subType: 'DOUBLE_BOTTOM',
-                        confidence: Math.min(0.95, 0.65 + (1 - similarity) * 10),
-                        direction: 'BULLISH',
-                        target: target,
-                        entryPrice: closes[closes.length - 1],
-                        stopLoss: lows[valley2] * 0.98,
-                        description: 'Doble Piso: reversión alcista esperada'
+                        detected: true, type: 'HEAD_AND_SHOULDERS', subType: 'INVERSE',
+                        direction: 'BULLISH', confidence,
+                        target: neckline + (neckline - head.price), entryPrice: currentPrice,
+                        stopLoss: rs.price * 0.98, neckline,
+                        drawingPoints: [
+                            { time: candles[ls.idx][0] / 1000, price: ls.price, label: 'LS' },
+                            { time: candles[v1[0].idx][0] / 1000, price: v1[0].price, label: 'N1' },
+                            { time: candles[head.idx][0] / 1000, price: head.price, label: 'H' },
+                            { time: candles[v2[0].idx][0] / 1000, price: v2[0].price, label: 'N2' },
+                            { time: candles[rs.idx][0] / 1000, price: rs.price, label: 'RS' }
+                        ],
+                        description: `H&S Inverso: LS$${ls.price.toFixed(0)} Head$${head.price.toFixed(0)} RS$${rs.price.toFixed(0)}`
                     };
                 }
             }
@@ -313,196 +288,95 @@ class PatternScanner {
         return { detected: false };
     }
 
-    /**
-     * 🪦 WEDGES (Cuñas)
-     * 
-     * Cuña alcista: Resistencia horizontal, soporte alcista (bullish breakout)
-     * Cuña bajista: Soporte horizontal, resistencia bajista (bearish breakout)
-     */
-    _detectWedges(candles) {
-        const lookback = 40;
-        if (candles.length < lookback) return null;
+    // ─── TRIÁNGULO ───────────────────────────────────────────
+    _detectTriangle(zz, currentPrice, candles, candleIdx) {
+        const highs = zz.filter(p => p.type === 'HIGH').slice(-4);
+        const lows = zz.filter(p => p.type === 'LOW').slice(-4);
 
-        const slice = candles.slice(-lookback);
-        const highs = slice.map(c => parseFloat(c[2]));
-        const lows = slice.map(c => parseFloat(c[3]));
-        const closes = slice.map(c => parseFloat(c[4]));
+        if (highs.length < 2 || lows.length < 2) return { detected: false };
 
-        // Detectar líneas de soporte y resistencia
-        const topLine = this._fitTrendline(highs, 'descending');
-        const bottomLine = this._fitTrendline(lows, 'ascending');
+        const lastH = highs[highs.length - 1];
+        const lastL = lows[lows.length - 1];
+        if (candles.length - lastH.idx > this.RECENT_CANDLES) return { detected: false };
 
-        if (!topLine || !bottomLine) {
-            return { detected: false };
-        }
+        const highSlope = (lastH.price - highs[0].price) / (lastH.idx - highs[0].idx || 1);
+        const lowSlope = (lastL.price - lows[0].price) / (lastL.idx - lows[0].idx || 1);
 
-        // Validar que es una cuña (líneas convergentes)
-        const startGap = topLine.startPoint - bottomLine.startPoint;
-        const endGap = topLine.endPoint - bottomLine.endPoint;
+        const converging = (highSlope < 0 && lowSlope > 0) ||
+            (highSlope < 0 && lowSlope >= 0) ||
+            (highSlope <= 0 && lowSlope > 0);
+        if (!converging) return { detected: false };
 
-        if (endGap >= startGap * 0.85) {
-            return { detected: false }; // No converge suficiente
-        }
+        let direction = 'BULLISH', subType = 'SYMMETRIC';
+        if (highSlope < -0.001 && Math.abs(lowSlope) < 0.001) { subType = 'DESCENDING'; direction = 'BEARISH'; }
+        if (lowSlope > 0.001 && Math.abs(highSlope) < 0.001) { subType = 'ASCENDING'; direction = 'BULLISH'; }
 
-        // Contar toques
-        const topTouches = this._countTouches(highs, topLine);
-        const bottomTouches = this._countTouches(lows, bottomLine);
+        if (this._isDuplicate('TRIANGLES', subType, candleIdx)) return { detected: false };
 
-        if (topTouches < 2 || bottomTouches < 2) {
-            return { detected: false };
-        }
+        const inZone = currentPrice >= lastL.price * 0.99 && currentPrice <= lastH.price * 1.01;
+        if (!inZone) return { detected: false };
 
-        // Determinar dirección de la cuña
-        const topSlope = topLine.endPoint - topLine.startPoint;
-        const bottomSlope = bottomLine.endPoint - bottomLine.startPoint;
-
-        let type = 'FALLING_WEDGE';  // Alcista
-        let direction = 'BULLISH';
-        let target = bottomLine.endPoint - (topLine.startPoint - bottomLine.startPoint);
-
-        if (topSlope > 0 && bottomSlope > 0 && topSlope < bottomSlope) {
-            type = 'RISING_WEDGE';  // Bajista
-            direction = 'BEARISH';
-            target = bottomLine.endPoint - (topLine.startPoint - bottomLine.startPoint);
-        }
-
+        const height = lastH.price - lastL.price;
         return {
-            detected: true,
-            type: 'WEDGES',
-            subType: type,
-            confidence: Math.min(0.90, 0.65 + (topTouches + bottomTouches - 4) * 0.1),
-            direction: direction,
-            target: target,
-            entryPrice: closes[closes.length - 1],
-            stopLoss: type === 'RISING_WEDGE' ? topLine.endPoint : bottomLine.endPoint,
-            description: `Cuña ${type === 'RISING_WEDGE' ? 'Bajista' : 'Alcista'}`
+            detected: true, type: 'TRIANGLES', subType, direction, confidence: 0.62,
+            target: direction === 'BULLISH' ? lastH.price + height : lastL.price - height,
+            entryPrice: currentPrice,
+            stopLoss: direction === 'BULLISH' ? lastL.price * 0.985 : lastH.price * 1.015,
+            drawingPoints: [
+                { time: candles[highs[0].idx][0] / 1000, price: highs[0].price, label: 'H1' },
+                { time: candles[lows[0].idx][0] / 1000, price: lows[0].price, label: 'L1' },
+                { time: candles[highs[highs.length - 1].idx][0] / 1000, price: highs[highs.length - 1].price, label: 'H2' },
+                { time: candles[lows[lows.length - 1].idx][0] / 1000, price: lows[lows.length - 1].price, label: 'L2' }
+            ],
+            description: `Triángulo ${subType}`
         };
     }
 
-    /**
-     * 📊 HELPER: Encontrar picos locales
-     */
-    _findPeaks(data, count = 5) {
-        const peaks = [];
-        for (let i = 1; i < data.length - 1; i++) {
-            if (data[i] > data[i - 1] && data[i] > data[i + 1]) {
-                peaks.push(i);
-            }
-        }
-        // Retornar los más significativos (mayores valores)
-        return peaks
-            .sort((a, b) => data[b] - data[a])
-            .slice(0, count)
-            .sort((a, b) => a - b);
-    }
+    // ─── CUÑA ────────────────────────────────────────────────
+    _detectWedge(zz, currentPrice, candles, candleIdx) {
+        const highs = zz.filter(p => p.type === 'HIGH').slice(-4);
+        const lows = zz.filter(p => p.type === 'LOW').slice(-4);
 
-    /**
-     * 📊 HELPER: Encontrar valles locales
-     */
-    _findValleys(data, count = 5) {
-        const valleys = [];
-        for (let i = 1; i < data.length - 1; i++) {
-            if (data[i] < data[i - 1] && data[i] < data[i + 1]) {
-                valleys.push(i);
-            }
-        }
-        // Retornar los más significativos (menores valores)
-        return valleys
-            .sort((a, b) => data[a] - data[b])
-            .slice(0, count)
-            .sort((a, b) => a - b);
-    }
+        if (highs.length < 2 || lows.length < 2) return { detected: false };
 
-    /**
-     * 📊 HELPER: Ajustar línea de tendencia
-     */
-    _fitTrendline(data, direction = 'ascending') {
-        if (data.length < 10) return null;
+        const lastH = highs[highs.length - 1];
+        const lastL = lows[lows.length - 1];
+        if (candles.length - lastH.idx > this.RECENT_CANDLES) return { detected: false };
 
-        let startIdx = 0;
-        let endIdx = data.length - 1;
+        const highSlope = (lastH.price - highs[0].price) / (highs.length);
+        const lowSlope = (lastL.price - lows[0].price) / (lows.length);
 
-        // Encontrar puntos significativos
-        if (direction === 'ascending') {
-            startIdx = data.indexOf(Math.min(...data.slice(0, Math.floor(data.length / 3))));
-            endIdx = data.length - 1 - data.slice().reverse().indexOf(Math.min(...data.slice(Math.floor(data.length * 2 / 3))));
-        } else {
-            startIdx = data.indexOf(Math.max(...data.slice(0, Math.floor(data.length / 3))));
-            endIdx = data.length - 1 - data.slice().reverse().indexOf(Math.max(...data.slice(Math.floor(data.length * 2 / 3))));
-        }
+        const bothUp = highSlope > 0 && lowSlope > 0 && lowSlope > highSlope;
+        const bothDown = highSlope < 0 && lowSlope < 0 && highSlope < lowSlope;
+        if (!bothUp && !bothDown) return { detected: false };
 
-        const startPoint = data[startIdx];
-        const endPoint = data[endIdx];
+        const subType = bothUp ? 'RISING_WEDGE' : 'FALLING_WEDGE';
+        const direction = bothUp ? 'BEARISH' : 'BULLISH';
 
-        return { startPoint, endPoint, startIdx, endIdx };
-    }
+        if (this._isDuplicate('WEDGES', subType, candleIdx)) return { detected: false };
 
-    /**
-     * 📊 HELPER: Contar toques a línea de tendencia
-     */
-    _countTouches(data, line, tolerance = 0.01) {
-        let touches = 0;
-        for (let i = line.startIdx; i <= line.endIdx; i++) {
-            const expected = line.startPoint +
-                (line.endPoint - line.startPoint) * (i - line.startIdx) / (line.endIdx - line.startIdx);
-            const diff = Math.abs(data[i] - expected) / expected;
-            if (diff < tolerance) {
-                touches++;
-            }
-        }
-        return touches;
-    }
+        const inZone = currentPrice >= lastL.price * 0.985 && currentPrice <= lastH.price * 1.015;
+        if (!inZone) return { detected: false };
 
-    /**
-     * 🎯 GENERAR SEÑAL DE TRADING
-     */
-    _generateSignal(validPatterns, currentPrice) {
-        // Tomar el patrón con mayor confianza
-        const bestPattern = validPatterns.sort((a, b) => b.confidence - a.confidence)[0];
-
-        const historical = this.historicalData[bestPattern.type];
-
+        const height = Math.abs(highs[0].price - lows[0].price);
         return {
-            action: bestPattern.direction === 'BULLISH' ? 'BUY' : 'SELL',
-            price: currentPrice,
-            pattern: bestPattern.type,
-            subPattern: bestPattern.subType || '',
-            confidence: bestPattern.confidence,
-            historicalSuccessRate: historical.successRate,
-            historicalWinRate: historical.winRate,
-            target: bestPattern.target,
-            stopLoss: bestPattern.stopLoss,
-            reason: `🎯 Pattern ${bestPattern.type}: ${bestPattern.description} (${(bestPattern.confidence * 100).toFixed(0)}% confianza)`,
-            expectedReturn: ((bestPattern.target - currentPrice) / currentPrice * 100).toFixed(2) + '%',
-            riskRewardRatio: (Math.abs(bestPattern.target - currentPrice) / Math.abs(currentPrice - bestPattern.stopLoss)).toFixed(2)
+            detected: true, type: 'WEDGES', subType,
+            direction, confidence: 0.60,
+            target: direction === 'BULLISH' ? lastH.price + height * 0.618 : lastL.price - height * 0.618,
+            entryPrice: currentPrice,
+            stopLoss: direction === 'BULLISH' ? lastL.price * 0.985 : lastH.price * 1.015,
+            drawingPoints: [
+                { time: candles[highs[0].idx][0] / 1000, price: highs[0].price, label: 'H1' },
+                { time: candles[lows[0].idx][0] / 1000, price: lows[0].price, label: 'L1' },
+                { time: candles[highs[highs.length - 1].idx][0] / 1000, price: highs[highs.length - 1].price, label: 'H2' },
+                { time: candles[lows[lows.length - 1].idx][0] / 1000, price: lows[lows.length - 1].price, label: 'L2' }
+            ],
+            description: `Cuña ${subType === 'RISING_WEDGE' ? 'Rising' : 'Falling'}`
         };
     }
 
-    /**
-     * 📊 REPORTE DE PATRONES DETECTADOS
-     */
     getReport() {
-        return {
-            historicalPatterns: this.historicalData,
-            detectedPatterns: this.detectedPatterns,
-            accuracy: this._calculateAccuracy(),
-            recommendations: this._getRecommendations()
-        };
-    }
-
-    _calculateAccuracy() {
-        if (this.patternHistory.length === 0) return 0;
-        const successful = this.patternHistory.filter(p => p.successful).length;
-        return (successful / this.patternHistory.length * 100).toFixed(2) + '%';
-    }
-
-    _getRecommendations() {
-        return {
-            minConfidence: 0.65,
-            bestPatterns: ['DOUBLE_TOP_BOTTOM', 'HEAD_AND_SHOULDERS'],
-            avoidLowConfidence: true,
-            requireHMMConfirmation: true
-        };
+        return { historicalPatterns: this.historicalData };
     }
 }
 

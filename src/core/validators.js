@@ -15,7 +15,7 @@ class Validators {
     }
 
     validateSymbol(symbol) {
-        const valid = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
+        const valid = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'];
         if (!valid.includes(symbol)) {
             throw new Error(`Symbol debe ser uno de: ${valid.join(', ')}`);
         }
