@@ -25,17 +25,18 @@ const NavTabs = () => {
                     background: isActive('/') ? '#0d1117' : 'transparent',
                     border: '1px solid #30363d',
                     borderBottom: isActive('/') ? 'none' : '1px solid #30363d',
-                    color: isActive('/') ? '#58a6ff' : '#8b949e',
-                    borderRadius: '6px 6px 0 0',
+                    borderRadius: '8px 8px 0 0',
                     cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: '700',
+                    color: isActive('/') ? '#58a6ff' : '#8b949e',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '8px',
+                    fontWeight: 700,
+                    fontSize: '11px',
+                    transition: 'all 0.2s'
                 }}
             >
-                <BarChart2 size={14} /> Dashboard
+                <BarChart2 size={16} /> QUANT TERMINAL
             </button>
             <button
                 onClick={() => navigate('/refinery')}

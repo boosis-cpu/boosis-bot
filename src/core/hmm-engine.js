@@ -227,6 +227,41 @@ class HMMEngine {
             }
         }
 
+        // CALCULAR CONFIANZA NORMALIZADA (SOFTMAX LOGARÍTMICO)
+        // Probabilidad conjunta cruda (maxProb) es muy pequeña (ej. e^-500), inservible como confidence.
+        // Hacemos: Confidence = exp(maxDelta - logSumExp(allDeltas))
+
+        let maxDeltaVal = -Infinity;
+        for (let i = 0; i < this.N; i++) {
+            if (delta[T - 1][i] > maxDeltaVal) maxDeltaVal = delta[T - 1][i];
+        }
+
+        if (maxDeltaVal === -Infinity) {
+            // logger.warn(`[HMM] Underflow en predictState (todos los deltas -Infinity). Symbol: ${this.symbol}`);
+            return {
+                state: 0,
+                probability: 0,
+                label: 'ERROR_UNDERFLOW',
+                volatility: volatility,
+                hmmWindow: hmmWindow,
+                adaptiveWindowUsed: this.adaptiveWindowEnabled,
+                symbol: this.symbol,
+                riskMetrics: {
+                    kellyFraction: 0,
+                    circuitBreakerActive: true,
+                    volatilityScaler: 0
+                }
+            };
+        }
+
+        let sumExp = 0;
+        for (let i = 0; i < this.N; i++) {
+            // Protección contra underflow con la resta de maxDeltaVal
+            sumExp += Math.exp(delta[T - 1][i] - maxDeltaVal);
+        }
+        // log(Sum(exp(xi))) = max + log(Sum(exp(xi - max)))
+        const logTotalProb = maxDeltaVal + Math.log(sumExp);
+
         let maxProb = -Infinity;
         let lastState = 0;
         for (let i = 0; i < this.N; i++) {
@@ -236,9 +271,11 @@ class HMMEngine {
             }
         }
 
+        const normalizedConfidence = Math.exp(maxProb - logTotalProb);
+
         return {
             state: lastState,
-            probability: Math.exp(maxProb),
+            probability: normalizedConfidence, // 0.0 a 1.0 Real
             label: this.stateLabels[lastState] || 'TRANSICIÓN',
             // METADATA v2.7
             volatility: volatility,

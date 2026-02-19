@@ -21,8 +21,8 @@ const axios = require('axios');
 // Configuration
 const CONFIG = {
     symbol: 'BTCUSDT',
-    interval: '1m',
-    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_1m`,
+    interval: '4h',
+    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_4h`,
     apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };
@@ -30,6 +30,7 @@ const CONFIG = {
 const wsManager = require('../core/websocket-manager');
 const profileManager = require('../core/strategy-profile-manager');
 const TradingPairManager = require('../core/trading-pair-manager');
+const RegimePortfolioManager = require('../core/regime-portfolio-manager');
 
 class LiveTrader {
     constructor() {
@@ -37,6 +38,7 @@ class LiveTrader {
 
         // MULTI-ASSET ARCHITECTURE V2
         this.pairManagers = new Map(); // symbol -> TradingPairManager
+        this.portfolioManager = new RegimePortfolioManager(this.initialCapital);
 
 
         // ⛔ SAFETY CHECK - PROTOCOLO TONY 13 FEB 2026
@@ -61,6 +63,7 @@ class LiveTrader {
         this.totalBalanceUSD = 0;
         this.equityHistory = [];
         this.emergencyStopped = false;
+        this.tradingLocked = false; // [NEW] Bloqueo de ejecución táctica
         this.clients = new Set(); // Frontend clients for candle streaming
 
         // MULTI-ASSET: Handled by pairManagers map
@@ -188,6 +191,7 @@ class LiveTrader {
                 };
                 status.initialCapital = this.initialCapital;
                 status.emergencyStopped = this.emergencyStopped;
+                status.tradingLocked = this.tradingLocked;
                 res.json(status);
 
             } else {
@@ -210,6 +214,7 @@ class LiveTrader {
                     activePositionsCount: positions.length,
                     activePositions: positions, // For legacy dashboard compatibility
                     emergencyStopped: this.emergencyStopped,
+                    tradingLocked: this.tradingLocked,
                     symbol: CONFIG.symbol // For legacy
                 });
             }
@@ -531,6 +536,10 @@ class LiveTrader {
                 res.status(500).json({ error: error.message });
             }
         });
+
+        this.app.get('/api/portfolio/report', authMiddleware, (req, res) => {
+            res.json(this.portfolioManager.getReport());
+        });
     }
 
 
@@ -568,17 +577,29 @@ class LiveTrader {
             }
 
             // Process (Manager handles DB and logic) - PASAR EQUIDAD ACTUAL
-            const signal = await manager.onCandleClosed(candle, currentEquity);
+            await manager.onCandleClosed(candle, currentEquity); // Solo actualiza estado, no usamos signal reactiva
+
+            // ACTUALIZAR RÉGIMEN EN PORTFOLIO MANAGER
+            this.portfolioManager.updateRegime(symbol, manager.candles)
+                .then(regime => {
+                    if (regime) {
+                        const currentPositions = new Map(
+                            Array.from(this.pairManagers.entries())
+                                .filter(([, m]) => m.activePosition)
+                                .map(([s, m]) => [s, m.activePosition])
+                        );
+                        this.portfolioManager.updateCapital(this.calculateTotalEquity());
+                        const portfolioActions = this.portfolioManager.decide(currentPositions, this.balance.usdt);
+                        for (const action of portfolioActions) {
+                            this.executeSignal(action.symbol, action, this.pairManagers.get(action.symbol));
+                        }
+                    }
+                }).catch(err => logger.error(`[Portfolio] Error: ${err.message}`));
 
             // Heartbeat
             if (symbol === CONFIG.symbol) {
                 this.lastMessageTime = Date.now();
                 this.sosSent = false;
-            }
-
-            // Execute
-            if (signal) {
-                await this.executeSignal(symbol, signal, manager);
             }
         } catch (err) {
             logger.error(`[${symbol}] Kline Error: ${err.message}`);
@@ -588,6 +609,11 @@ class LiveTrader {
 
 
     async executeSignal(symbol, signal, manager) {
+        if (this.tradingLocked) {
+            logger.info(`[${symbol}] 🛡️ TRADING LOCKED: Señal ignorada (Vigilancia activa, hormiga no trabajando).`);
+            return;
+        }
+
         if (this.liveTrading) {
             await this.executeRealTrade(symbol, signal, manager);
         } else {
@@ -848,6 +874,9 @@ class LiveTrader {
 
             logger.info(`[LiveTrader] ✅ Pair Activated: ${symbol} (${effectiveStrategyName})`);
 
+            // Registrar el par en el portfolio
+            this.portfolioManager.registerPair(symbol);
+
         } catch (error) {
             logger.error(`Failed to add pair ${symbol}: ${error.message}`);
         }
@@ -893,10 +922,17 @@ class LiveTrader {
     }
 
     async loadTradingMode() {
-        const res = await db.pool.query('SELECT key, value FROM trading_settings WHERE key = $1', ['live_trading']);
-        if (res.rows.length > 0) {
-            this.liveTrading = res.rows[0].value === 'true';
-            if (this.liveTrading && this.forcePaper) this.liveTrading = false;
+        const res = await db.pool.query('SELECT key, value FROM trading_settings WHERE key IN ($1, $2)', ['live_trading', 'trading_locked']);
+
+        for (const row of res.rows) {
+            if (row.key === 'live_trading') {
+                this.liveTrading = row.value === 'true';
+                if (this.liveTrading && this.forcePaper) this.liveTrading = false;
+                this.paperTrading = !this.liveTrading;
+            }
+            if (row.key === 'trading_locked') {
+                this.tradingLocked = row.value === 'true';
+            }
         }
     }
 
@@ -986,12 +1022,13 @@ class LiveTrader {
                     await this.addTradingPair(row.symbol, row.strategy_name);
                 }
             } else {
-                // Default: BTCUSDT
-                logger.info('[Startup] No active pairs found. Adding default BTCUSDT.');
-                await this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
+                // Default: BTCUSDT - DESACTIVADO POR PETICIÓN DE TONY PARA CONTROL TOTAL
+                logger.info('[Startup] No active pairs found. Keeping battalion on standby.');
+                // await this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
             }
 
             // Connect WS
+            wsManager.setTimeframe('4h');
             wsManager.connect();
 
             this.startHeartbeat();

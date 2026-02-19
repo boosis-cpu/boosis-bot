@@ -432,7 +432,7 @@ export default function TheRefinery({ token }) {
                         HMM BAUM-WELCH
                     </div>
                     <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#8b5cf6' }}>🧠 RÉGIMEN DE MERCADO</h3>
-                    {marketRegime ? (
+                    {marketRegime && marketRegime.currentState ? (
                         <div>
                             <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
                                 {marketRegime.currentState.state === 1 ? '📈 TENDENCIA' :

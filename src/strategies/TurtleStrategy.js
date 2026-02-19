@@ -231,7 +231,7 @@ class TurtleStrategy {
 
 
     _calculateN(candles) {
-        const period = 240; // 4 horas de ATR para suavizar ruido de 1m
+        const period = 20; // 20 velas de 4h (80 horas) para suavizar ruido
         const slice = candles.slice(-2);
         if (slice.length < 2) return this.N_prev || 0;
 

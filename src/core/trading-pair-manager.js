@@ -1,7 +1,6 @@
 const logger = require('./logger');
 const db = require('./database');
 const HMMEngine = require('./hmm-engine');
-const TurtleStrategy = require('../strategies/TurtleStrategy');
 const AssetClassifier = require('./asset-classifier');
 const PatternScanner = require('./pattern-scanner');
 const { getStrategyConfig } = require('../../config/asset-strategies');
@@ -25,7 +24,6 @@ class TradingPairManager {
         this.assetClass = 'UNKNOWN';
         this.strategyConfig = null;
 
-        this.turtleStrategy = null; // Se inicializa dinámicamente según Asset Class
         this.config = initialConfig;
 
         // Estado de Mercado
@@ -36,7 +34,6 @@ class TradingPairManager {
         this.hmm = new HMMEngine(8);
         this.marketRegime = { state: 0, probability: 0, name: '🔄 INICIALIZANDO' };
         this.shieldMode = false;
-        this.turtleMode = false;
         this.lastHMMTrain = 0;
 
         // Estado de Trading
@@ -186,88 +183,10 @@ class TradingPairManager {
                 // MODO ESCUDO (Bloqueo de entradas en mercados ruidosos)
                 const isDeadMarket = prediction.label.includes('LATERAL') || prediction.label.includes('AGOTAMIENTO');
                 this.shieldMode = (isDeadMarket && prediction.probability > 0.60);
-
-                // MODO TORTUGA (Cazar tendencia en acumulación/alcista)
-                if (!this.config.disableTurtle) {
-                    const isTrendMarket = prediction.label.includes('ALCISTA') || prediction.label.includes('ACUMULACIÓN');
-                    this.turtleMode = (isTrendMarket && prediction.probability > 0.60);
-                } else {
-                    this.turtleMode = false;
-                }
             }
         }
 
-        // 5. 🛡️ SELECCIÓN DINÁMICA DE ESTRATEGIA + STRATEGY LOCK
-        let signal = null;
-
-        // LÓGICA SEGÚN ESTRATEGIA SELECCIONADA (v2.6 Hybrid)
-
-        // A. SI YA ESTAMOS EN UNA POSICIÓN DE PATTERN SCANNER
-        // (Dejar que el scanner o stop manageen la salida - Pendiente implementar gestión activa)
-
-        // B. SI ASSET ES CRYPTO: PATTERN SCANNER
-        if (this.primaryStrategy === 'PATTERN_SCANNER' && this.patternScanner) {
-            const patternSignal = this.patternScanner.detect(candle, this.candles);
-
-            // Confirmación con HMM (Shield Mode)
-            if (patternSignal && currentHMMState) {
-                const label = currentHMMState.label || currentHMMState.name || '';
-                const isBullishRegime = label.includes('ALCISTA') || label.includes('ACUMULACIÓN');
-                const isBearishRegime = label.includes('BAJISTA') || label.includes('DISTRIBUCIÓN');
-
-                if (patternSignal.action === 'BUY' && isBullishRegime) {
-                    signal = patternSignal;
-                } else if (patternSignal.action === 'SELL' && isBearishRegime) {
-                    signal = patternSignal;
-                } else {
-                    if (this.verbose) logger.info(`[${this.symbol}] 🛡️ Patrón ${patternSignal.pattern} ignorado por HMM (${label})`);
-                }
-            }
-        }
-
-        // C. SI ASSET ES FOREX/EQUITY: TURTLE STRATEGY
-        else if (this.turtleStrategy) {
-            // Personalidad Tortuga: Breakouts + Piramidación + Stop 2N
-            signal = this.turtleStrategy.onCandle(
-                candle,
-                this.candles,
-                !!this.activePosition,
-                this.activePosition,
-                capital,
-                currentHMMState
-            );
-        }
-
-        // D. FALLBACK: ESTRATEGIA PRIMARIA ORIGINAL
-        else {
-            signal = this.primaryStrategy.onCandle(candle, this.candles, !!this.activePosition, this.activePosition?.entryPrice);
-        }
-
-        if (signal) {
-
-            // FILTRO DE MODO ESCUDO
-            if (this.shieldMode && signal.action === 'BUY') {
-                if (!this.config.isBacktest || this.config.verbose) logger.info(`[${this.symbol}] 🛡️ COMPRA BLOQUEADA: Mercado Lateral detectado por HMM.`);
-                return null;
-            }
-
-            // GESTIÓN DE RIESGO DE LAS TORTUGAS (RESPECT SAFE LIMITS)
-            if (signal.action === 'BUY' && signal.riskFactor) {
-                // Si la estrategia ya calculó un tamaño seguro (TurtleStrategy), lo usamos. 
-                // De lo contrario, usamos el fallback.
-                const safeAmount = signal.unitSize || (0.01 * capital) / signal.riskFactor;
-                signal.amount = safeAmount;
-
-                if (!this.config.isBacktest || this.config.verbose) {
-                    logger.info(`[${this.symbol}] 🐢 GESTIÓN RIESGO: N=${signal.riskFactor.toFixed(4)} | Unidad: $${safeAmount.toFixed(2)}`);
-                }
-            }
-
-            this.lastSignal = signal;
-            if (!this.config.isBacktest || this.config.verbose) logger.info(`[${this.symbol}] SIGNAL: ${signal.action} @ ${signal.price} (${signal.reason}) | Mode: ${this.turtleMode ? 'TURTLE' : 'PRIMARY'}`);
-        }
-
-        return signal;
+        return null;
     }
 
     /**
@@ -339,7 +258,6 @@ class TradingPairManager {
             metrics: this.metrics,
             marketRegime: this.marketRegime,
             shieldMode: this.shieldMode,
-            turtleMode: this.turtleMode,
             status: this.initialized ? 'ACTIVE' : 'INITIALIZING',
             priceHistory: this.candles.slice(-30).map(c => ({ time: c[0], price: c[4] }))
         };
@@ -369,21 +287,6 @@ class TradingPairManager {
         // Configurar HMM
         if (this.strategyConfig.strategies.includes('HMM')) {
             this.hmm = new HMMEngine(this.strategyConfig.hmmStates || 8);
-        }
-
-        // Configurar TURTLE (Solo si el asset lo requiere)
-        if (this.strategyConfig.turtleEnabled) {
-            const s1 = this.strategyConfig.turtleS1; // Escala H
-            const s2 = this.strategyConfig.turtleS2; // Escala H
-            // Convertir horas a velas base (aprox, asumiendo 1h o 4h candles)
-            // NOTA: Para backtest de 1m, multiplicamos por 60 si la config es en horas
-            const multiplier = this.assetClass === 'CRYPTO' ? 1 : 1;
-
-            this.turtleStrategy = new TurtleStrategy(s1, Math.floor(s1 / 2), s2, Math.floor(s2 / 3));
-            logger.info(`[${this.symbol}] ✅ Turtle Strategy ACTIVADA (S1=${s1}, S2=${s2})`);
-        } else {
-            this.turtleStrategy = null;
-            logger.info(`[${this.symbol}] 🚫 Turtle Strategy DESACTIVADA para ${this.assetClass}`);
         }
 
         // Configurar Pattern Scanner (v2.7)

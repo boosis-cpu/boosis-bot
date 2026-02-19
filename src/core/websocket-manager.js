@@ -5,57 +5,51 @@ const logger = require('./logger');
 class WebSocketManager {
     constructor() {
         this.ws = null;
-        this.activeSymbols = new Set(); // {'BTCUSDT', 'ETHUSDT', 'XRPUSDT'}
-        this.messageHandlers = new Map(); // {symbol: callback}
+        this.activeSymbols = new Set();
+        this.messageHandlers = new Map();
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
-        this.reconnectDelay = 1000; // ms
+        this.reconnectDelay = 1000;
         this._lastAlreadyOpenWarn = 0;
+        this.timeframe = '4h'; // FUENTE ÚNICA DE VERDAD
     }
 
-    // PASO 1: Agregar símbolo a escuchar
+    setTimeframe(tf) {
+        this.timeframe = tf;
+        logger.info(`[WS] Timeframe configurado: ${tf}`);
+    }
+
     addSymbol(symbol, callback) {
         if (this.activeSymbols.has(symbol)) {
             logger.warn(`[WS] ${symbol} ya está siendo escuchado`);
             return;
         }
-
         this.activeSymbols.add(symbol);
         this.messageHandlers.set(symbol, callback);
-        logger.info(`[WS] ➕ Símbolo agregado: ${symbol} (Total: ${this.activeSymbols.size})`);
+        logger.info(`[WS] ➕ ${symbol} agregado (Total: ${this.activeSymbols.size})`);
 
-        // Si WebSocket ya está activo, reconfigurar
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this._updateCombinedStream();
         }
     }
 
-    // PASO 2: Remover símbolo
     removeSymbol(symbol) {
-        if (!this.activeSymbols.has(symbol)) {
-            logger.warn(`[WS] ${symbol} no está siendo escuchado`);
-            return;
-        }
-
+        if (!this.activeSymbols.has(symbol)) return;
         this.activeSymbols.delete(symbol);
         this.messageHandlers.delete(symbol);
-        logger.info(`[WS] ➖ Símbolo removido: ${symbol} (Total: ${this.activeSymbols.size})`);
+        logger.info(`[WS] ➖ ${symbol} removido (Total: ${this.activeSymbols.size})`);
 
-        // Reconfigurar stream
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this._updateCombinedStream();
         }
     }
 
-    // PASO 3: Construir URL de CombinedStream
     _buildCombinedStreamUrl() {
         if (this.activeSymbols.size === 0) {
-            throw new Error('[WS] No hay símbolos para escuchar');
+            throw new Error('[WS] No hay símbolos activos');
         }
-
-        // Convertir a minúsculas para la URL - CAMBIO: 5m -> 1m para mayor reactividad
         const streams = Array.from(this.activeSymbols)
-            .map(symbol => `${symbol.toLowerCase()}@kline_1m`)
+            .map(symbol => `${symbol.toLowerCase()}@kline_${this.timeframe}`)
             .join('/');
 
         const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
@@ -63,21 +57,19 @@ class WebSocketManager {
         return url;
     }
 
-    // PASO 4: Conectar WebSocket
     async connect() {
         try {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 const now = Date.now();
-                // Only warn once per minute to avoid log spam
                 if (!this._lastAlreadyOpenWarn || (now - this._lastAlreadyOpenWarn) > 60000) {
-                    logger.warn('[WS] ⚠️ Ya hay una conexión abierta');
+                    logger.warn('[WS] ⚠️ Conexión ya activa');
                     this._lastAlreadyOpenWarn = now;
                 }
                 return;
             }
 
             const url = this._buildCombinedStreamUrl();
-            logger.info(`[WS] 🔌 Conectando a ${this.activeSymbols.size} símbolo(s)...`);
+            logger.info(`[WS] 🔌 Conectando | TF: ${this.timeframe} | Símbolos: ${this.activeSymbols.size}`);
 
             this.ws = new WebSocket(url);
 
@@ -89,16 +81,14 @@ class WebSocketManager {
             this.ws.on('message', (data) => {
                 try {
                     const message = JSON.parse(data);
+                    if (!message.stream || !message.data) return;
 
-                    // CombinedStream devuelve {stream: "...", data: {...}}
-                    if (message.stream && message.data) {
-                        const symbol = this._extractSymbolFromStream(message.stream);
-                        const callback = this.messageHandlers.get(symbol);
+                    const symbol = this._extractSymbolFromStream(message.stream);
+                    if (!symbol) return;
 
-                        if (callback) {
-                            callback(message.data);
-                        }
-                    }
+                    const callback = this.messageHandlers.get(symbol);
+                    if (callback) callback(message.data);
+
                 } catch (error) {
                     logger.error(`[WS] Error procesando mensaje: ${error.message}`);
                 }
@@ -109,13 +99,11 @@ class WebSocketManager {
             });
 
             this.ws.on('close', () => {
-                logger.warn(`[WS] ⚠️ Conexión cerrada. Intentando reconectar...`);
+                logger.warn('[WS] ⚠️ Conexión cerrada. Reconectando...');
                 this._reconnect();
             });
 
-            this.ws.on('ping', () => {
-                this.ws.pong();
-            });
+            this.ws.on('ping', () => this.ws.pong());
 
         } catch (error) {
             logger.error(`[WS] ❌ Error conectando: ${error.message}`);
@@ -123,59 +111,49 @@ class WebSocketManager {
         }
     }
 
-    // PASO 5: Actualizar stream (cuando agregan/remueven símbolos)
     async _updateCombinedStream() {
-        try {
-            logger.info('[WS] 🔄 Reconfigurando stream...');
-
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.close();
-                await new Promise(resolve => setTimeout(resolve, 500)); // Esperar cierre
-            }
-
-            await this.connect();
-        } catch (error) {
-            logger.error(`[WS] Error actualizando stream: ${error.message}`);
+        logger.info('[WS] 🔄 Reconfigurando stream...');
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.close();
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
+        await this.connect();
     }
 
-    // PASO 6: Reconexión con backoff exponencial
     async _reconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            logger.error(`[WS] ❌ Máximo de intentos de reconexión excedido`);
+            logger.error('[WS] ❌ Máximo de reconexiones alcanzado');
             return;
         }
-
         this.reconnectAttempts++;
         const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
-
-        logger.info(`[WS] ⏳ Reintentando en ${delay}ms (intento ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
-        setTimeout(() => {
-            this.connect();
-        }, delay);
+        logger.info(`[WS] ⏳ Reintentando en ${delay}ms (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        setTimeout(() => this.connect(), delay);
     }
 
-    // PASO 7: Extraer símbolo del stream
     _extractSymbolFromStream(stream) {
-        // stream = "btcusdt@kline_5m"
-        const parts = stream.split('@');
-        return parts[0].toUpperCase(); // "btcusdt" -> "BTCUSDT"
+        // stream format: "btcusdt@kline_4h"
+        // Robusto contra cualquier timeframe presente o futuro
+        const match = stream.match(/^([a-z0-9]+)@kline_/);
+        if (!match) {
+            logger.warn(`[WS] Stream con formato inesperado: ${stream}`);
+            return null;
+        }
+        return match[1].toUpperCase();
     }
 
-    // PASO 8: Desconectar
     disconnect() {
         if (this.ws) {
             this.ws.close();
             this.ws = null;
-            logger.info('[WS] ❌ WebSocket desconectado');
+            logger.info('[WS] ❌ Desconectado');
         }
     }
 
-    // PASO 9: Obtener estado
     getStatus() {
         return {
             isConnected: this.ws && this.ws.readyState === WebSocket.OPEN,
+            timeframe: this.timeframe,
             activeSymbols: Array.from(this.activeSymbols),
             totalSymbols: this.activeSymbols.size,
             reconnectAttempts: this.reconnectAttempts,

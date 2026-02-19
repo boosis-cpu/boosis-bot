@@ -23,10 +23,9 @@ const assetStrategies = {
         timeframe: '1m',
         candleSize: 1,  // 1 minuto
 
-        // Turtle Strategy (Desactivado para Crypto)
-        turtleEnabled: false,
-        turtleS1: 20,   // Irrelevante
-        turtleS2: 55,   // Irrelevante
+        // Regime Selection (v2.7)
+        regimeDriven: true,
+        hmmStates: 8,
 
         // Pattern Scanner (Activado)
         patternEnabled: true,
@@ -89,11 +88,9 @@ const assetStrategies = {
         timeframe: '1h',
         candleSize: 60,  // 1 hora
 
-        // Turtle Strategy (Activado)
-        turtleEnabled: true,
-        turtleS1: 20,   // 20 velas × 1h = 20 horas
-        turtleS2: 55,   // 55 velas × 1h = 55 horas (~2.3 días)
-        turtleATR: 20,  // ATR 20 periodos
+        // Regime Selection (v2.7)
+        regimeDriven: true,
+        hmmStates: 8,
 
         // Pattern Scanner (Desactivado)
         patternEnabled: false,
@@ -156,11 +153,9 @@ const assetStrategies = {
         timeframe: '4h',
         candleSize: 240,  // 4 horas
 
-        // Turtle Strategy (Activado)
-        turtleEnabled: true,
-        turtleS1: 20,   // 20 velas × 4h = 3.3 días
-        turtleS2: 55,   // 55 velas × 4h = 9.2 días
-        turtleATR: 20,
+        // Regime Selection (v2.7)
+        regimeDriven: true,
+        hmmStates: 8,
 
         // Pattern Scanner (Desactivado)
         patternEnabled: false,
@@ -227,11 +222,9 @@ const assetStrategies = {
         timeframe: '15m',
         candleSize: 15,  // 15 minutos
 
-        // Turtle Strategy (Activado)
-        turtleEnabled: true,
-        turtleS1: 20,   // 20 velas × 15m = 5 horas
-        turtleS2: 55,   // 55 velas × 15m = 13.75 horas
-        turtleATR: 20,
+        // Regime Selection (v2.7)
+        regimeDriven: true,
+        hmmStates: 8,
 
         // Pattern Scanner (Desactivado)
         patternEnabled: false,
