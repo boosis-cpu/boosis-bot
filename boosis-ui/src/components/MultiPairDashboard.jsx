@@ -5,14 +5,13 @@ import PortfolioCard from './PortfolioCard';
 import './MultiPairDashboard.css';
 
 export default function MultiPairDashboard({ token }) {
-    const [gridMode, setGridMode] = useState('4');
-    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'DOGEUSDT', 'SHIBUSDT', 'LINKUSDT']);
+    const [activeSymbols, setActiveSymbols] = useState(['BTCUSDT', 'SOLUSDT', 'PEPEUSDT', 'WIFUSDT', 'BONKUSDT', 'DOGEUSDT', 'SHIBUSDT', 'LINKUSDT', 'ETHUSDT', 'XRPUSDT', 'ADAUSDT', 'AVAXUSDT']);
     const [pairsData, setPairsData] = useState({});
     const [portfolio, setPortfolio] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Lista de soldados disponibles para el dashboard
-    const ALL_SOLDIERS = ['BTC', 'SOL', 'PEPE', 'WIF', 'BONK', 'DOGE', 'SHIB', 'LINK', 'ETH', 'XRP', 'ADA'];
+    const ALL_SOLDIERS = ['BTC', 'SOL', 'PEPE', 'WIF', 'BONK', 'DOGE', 'SHIB', 'LINK', 'ETH', 'XRP', 'ADA', 'AVAX'];
 
     useEffect(() => {
         loadMultiPairData();
@@ -96,105 +95,30 @@ export default function MultiPairDashboard({ token }) {
 
     return (
         <div className="multi-pair-dashboard">
-            <div className="dashboard-header">
-                <h1>📊 BOOSIS ANT ARMY DASHBOARD</h1>
+            <div className="dashboard-header compact-header">
                 {loading && <div className="loading-indicator">Refrescando Batallón...</div>}
                 {Object.values(pairsData).some(p => p.emergencyStopped) && (
-                    <div className="emergency-alert" style={{
-                        background: '#b62324',
-                        color: 'white',
-                        padding: '5px 15px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                    }}>
+                    <div className="emergency-alert">
                         🚨 SISTEMA DETENIDO
                     </div>
                 )}
+
+                <button
+                    className="emergency-btn-top"
+                    onClick={async () => {
+                        if (window.confirm("🚨 ¿Cerrar TODA la operación del Batallón Hormiga?")) {
+                            try {
+                                await emergencyStop();
+                                window.location.reload();
+                            } catch (e) { console.error(e); }
+                        }
+                    }}
+                >
+                    🛑 TERMINAR TODO
+                </button>
             </div>
 
-            <div className="dashboard-controls">
-                <div className="grid-selector">
-                    <button
-                        onClick={() => setGridMode('1')}
-                        className={gridMode === '1' ? 'active' : ''}
-                    >
-                        1X1
-                    </button>
-                    <button
-                        onClick={() => setGridMode('2')}
-                        className={gridMode === '2' ? 'active' : ''}
-                    >
-                        2X1
-                    </button>
-                    <button
-                        onClick={() => setGridMode('2x2')}
-                        className={gridMode === '2x2' ? 'active' : ''}
-                    >
-                        2X2
-                    </button>
-                    <button
-                        onClick={() => setGridMode('4')}
-                        className={gridMode === '4' ? 'active' : ''}
-                    >
-                        4X1
-                    </button>
-                </div>
-
-                <div className="symbol-toggles">
-                    {ALL_SOLDIERS.map(symbol => (
-                        <label key={symbol} className="toggle">
-                            <input
-                                type="checkbox"
-                                checked={activeSymbols.includes(`${symbol}USDT`)}
-                                onChange={async (e) => {
-                                    const pair = `${symbol}USDT`;
-                                    try {
-                                        if (e.target.checked) {
-                                            await addTradingPair(pair, 'BoosisTrend');
-                                            setActiveSymbols([...activeSymbols, pair]);
-                                        } else {
-                                            await removeTradingPair(pair);
-                                            setActiveSymbols(activeSymbols.filter(s => s !== pair));
-                                        }
-                                    } catch (err) {
-                                        console.error("Error al modificar par:", err);
-                                    }
-                                }}
-                            />
-                            <span>{symbol}</span>
-                        </label>
-                    ))}
-                </div>
-
-                <div className="emergency-controls">
-                    <button
-                        className="emergency-btn"
-                        style={{
-                            background: '#b62324',
-                            color: 'white',
-                            border: 'none',
-                            padding: '10px 20px',
-                            borderRadius: '8px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                        onClick={async () => {
-                            if (window.confirm("🚨 ¿Cerrar TODA la operación del Batallón Hormiga?")) {
-                                try {
-                                    await emergencyStop();
-                                    window.location.reload();
-                                } catch (e) { console.error(e); }
-                            }
-                        }}
-                    >
-                        🛑 TERMINAR TODO
-                    </button>
-                </div>
-            </div>
-
-            <div className={`pairs-grid grid-${gridMode}`}>
+            <div className="pairs-grid">
                 {activeSymbols.map((symbol, index) => (
                     <PairCard
                         key={symbol}
