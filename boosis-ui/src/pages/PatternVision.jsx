@@ -4,7 +4,7 @@ import { createChart } from 'lightweight-charts';
 import { getCandles } from '../services/api';
 import './PatternVision.css';
 
-const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', priceType = 'candle', onSymbolChange, onTimeframeChange }) => {
+const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', priceType = 'candle', showIndicators = false, onSymbolChange, onTimeframeChange }) => {
     const volumeOnly = mode === 'volume';
     const macdOnly = mode === 'macd';
 
@@ -276,14 +276,16 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                 });
             }
 
-            // Overlay Indicators
-            ma1Ref.current = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }); // Yellow
-            ma2Ref.current = chart.addLineSeries({ color: '#ff4081', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }); // Pink
-            ma3Ref.current = chart.addLineSeries({ color: '#bb86fc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }); // Purple
+            // Overlay Indicators (only if enabled)
+            if (showIndicators) {
+                ma1Ref.current = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+                ma2Ref.current = chart.addLineSeries({ color: '#ff4081', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+                ma3Ref.current = chart.addLineSeries({ color: '#bb86fc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
-            bollUpperRef.current = chart.addLineSeries({ color: 'rgba(187, 134, 252, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-            bollMidRef.current = chart.addLineSeries({ color: 'rgba(255, 64, 129, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, lineStyle: 2 });
-            bollLowerRef.current = chart.addLineSeries({ color: 'rgba(187, 134, 252, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+                bollUpperRef.current = chart.addLineSeries({ color: 'rgba(187, 134, 252, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+                bollMidRef.current = chart.addLineSeries({ color: 'rgba(255, 64, 129, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, lineStyle: 2 });
+                bollLowerRef.current = chart.addLineSeries({ color: 'rgba(187, 134, 252, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+            }
         }
 
         seriesRef.current = mainSeries;
@@ -323,31 +325,33 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                             mainSeries.setData(res.data.candles);
                         }
 
-                        // Indicators for Panel 1 and 4
-                        const maData = res.data.candles.map(c => ({ time: c.time, value: c.close }));
-                        const m1D = calculateEMA(maData, ma1Period);
-                        const m2D = calculateEMA(maData, ma2Period);
-                        const m3D = calculateEMA(maData, ma3Period);
+                        // Indicators only if enabled
+                        if (showIndicators) {
+                            const maData = res.data.candles.map(c => ({ time: c.time, value: c.close }));
+                            const m1D = calculateEMA(maData, ma1Period);
+                            const m2D = calculateEMA(maData, ma2Period);
+                            const m3D = calculateEMA(maData, ma3Period);
 
-                        ma1Ref.current.setData(m1D);
-                        ma2Ref.current.setData(m2D);
-                        ma3Ref.current.setData(m3D);
+                            ma1Ref.current.setData(m1D);
+                            ma2Ref.current.setData(m2D);
+                            ma3Ref.current.setData(m3D);
 
-                        const { upper, mid, lower } = calculateBollingerBands(res.data.candles, bollPeriod, bollStd);
-                        bollUpperRef.current.setData(upper);
-                        bollMidRef.current.setData(mid);
-                        bollLowerRef.current.setData(lower);
+                            const { upper, mid, lower } = calculateBollingerBands(res.data.candles, bollPeriod, bollStd);
+                            bollUpperRef.current.setData(upper);
+                            bollMidRef.current.setData(mid);
+                            bollLowerRef.current.setData(lower);
 
-                        if (m1D.length > 0) setMaValues({
-                            ma1: m1D[m1D.length - 1].value,
-                            ma2: m2D[m2D.length - 1].value,
-                            ma3: m3D[m3D.length - 1].value
-                        });
-                        if (upper.length > 0) setBollValues({
-                            upper: upper[upper.length - 1].value,
-                            mid: mid[mid.length - 1].value,
-                            lower: lower[lower.length - 1].value
-                        });
+                            if (m1D.length > 0) setMaValues({
+                                ma1: m1D[m1D.length - 1].value,
+                                ma2: m2D[m2D.length - 1].value,
+                                ma3: m3D[m3D.length - 1].value
+                            });
+                            if (upper.length > 0) setBollValues({
+                                upper: upper[upper.length - 1].value,
+                                mid: mid[mid.length - 1].value,
+                                lower: lower[lower.length - 1].value
+                            });
+                        }
                     }
                     chart.timeScale().fitContent();
 
@@ -476,30 +480,32 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                         lastDataRef.current = [...lastDataRef.current, msg].slice(-200);
                     }
 
-                    const maData = lastDataRef.current.map(c => ({ time: c.time, value: c.close }));
-                    const m1D = calculateEMA(maData, ma1Period);
-                    const m2D = calculateEMA(maData, ma2Period);
-                    const m3D = calculateEMA(maData, ma3Period);
+                    if (showIndicators) {
+                        const maData = lastDataRef.current.map(c => ({ time: c.time, value: c.close }));
+                        const m1D = calculateEMA(maData, ma1Period);
+                        const m2D = calculateEMA(maData, ma2Period);
+                        const m3D = calculateEMA(maData, ma3Period);
 
-                    ma1Ref.current.setData(m1D);
-                    ma2Ref.current.setData(m2D);
-                    ma3Ref.current.setData(m3D);
+                        ma1Ref.current.setData(m1D);
+                        ma2Ref.current.setData(m2D);
+                        ma3Ref.current.setData(m3D);
 
-                    const { upper, mid, lower } = calculateBollingerBands(lastDataRef.current, bollPeriod, bollStd);
-                    bollUpperRef.current.setData(upper);
-                    bollMidRef.current.setData(mid);
-                    bollLowerRef.current.setData(lower);
+                        const { upper, mid, lower } = calculateBollingerBands(lastDataRef.current, bollPeriod, bollStd);
+                        bollUpperRef.current.setData(upper);
+                        bollMidRef.current.setData(mid);
+                        bollLowerRef.current.setData(lower);
 
-                    if (m1D.length > 0) setMaValues({
-                        ma1: m1D[m1D.length - 1].value,
-                        ma2: m2D[m2D.length - 1].value,
-                        ma3: m3D[m3D.length - 1].value
-                    });
-                    if (upper.length > 0) setBollValues({
-                        upper: upper[upper.length - 1].value,
-                        mid: mid[mid.length - 1].value,
-                        lower: lower[lower.length - 1].value
-                    });
+                        if (m1D.length > 0) setMaValues({
+                            ma1: m1D[m1D.length - 1].value,
+                            ma2: m2D[m2D.length - 1].value,
+                            ma3: m3D[m3D.length - 1].value
+                        });
+                        if (upper.length > 0) setBollValues({
+                            upper: upper[upper.length - 1].value,
+                            mid: mid[mid.length - 1].value,
+                            lower: lower[lower.length - 1].value
+                        });
+                    }
                 }
             }
             if (!volumeOnly && !macdOnly && msg.type === 'PATTERN_DETECTION' && msg.symbol === symbol) {
@@ -521,7 +527,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             socket.close();
             chart.remove();
         };
-    }, [symbol, timeframe, token, volumeOnly, macdOnly, mav1Period, mav2Period, macdFast, macdSlow, macdSignal]);
+    }, [symbol, timeframe, token, volumeOnly, macdOnly, mav1Period, mav2Period, macdFast, macdSlow, macdSignal, showIndicators]);
 
     const handleSymbolChange = (newSymbol) => {
         setSymbol(newSymbol);
@@ -582,19 +588,23 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                                 >
                                     {availablePairs.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
+                                {showIndicators && (
+                                    <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
+                                )}
                             </div>
-                            <div className="header-bottom-row indicator-badges">
-                                <span className="m-val-label" style={{ color: '#f0b90b' }}>MA{ma1Period} <span className="val">{formatVal(maValues.ma1)}</span></span>
-                                <span className="m-val-label" style={{ color: '#ff4081' }}>MA{ma2Period} <span className="val">{formatVal(maValues.ma2)}</span></span>
-                                <span className="m-val-label" style={{ color: '#bb86fc' }}>MA{ma3Period} <span className="val">{formatVal(maValues.ma3)}</span></span>
-                                <span className="m-val-label boll-group">
-                                    <span style={{ color: 'rgba(187, 134, 252, 0.8)' }}>B{bollPeriod}</span>
-                                    <span style={{ color: '#bb86fc', marginLeft: '4px' }}>U:{formatVal(bollValues.upper)}</span>
-                                    <span style={{ color: '#ff4081', marginLeft: '4px' }}>M:{formatVal(bollValues.mid)}</span>
-                                    <span style={{ color: '#bb86fc', marginLeft: '4px' }}>D:{formatVal(bollValues.lower)}</span>
-                                </span>
-                            </div>
+                            {showIndicators && (
+                                <div className="header-bottom-row indicator-badges">
+                                    <span className="m-val-label" style={{ color: '#f0b90b' }}>MA{ma1Period} <span className="val">{formatVal(maValues.ma1)}</span></span>
+                                    <span className="m-val-label" style={{ color: '#ff4081' }}>MA{ma2Period} <span className="val">{formatVal(maValues.ma2)}</span></span>
+                                    <span className="m-val-label" style={{ color: '#bb86fc' }}>MA{ma3Period} <span className="val">{formatVal(maValues.ma3)}</span></span>
+                                    <span className="m-val-label boll-group">
+                                        <span style={{ color: 'rgba(187, 134, 252, 0.8)' }}>B{bollPeriod}</span>
+                                        <span style={{ color: '#bb86fc', marginLeft: '4px' }}>U:{formatVal(bollValues.upper)}</span>
+                                        <span style={{ color: '#ff4081', marginLeft: '4px' }}>M:{formatVal(bollValues.mid)}</span>
+                                        <span style={{ color: '#bb86fc', marginLeft: '4px' }}>D:{formatVal(bollValues.lower)}</span>
+                                    </span>
+                                </div>
+                            )}
 
                             {showSettings && (
                                 <div className="volume-settings-popover">
@@ -633,7 +643,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                                 <span className="symbol-label">{symbol} ({mode.toUpperCase()}) — {timeframe}</span>
                                 <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
                             </div>
-                            {!volumeOnly && !macdOnly && (
+                            {showIndicators && (
                                 <div className="header-bottom-row indicator-badges">
                                     <span className="m-val-label" style={{ color: '#f0b90b' }}>MA{ma1Period} <span className="val">{formatVal(maValues.ma1)}</span></span>
                                     <span className="m-val-label" style={{ color: '#ff4081' }}>MA{ma2Period} <span className="val">{formatVal(maValues.ma2)}</span></span>
@@ -755,6 +765,14 @@ const PatternVision = ({ token }) => {
         setDetections(prev => ({ ...prev, [msg.symbol]: msg }));
     };
 
+    const handleFocusSymbolChange = (newSymbol) => {
+        setFocusSymbol(newSymbol);
+    };
+
+    const handleFocusTimeframeChange = (newTf) => {
+        setFocusTimeframe(newTf);
+    };
+
     return (
         <div className="pattern-vision-container">
             <div className="vision-grid">
@@ -764,8 +782,9 @@ const PatternVision = ({ token }) => {
                     initialSymbol="BTCUSDT"
                     token={token}
                     onPattern={handleNewPattern}
-                    onSymbolChange={setFocusSymbol}
-                    onTimeframeChange={setFocusTimeframe}
+                    onSymbolChange={handleFocusSymbolChange}
+                    onTimeframeChange={handleFocusTimeframeChange}
+                    showIndicators={false}
                 />
 
                 {/* TOP RIGHT (2): Volume Focus (Follows Panel 1) */}
@@ -790,6 +809,7 @@ const PatternVision = ({ token }) => {
                 <VisionChart
                     mode="price"
                     priceType="line"
+                    showIndicators={true}
                     symbol={focusSymbol}
                     timeframe={focusTimeframe}
                     token={token}

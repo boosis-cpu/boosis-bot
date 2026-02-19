@@ -58,25 +58,6 @@ const NavTabs = () => {
                 <FlaskConical size={14} /> The Refinery
             </button>
             <button
-                onClick={() => navigate('/multi')}
-                style={{
-                    padding: '6px 16px',
-                    background: isActive('/multi') ? '#0d1117' : 'transparent',
-                    border: '1px solid #30363d',
-                    borderBottom: isActive('/multi') ? 'none' : '1px solid #30363d',
-                    color: isActive('/multi') ? '#00ffff' : '#8b949e',
-                    borderRadius: '6px 6px 0 0',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                }}
-            >
-                <BarChart2 size={14} /> Multi-Activo
-            </button>
-            <button
                 onClick={() => navigate('/lab')}
                 style={{
                     padding: '6px 16px',

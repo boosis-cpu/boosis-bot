@@ -30,15 +30,13 @@ const CONFIG = {
 const wsManager = require('../core/websocket-manager');
 const profileManager = require('../core/strategy-profile-manager');
 const TradingPairManager = require('../core/trading-pair-manager');
-const RegimePortfolioManager = require('../core/regime-portfolio-manager');
 
 class LiveTrader {
     constructor() {
         this.app = express();
 
-        // MULTI-ASSET ARCHITECTURE V2
+        // ASSET INFRASTRUCTURE
         this.pairManagers = new Map(); // symbol -> TradingPairManager
-        this.portfolioManager = new RegimePortfolioManager(this.initialCapital);
 
 
         // ⛔ SAFETY CHECK - PROTOCOLO TONY 13 FEB 2026
@@ -542,32 +540,6 @@ class LiveTrader {
         this.app.get('/api/websocket/status', authMiddleware, (req, res) => {
             res.json(wsManager.getStatus());
         });
-
-        this.app.post('/api/trading/pair/add', authMiddleware, async (req, res) => {
-            try {
-                const { symbol, strategy } = req.body;
-                if (!symbol || !strategy) return res.status(400).json({ error: 'symbol y strategy requeridos' });
-                await this.addTradingPair(symbol, strategy);
-                res.json({ status: 'ok', message: `Par ${symbol} agregado`, symbol, strategy });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        this.app.delete('/api/trading/pair/remove', authMiddleware, async (req, res) => {
-            try {
-                const { symbol } = req.body;
-                if (!symbol) return res.status(400).json({ error: 'symbol requerido' });
-                await this.removeTradingPair(symbol);
-                res.json({ status: 'ok', message: `Par ${symbol} removido` });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        this.app.get('/api/portfolio/report', authMiddleware, (req, res) => {
-            res.json(this.portfolioManager.getReport());
-        });
         // ============================================================
         // THE SNIPER — RUTAS BACKEND
         // ============================================================
@@ -877,23 +849,6 @@ class LiveTrader {
                 })
                 .catch(err => logger.error(`[AlertEngine] ${err.message}`));
 
-            // ACTUALIZAR RÉGIMEN EN PORTFOLIO MANAGER
-            this.portfolioManager.updateRegime(symbol, manager.candles)
-                .then(regime => {
-                    if (regime) {
-                        const currentPositions = new Map(
-                            Array.from(this.pairManagers.entries())
-                                .filter(([, m]) => m.activePosition)
-                                .map(([s, m]) => [s, m.activePosition])
-                        );
-                        this.portfolioManager.updateCapital(this.calculateTotalEquity());
-                        const portfolioActions = this.portfolioManager.decide(currentPositions, this.balance.usdt);
-                        for (const action of portfolioActions) {
-                            this.executeSignal(action.symbol, action, this.pairManagers.get(action.symbol));
-                        }
-                    }
-                }).catch(err => logger.error(`[Portfolio] Error: ${err.message}`));
-
             // Heartbeat
             if (symbol === CONFIG.symbol) {
                 this.lastMessageTime = Date.now();
@@ -1171,9 +1126,6 @@ class LiveTrader {
             `, [symbol, effectiveStrategyName]);
 
             logger.info(`[LiveTrader] ✅ Pair Activated: ${symbol} (${effectiveStrategyName})`);
-
-            // Registrar el par en el portfolio
-            this.portfolioManager.registerPair(symbol);
 
         } catch (error) {
             logger.error(`Failed to add pair ${symbol}: ${error.message}`);

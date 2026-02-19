@@ -45,8 +45,4 @@ export const runOptimization = (symbol, period, params) => api.post('/optimize',
 export const startMining = (symbol, days, interval = '5m') => api.post('/miner/mine', { symbol, days, interval });
 export const getMinerStatus = () => api.get('/miner/status');
 
-// Multi-Asset Management
-export const addTradingPair = (symbol, strategy) => api.post('/trading/pair/add', { symbol, strategy });
-export const removeTradingPair = (symbol) => api.delete('/trading/pair/remove', { data: { symbol } });
-
 export default api;
