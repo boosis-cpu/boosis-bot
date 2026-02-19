@@ -50,40 +50,44 @@ export default function MultiPairDashboard({ token }) {
     const calculatePortfolio = (data) => {
         let totalAssetValue = 0;
         let globalUSDT = 0;
+        let totalNetPnL = 0;
         let totalTrades = 0;
         let winningTrades = 0;
         let pairBreakdown = [];
 
         const dataValues = Object.values(data);
         if (dataValues.length > 0) {
-            // El USDT es global, lo tomamos del primer par disponible
+            // El USDT es el pool global de liquidez compartido
             globalUSDT = Number(dataValues[0].balance?.usdt) || 0;
         }
 
-        const firstPair = dataValues[0];
-        const initialCapital = Number(firstPair?.initialCapital) || 200;
-
-        // 1. Desglose de Activos (Solo el valor en trading)
+        // 1. Recorrer cada soldado (par) para sumar su valor y rendimiento
         for (const [symbol, pairData] of Object.entries(data)) {
             const assetValue = Number(pairData.balance?.assetValue) || 0;
-            totalAssetValue += assetValue;
-
+            const pnl = Number(pairData.metrics?.netPnL) || 0;
             const trades = Number(pairData.metrics?.totalTrades || pairData.metrics?.trades) || 0;
+
+            totalAssetValue += assetValue;
+            totalNetPnL += pnl;
             totalTrades += trades;
             winningTrades += Number(pairData.metrics?.winningTrades) || 0;
 
+            // Solo incluimos en el desglose lo que tenga valor o actividad
             if (assetValue > 0 || trades > 0) {
                 pairBreakdown.push({
                     name: symbol.replace('USDT', ''),
-                    value: assetValue, // Solo el valor del activo procesado
+                    value: assetValue,
                     trades: trades,
-                    pnl: Number(pairData.metrics?.netPnL) || 0,
+                    pnl: pnl,
                     isAsset: true
                 });
             }
         }
 
-        // 2. Añadir USDT líquido como una categoría de "Asset" para el gráfico
+        // 2. Definir el Valor Total de la Cartera (Equity)
+        const totalEquity = globalUSDT + totalAssetValue;
+
+        // 3. Añadir el USDT (Cash) al desglose de activos para el donut chart
         if (globalUSDT > 0) {
             pairBreakdown.unshift({
                 name: 'USDT (Cash)',
@@ -94,16 +98,17 @@ export default function MultiPairDashboard({ token }) {
             });
         }
 
-        const totalBalance = globalUSDT + totalAssetValue;
+        // El Capital Inicial Lógico es la Equity actual menos el PnL acumulado
+        const logicalInitialCapital = totalEquity - totalNetPnL;
 
         setPortfolio({
-            totalBalance,
-            totalEquity: totalBalance,
+            totalBalance: totalEquity,
+            totalEquity: totalEquity,
             totalTrades,
             winRate: totalTrades > 0 ? (winningTrades / totalTrades * 100).toFixed(2) : 0,
             pairBreakdown,
-            pnl: totalBalance - initialCapital,
-            pnlPercent: initialCapital > 0 ? ((totalBalance - initialCapital) / initialCapital * 100).toFixed(2) : 0,
+            pnl: totalNetPnL,
+            pnlPercent: logicalInitialCapital > 0 ? (totalNetPnL / logicalInitialCapital * 100).toFixed(2) : 0,
         });
     };
 
