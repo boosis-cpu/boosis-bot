@@ -2,7 +2,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart } from 'lightweight-charts';
 import { getCandles } from '../services/api';
-import { Clock, Settings, Search, LayoutGrid, Zap, BarChart3, Layers } from 'lucide-react';
+import {
+    Clock,
+    Settings,
+    Search,
+    LayoutGrid,
+    Zap,
+    BarChart3,
+    Layers,
+    LayoutDashboard,
+    FlaskConical,
+    Cpu,
+    Crosshair,
+    Eye
+} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './PatternVision.css';
 
 const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTimeframe, token, onPattern, mode = 'price', priceType = 'candle', showIndicators = false, onSymbolChange, onTimeframeChange }) => {
@@ -592,6 +606,17 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                                 >
                                     {availablePairs.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
+                                <div className="timeframe-selector">
+                                    {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
+                                        <button
+                                            key={tf}
+                                            className={`tf-btn ${timeframe === tf ? 'active' : ''}`}
+                                            onClick={() => handleTimeframeChange(tf)}
+                                        >
+                                            {tf}
+                                        </button>
+                                    ))}
+                                </div>
                                 {showIndicators && (
                                     <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
                                 )}
@@ -745,60 +770,64 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
 };
 
 const PatternVision = ({ token }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [detections, setDetections] = useState({});
     const [focusSymbol, setFocusSymbol] = useState('BTCUSDT');
     const [focusTimeframe, setFocusTimeframe] = useState('4h');
-    const [showTfMenu, setShowTfMenu] = useState(false);
-
-    const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
     const handleNewPattern = (msg) => {
         setDetections(prev => ({ ...prev, [msg.symbol]: msg }));
     };
 
+    const isActive = (path) => location.pathname === path;
+
     return (
         <div className="pattern-vision-container">
             <aside className="vision-sidebar">
                 <button
-                    className={`sidebar-icon-btn ${showTfMenu ? 'active' : ''}`}
-                    onClick={() => setShowTfMenu(!showTfMenu)}
-                    title="Temporalidad"
+                    className={`sidebar-icon-btn ${isActive('/') ? 'active' : ''}`}
+                    onClick={() => navigate('/')}
+                    title="Dashboard"
                 >
-                    <Clock size={20} />
-                    {showTfMenu && (
-                        <div className="tf-popover">
-                            {timeframes.map(tf => (
-                                <button
-                                    key={tf}
-                                    className={`tf-popover-item ${focusTimeframe === tf ? 'active' : ''}`}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setFocusTimeframe(tf);
-                                        setShowTfMenu(false);
-                                    }}
-                                >
-                                    {tf}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <LayoutDashboard size={22} />
                 </button>
 
-                <button className="sidebar-icon-btn" title="Indicadores">
-                    <BarChart3 size={20} />
+                <button
+                    className={`sidebar-icon-btn ${isActive('/refinery') ? 'active' : ''}`}
+                    onClick={() => navigate('/refinery')}
+                    title="The Refinery"
+                >
+                    <FlaskConical size={22} />
                 </button>
 
-                <button className="sidebar-icon-btn" title="Capas">
-                    <Layers size={20} />
+                <button
+                    className={`sidebar-icon-btn ${isActive('/lab') ? 'active' : ''}`}
+                    onClick={() => navigate('/lab')}
+                    title="The Lab"
+                >
+                    <Cpu size={22} />
                 </button>
 
-                <button className="sidebar-icon-btn" title="Estrategias">
-                    <Zap size={20} />
+                <button
+                    className={`sidebar-icon-btn ${isActive('/sniper') ? 'active' : ''}`}
+                    onClick={() => navigate('/sniper')}
+                    title="The Sniper"
+                >
+                    <Crosshair size={22} />
+                </button>
+
+                <button
+                    className={`sidebar-icon-btn ${isActive('/vision') ? 'active' : ''}`}
+                    onClick={() => navigate('/vision')}
+                    title="Pattern Vision"
+                >
+                    <Eye size={22} />
                 </button>
 
                 <div style={{ marginTop: 'auto' }}>
                     <button className="sidebar-icon-btn" title="Configuración Sistema">
-                        <Settings size={20} />
+                        <Settings size={22} />
                     </button>
                 </div>
             </aside>
@@ -812,9 +841,10 @@ const PatternVision = ({ token }) => {
                         token={token}
                         onPattern={handleNewPattern}
                         onSymbolChange={(s) => setFocusSymbol(s)}
+                        onTimeframeChange={(tf) => setFocusTimeframe(tf)}
                         symbol={focusSymbol}
                         timeframe={focusTimeframe}
-                        showIndicators={true}
+                        showIndicators={false}
                     />
 
                     {/* TOP RIGHT (2): Volume Focus (Follows Panel 1) */}

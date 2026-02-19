@@ -7,15 +7,15 @@
 }
 
 .vision-sidebar {
-    width: 60px;
+    width: 54px;
     background: #161b22;
     border-right: 1px solid #30363d;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px 0;
-    gap: 25px;
-    z-index: 10;
+    padding: 15px 0;
+    gap: 12px;
+    z-index: 100;
 }
 
 .vision-main-content {
@@ -40,7 +40,8 @@
     border: none;
     color: #8b949e;
     cursor: pointer;
-    padding: 10px;
+    width: 42px;
+    height: 42px;
     border-radius: 0;
     transition: all 0.2s;
     display: flex;
@@ -51,12 +52,22 @@
 
 .sidebar-icon-btn:hover {
     background: #21262d;
-    color: #58a6ff;
+    color: #e6edf3;
 }
 
 .sidebar-icon-btn.active {
-    background: rgba(88, 166, 255, 0.15);
+    background: #21262d;
     color: #58a6ff;
+}
+
+.sidebar-icon-btn.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 25%;
+    bottom: 25%;
+    width: 3px;
+    background: #58a6ff;
 }
 
 .sidebar-icon-btn.active::after {
