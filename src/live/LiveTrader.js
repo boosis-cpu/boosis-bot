@@ -5,7 +5,6 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const logger = require('../core/logger');
-const BoosisTrend = require('../strategies/BoosisTrend');
 const auth = require('../core/auth');
 const validators = require('../core/validators');
 const db = require('../core/database');
@@ -21,14 +20,13 @@ const axios = require('axios');
 // Configuration
 const CONFIG = {
     symbol: 'BTCUSDT',
-    interval: '4h',
-    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_4h`,
+    interval: '1m',
+    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_1m`,
     apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };
 
 const wsManager = require('../core/websocket-manager');
-const profileManager = require('../core/strategy-profile-manager');
 const TradingPairManager = require('../core/trading-pair-manager');
 
 class LiveTrader {
@@ -267,7 +265,7 @@ class LiveTrader {
             try {
                 const symbol = req.query.symbol || CONFIG.symbol;
                 const timeframe = req.query.timeframe || '1m';
-                const limit = Math.min(validators.validateLimit(req.query.limit || 500), 500);
+                const limit = Math.min(validators.validateLimit(req.query.limit || 500), 1000);
 
                 const tfMultipliers = {
                     '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440
@@ -278,7 +276,23 @@ class LiveTrader {
                 let candles1m = [];
                 const manager = this.pairManagers.get(symbol);
 
-                // Use DB if buffer is insufficient or it's a high timeframe request
+                // Si pedimos temporalidades altas o muchos datos, vamos directo a Binance para mayor precisión histórica
+                if (timeframe !== '1m' || limit > 500) {
+                    const binanceData = await binanceService.getKlines(symbol, timeframe, limit);
+                    if (binanceData && binanceData.length > 0) {
+                        const response = binanceData.map(c => ({
+                            time: Math.floor(c[0] / 1000),
+                            open: parseFloat(c[1]),
+                            high: parseFloat(c[2]),
+                            low: parseFloat(c[3]),
+                            close: parseFloat(c[4]),
+                            volume: parseFloat(c[5])
+                        }));
+                        return res.json({ candles: response, timeframe, symbol, count: response.length });
+                    }
+                }
+
+                // Fallback a DB / Agregado local para 1m o si Binance falla
                 if (!manager || manager.candles.length < needed1m) {
                     candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
                 } else {
@@ -797,7 +811,31 @@ class LiveTrader {
         });
     }
     async handleKlineMessage(kline, symbol) {
-        if (!kline.x || this.emergencyStopped) return; // Detener todo si hay emergencia
+        if (this.emergencyStopped) return;
+
+        // 1. Emitir a los clientes de Vision EN TIEMPO REAL (Ticks)
+        // No esperamos a kline.x para que el Sniper vea el precio moverse
+        if (this.clients && this.clients.size > 0) {
+            const candleData = {
+                time: Math.floor(kline.t / 1000),
+                open: parseFloat(kline.o),
+                high: parseFloat(kline.h),
+                low: parseFloat(kline.l),
+                close: parseFloat(kline.c),
+                volume: parseFloat(kline.v),
+                symbol: symbol,
+                isClosed: kline.x // Para que el frontend sepa si es un tick o un cierre
+            };
+
+            this.clients.forEach(client => {
+                if (client.readyState === 1 && client.symbol === symbol) {
+                    client.send(JSON.stringify(candleData));
+                }
+            });
+        }
+
+        // 2. Lógica de Trading (SOLO AL CIERRE DE VELA)
+        if (!kline.x) return;
 
         const manager = this.pairManagers.get(symbol);
         if (!manager) return;
@@ -807,32 +845,12 @@ class LiveTrader {
         ];
 
         try {
-            // [V2.6] CALCULAR EQUIDAD REAL PARA POSITION SIZING
             const currentEquity = this.calculateTotalEquity();
 
-            // Emit to frontend clients
-            if (this.clients && this.clients.size > 0) {
-                const candleData = {
-                    time: Math.floor(kline.t / 1000),
-                    open: parseFloat(kline.o),
-                    high: parseFloat(kline.h),
-                    low: parseFloat(kline.l),
-                    close: parseFloat(kline.c),
-                    volume: parseFloat(kline.v),
-                    symbol: symbol // Asegurar que el frontend sepa de qué par es
-                };
+            // Process (Manager handles DB and logic)
+            await manager.onCandleClosed(candle, currentEquity);
 
-                this.clients.forEach(client => {
-                    if (client.readyState === 1 && client.symbol === symbol) { // 1 = OPEN
-                        client.send(JSON.stringify(candleData));
-                    }
-                });
-            }
-
-            // Process (Manager handles DB and logic) - PASAR EQUIDAD ACTUAL
-            await manager.onCandleClosed(candle, currentEquity); // Solo actualiza estado, no usamos signal reactiva
-
-            // 🚨 ALERT ENGINE: Buscar confluencias y enviar a clientes para dibujo
+            // 🚨 ALERT ENGINE: Buscar confluencias
             this.alertEngine.processCandle(symbol, manager.candles)
                 .then(result => {
                     if (result && result.pattern && this.clients && this.clients.size > 0) {
@@ -861,18 +879,6 @@ class LiveTrader {
 
 
 
-    async executeSignal(symbol, signal, manager) {
-        if (this.tradingLocked) {
-            logger.info(`[${symbol}] 🛡️ TRADING LOCKED: Señal ignorada (Vigilancia activa, hormiga no trabajando).`);
-            return;
-        }
-
-        if (this.liveTrading) {
-            await this.executeRealTrade(symbol, signal, manager);
-        } else {
-            await this.executePaperTrade(symbol, signal, manager);
-        }
-    }
 
     async executePaperTrade(symbol, signal, manager) {
         const fee = 0.001;
@@ -1100,15 +1106,8 @@ class LiveTrader {
         }
 
         try {
-            // 1. Load Strategy Profile
-            const profile = profileManager.getProfile(symbol);
-
-            // 2. Determine Strategy Class
-            const effectiveStrategyName = strategyName || profile.strategy || 'BoosisTrend';
-            const strategy = this._createStrategyWithProfile(effectiveStrategyName, profile);
-
-            // 3. Create Manager
-            const manager = new TradingPairManager(symbol, strategy);
+            // 2. Create Manager (Modo Vigilancia)
+            const manager = new TradingPairManager(symbol);
             await manager.init(); // Load DB state
 
             this.pairManagers.set(symbol, manager);
@@ -1132,22 +1131,6 @@ class LiveTrader {
         }
     }
 
-    _createStrategyWithProfile(strategyName, profile) {
-        try {
-            const StrategyClass = require(`../strategies/${strategyName}`);
-            const strategy = new StrategyClass();
-            strategy.configure(profile);
-            return strategy;
-        } catch (e) {
-            logger.error(`Error loading strategy ${strategyName}: ${e.message}`);
-            return new BoosisTrend(); // Fallback
-        }
-    }
-
-    // Deprecated simple loader
-    _loadStrategy(name) {
-        return this._createStrategyWithProfile(name, {});
-    }
 
     startHeartbeat() {
         setInterval(() => {
@@ -1278,7 +1261,7 @@ class LiveTrader {
             }
 
             // Connect WS
-            wsManager.setTimeframe('4h');
+            wsManager.setTimeframe('1m');
             wsManager.connect();
 
             this.startHeartbeat();

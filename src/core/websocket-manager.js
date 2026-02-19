@@ -11,7 +11,7 @@ class WebSocketManager {
         this.maxReconnectAttempts = 10;
         this.reconnectDelay = 1000;
         this._lastAlreadyOpenWarn = 0;
-        this.timeframe = '4h'; // FUENTE ÚNICA DE VERDAD
+        this.timeframe = '1m'; // FUENTE ÚNICA DE VERDAD: 1m para datos frescos en Vision
     }
 
     setTimeframe(tf) {

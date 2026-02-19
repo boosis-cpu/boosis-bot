@@ -23,8 +23,8 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     const volumeOnly = mode === 'volume';
     const macdOnly = mode === 'macd';
 
-    const [symbol, setSymbol] = useState(initialSymbol || syncedSymbol);
-    const [timeframe, setTimeframe] = useState(syncedTimeframe || '4h');
+    const [symbol, setSymbol] = useState(initialSymbol || syncedSymbol || localStorage.getItem('vision_symbol') || 'BTCUSDT');
+    const [timeframe, setTimeframe] = useState(syncedTimeframe || localStorage.getItem('vision_tf') || '1h');
 
     // Persistent MAVOL periods
     const [mav1Period, setMav1Period] = useState(() => Number(localStorage.getItem('boosis_mavol1')) || 7);
@@ -105,7 +105,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         if (!data || data.length === 0) return [];
         const ema = [];
         const k = 2 / (period + 1);
-        let prevEma = data[0].close || data[0].value;
+        let prevEma = data[0].close !== undefined ? data[0].close : data[0].value;
 
         for (let i = 0; i < data.length; i++) {
             const val = data[i].close !== undefined ? data[i].close : data[i].value;
@@ -122,28 +122,22 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         const fastEma = calculateEMA(data, fast);
         const slowEma = calculateEMA(data, slow);
 
-        const macdLine = [];
-        for (let i = 0; i < data.length; i++) {
-            const f = fastEma.find(e => e.time === data[i].time);
-            const s = slowEma.find(e => e.time === data[i].time);
-            if (f && s) {
-                macdLine.push({ time: data[i].time, value: f.value - s.value });
-            }
-        }
+        const macdLine = fastEma.map((f, i) => ({
+            time: f.time,
+            value: f.value - slowEma[i].value
+        }));
 
         const signalLine = calculateEMA(macdLine, signal);
 
-        const hist = [];
-        for (let i = 0; i < macdLine.length; i++) {
-            const s = signalLine.find(e => e.time === macdLine[i].time);
-            if (s) {
-                hist.push({
-                    time: macdLine[i].time,
-                    value: macdLine[i].value - s.value,
-                    color: (macdLine[i].value - s.value) >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
-                });
-            }
-        }
+        const hist = macdLine.map((m, i) => {
+            const s = signalLine[i];
+            const val = m.value - s.value;
+            return {
+                time: m.time,
+                value: val,
+                color: val >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+            };
+        });
 
         return { macd: macdLine, signal: signalLine, hist };
     };
@@ -306,69 +300,81 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         seriesRef.current = mainSeries;
         chartRef.current = chart;
 
-        const loadData = async () => {
+        const loadData = async (isInitial = false) => {
             try {
-                const res = await getCandles(symbol, timeframe, 150, token);
+                const res = await getCandles(symbol, timeframe, 1000, token);
                 if (res && res.data && res.data.candles) {
-                    lastDataRef.current = res.data.candles;
-                    if (volumeOnly) {
-                        const volData = res.data.candles.map(c => ({
-                            time: c.time,
-                            value: c.volume,
-                            color: c.close >= c.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
-                        }));
-                        mainSeries.setData(volData);
-                        mavol1Ref.current.setData(calculateSMA(volData, mav1Period));
-                        mavol2Ref.current.setData(calculateSMA(volData, mav2Period));
-                    } else if (macdOnly) {
-                        const { macd, signal, hist } = calculateMACD(res.data.candles, macdFast, macdSlow, macdSignal);
-                        macdLineRef.current.setData(macd);
-                        macdSignalRef.current.setData(signal);
-                        macdHistRef.current.setData(hist);
+                    const newCandles = res.data.candles;
 
-                        if (macd.length > 0) {
-                            setMacdValues({
-                                macd: macd[macd.length - 1].value,
-                                signal: signal[signal.length - 1].value,
-                                hist: hist[hist.length - 1].value
-                            });
-                        }
-                    } else {
-                        if (priceType === 'line') {
-                            mainSeries.setData(res.data.candles.map(c => ({ time: c.time, value: c.close })));
+                    if (isInitial) {
+                        lastDataRef.current = newCandles;
+                        if (volumeOnly) {
+                            const volData = newCandles.map(c => ({
+                                time: c.time,
+                                value: c.volume,
+                                color: c.close >= c.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                            }));
+                            mainSeries.setData(volData);
+                            mavol1Ref.current.setData(calculateSMA(volData, mav1Period));
+                            mavol2Ref.current.setData(calculateSMA(volData, mav2Period));
+                        } else if (macdOnly) {
+                            const { macd, signal, hist } = calculateMACD(newCandles, macdFast, macdSlow, macdSignal);
+                            macdLineRef.current.setData(macd);
+                            macdSignalRef.current.setData(signal);
+                            macdHistRef.current.setData(hist);
                         } else {
-                            mainSeries.setData(res.data.candles);
+                            if (priceType === 'line') {
+                                mainSeries.setData(newCandles.map(c => ({ time: c.time, value: c.close })));
+                            } else {
+                                mainSeries.setData(newCandles);
+                            }
+
+                            if (showIndicators) {
+                                const maData = newCandles.map(c => ({ time: c.time, value: c.close }));
+                                const m1D = calculateEMA(maData, ma1Period);
+                                const m2D = calculateEMA(maData, ma2Period);
+                                const m3D = calculateEMA(maData, ma3Period);
+                                ma1Ref.current.setData(m1D);
+                                ma2Ref.current.setData(m2D);
+                                ma3Ref.current.setData(m3D);
+
+                                const { upper, mid, lower } = calculateBollingerBands(newCandles, bollPeriod, bollStd);
+                                bollUpperRef.current.setData(upper);
+                                bollMidRef.current.setData(mid);
+                                bollLowerRef.current.setData(lower);
+                            }
                         }
-
-                        // Indicators only if enabled
-                        if (showIndicators) {
-                            const maData = res.data.candles.map(c => ({ time: c.time, value: c.close }));
-                            const m1D = calculateEMA(maData, ma1Period);
-                            const m2D = calculateEMA(maData, ma2Period);
-                            const m3D = calculateEMA(maData, ma3Period);
-
-                            ma1Ref.current.setData(m1D);
-                            ma2Ref.current.setData(m2D);
-                            ma3Ref.current.setData(m3D);
-
-                            const { upper, mid, lower } = calculateBollingerBands(res.data.candles, bollPeriod, bollStd);
-                            bollUpperRef.current.setData(upper);
-                            bollMidRef.current.setData(mid);
-                            bollLowerRef.current.setData(lower);
-
-                            if (m1D.length > 0) setMaValues({
-                                ma1: m1D[m1D.length - 1].value,
-                                ma2: m2D[m2D.length - 1].value,
-                                ma3: m3D[m3D.length - 1].value
+                        chart.timeScale().fitContent();
+                    } else {
+                        // ACTUALIZACIÓN SILENCIOSA (UPDATE) para proteger ZOOM
+                        const lastCandle = newCandles[newCandles.length - 1];
+                        if (volumeOnly) {
+                            mainSeries.update({
+                                time: lastCandle.time,
+                                value: lastCandle.volume,
+                                color: lastCandle.close >= lastCandle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
                             });
-                            if (upper.length > 0) setBollValues({
-                                upper: upper[upper.length - 1].value,
-                                mid: mid[mid.length - 1].value,
-                                lower: lower[lower.length - 1].value
-                            });
+                        } else if (macdOnly) {
+                            const { macd, signal, hist } = calculateMACD(newCandles, macdFast, macdSlow, macdSignal);
+                            if (macd.length > 0) {
+                                macdLineRef.current.update(macd[macd.length - 1]);
+                                macdSignalRef.current.update(signal[signal.length - 1]);
+                                macdHistRef.current.update(hist[hist.length - 1]);
+                                setMacdValues({
+                                    macd: macd[macd.length - 1].value,
+                                    signal: signal[signal.length - 1].value,
+                                    hist: hist[hist.length - 1].value
+                                });
+                            }
+                        } else {
+                            if (priceType === 'line') {
+                                mainSeries.update({ time: lastCandle.time, value: lastCandle.close });
+                            } else {
+                                mainSeries.update(lastCandle);
+                            }
                         }
+                        lastDataRef.current = newCandles;
                     }
-                    chart.timeScale().fitContent();
 
                     if (!volumeOnly && !macdOnly && res.data.pattern) {
                         drawPattern(res.data.pattern);
@@ -427,8 +433,8 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             }
         };
 
-        loadData();
-        const refreshInterval = setInterval(loadData, 5 * 60 * 1000);
+        loadData(true); // Initial load with fitContent
+        const refreshInterval = setInterval(() => loadData(false), 60000); // Silent update every minute
 
         const wsUrl = `ws://${window.location.hostname}:3000/api/candles/stream?token=${token}&symbol=${symbol}&timeframe=${timeframe}`;
         const socket = new WebSocket(wsUrl);
@@ -436,94 +442,81 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
 
         socket.onmessage = (event) => {
             const msg = JSON.parse(event.data);
+
+            // 1. Manejo de Velas (Precios)
             if (msg.time && msg.symbol === symbol) {
-                if (volumeOnly) {
-                    const newPoint = {
-                        time: msg.time,
-                        value: msg.volume,
-                        color: msg.close >= msg.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                const tfMultipliers = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440 };
+                const multiplier = tfMultipliers[timeframe] || 1;
+                const intervalSecs = multiplier * 60;
+                const bucketTime = Math.floor(msg.time / intervalSecs) * intervalSecs;
+
+                const existingIdx = lastDataRef.current.findIndex(d => d.time === bucketTime);
+                if (existingIdx !== -1) {
+                    const current = lastDataRef.current[existingIdx];
+                    lastDataRef.current[existingIdx] = {
+                        ...current,
+                        high: Math.max(current.high || current.value, msg.high || msg.close),
+                        low: Math.min(current.low || current.value, msg.low || msg.close),
+                        close: msg.close,
+                        volume: (current.volume || 0) + (msg.volume || 0),
+                        time: bucketTime
                     };
-                    mainSeries.update(newPoint);
+                } else if (lastDataRef.current.length > 0) {
+                    lastDataRef.current = [...lastDataRef.current, { ...msg, time: bucketTime }].slice(-1000);
+                }
 
-                    // Update rolling data for SMA
-                    const existingIdx = lastDataRef.current.findIndex(d => d.time === msg.time);
-                    if (existingIdx !== -1) {
-                        lastDataRef.current[existingIdx] = msg; // full candle for MACD/Volume
-                    } else {
-                        lastDataRef.current = [...lastDataRef.current, msg].slice(-150);
-                    }
+                const updatedCandle = lastDataRef.current[lastDataRef.current.length - 1];
 
-                    const volPoints = lastDataRef.current.map(c => ({
-                        time: c.time,
-                        value: c.volume,
-                        color: c.close >= c.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
-                    }));
-                    mavol1Ref.current.setData(calculateSMA(volPoints, mav1Period));
-                    mavol2Ref.current.setData(calculateSMA(volPoints, mav2Period));
+                if (volumeOnly) {
+                    mainSeries.update({
+                        time: bucketTime,
+                        value: updatedCandle.volume,
+                        color: updatedCandle.close >= updatedCandle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                    });
                 } else if (macdOnly) {
-                    // Update internal data
-                    const existingIdx = lastDataRef.current.findIndex(d => d.time === msg.time);
-                    if (existingIdx !== -1) {
-                        lastDataRef.current[existingIdx] = msg;
-                    } else {
-                        lastDataRef.current = [...lastDataRef.current, msg].slice(-150);
-                    }
                     const { macd, signal, hist } = calculateMACD(lastDataRef.current, macdFast, macdSlow, macdSignal);
-                    macdLineRef.current.setData(macd);
-                    macdSignalRef.current.setData(signal);
-                    macdHistRef.current.setData(hist);
-
                     if (macd.length > 0) {
+                        macdLineRef.current.update(macd[macd.length - 1]);
+                        macdSignalRef.current.update(signal[signal.length - 1]);
+                        macdHistRef.current.update(hist[hist.length - 1]);
                         setMacdValues({
                             macd: macd[macd.length - 1].value,
                             signal: signal[signal.length - 1].value,
                             hist: hist[hist.length - 1].value
                         });
                     }
-                } else if (!volumeOnly && !macdOnly) {
+                } else {
                     if (priceType === 'line') {
-                        mainSeries.update({ time: msg.time, value: msg.close });
+                        mainSeries.update({ time: bucketTime, value: updatedCandle.close });
                     } else {
-                        mainSeries.update(msg);
-                    }
-
-                    // Update rolling data for indicators
-                    const existingIdx = lastDataRef.current.findIndex(d => d.time === msg.time);
-                    if (existingIdx !== -1) {
-                        lastDataRef.current[existingIdx] = msg;
-                    } else {
-                        lastDataRef.current = [...lastDataRef.current, msg].slice(-200);
+                        mainSeries.update({
+                            time: bucketTime,
+                            open: updatedCandle.open,
+                            high: updatedCandle.high,
+                            low: updatedCandle.low,
+                            close: updatedCandle.close
+                        });
                     }
 
                     if (showIndicators) {
                         const maData = lastDataRef.current.map(c => ({ time: c.time, value: c.close }));
-                        const m1D = calculateEMA(maData, ma1Period);
-                        const m2D = calculateEMA(maData, ma2Period);
-                        const m3D = calculateEMA(maData, ma3Period);
-
-                        ma1Ref.current.setData(m1D);
-                        ma2Ref.current.setData(m2D);
-                        ma3Ref.current.setData(m3D);
+                        const m1 = calculateEMA(maData, ma1Period);
+                        const m2 = calculateEMA(maData, ma2Period);
+                        const m3 = calculateEMA(maData, ma3Period);
+                        if (m1.length > 0) ma1Ref.current.update(m1[m1.length - 1]);
+                        if (m2.length > 0) ma2Ref.current.update(m2[m2.length - 1]);
+                        if (m3.length > 0) ma3Ref.current.update(m3[m3.length - 1]);
 
                         const { upper, mid, lower } = calculateBollingerBands(lastDataRef.current, bollPeriod, bollStd);
-                        bollUpperRef.current.setData(upper);
-                        bollMidRef.current.setData(mid);
-                        bollLowerRef.current.setData(lower);
-
-                        if (m1D.length > 0) setMaValues({
-                            ma1: m1D[m1D.length - 1].value,
-                            ma2: m2D[m2D.length - 1].value,
-                            ma3: m3D[m3D.length - 1].value
-                        });
-                        if (upper.length > 0) setBollValues({
-                            upper: upper[upper.length - 1].value,
-                            mid: mid[mid.length - 1].value,
-                            lower: lower[lower.length - 1].value
-                        });
+                        if (upper.length > 0) bollUpperRef.current.update(upper[upper.length - 1]);
+                        if (mid.length > 0) bollMidRef.current.update(mid[mid.length - 1]);
+                        if (lower.length > 0) bollLowerRef.current.update(lower[lower.length - 1]);
                     }
                 }
             }
-            if (!volumeOnly && !macdOnly && msg.type === 'PATTERN_DETECTION' && msg.symbol === symbol) {
+
+            // 2. Manejo de Patrones Detectados
+            if (msg.type === 'PATTERN_DETECTION' && msg.symbol === symbol && !volumeOnly && !macdOnly) {
                 drawPattern(msg.data);
                 onPattern(msg);
             }
@@ -773,8 +766,17 @@ const PatternVision = ({ token }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [detections, setDetections] = useState({});
-    const [focusSymbol, setFocusSymbol] = useState('BTCUSDT');
-    const [focusTimeframe, setFocusTimeframe] = useState('4h');
+    const [focusSymbol, setFocusSymbol] = useState(() => localStorage.getItem('vision_symbol') || 'BTCUSDT');
+    const [focusTimeframe, setFocusTimeframe] = useState(() => localStorage.getItem('vision_tf') || '1h');
+
+    // Persistir cambios
+    useEffect(() => {
+        localStorage.setItem('vision_symbol', focusSymbol);
+    }, [focusSymbol]);
+
+    useEffect(() => {
+        localStorage.setItem('vision_tf', focusTimeframe);
+    }, [focusTimeframe]);
 
     const handleNewPattern = (msg) => {
         setDetections(prev => ({ ...prev, [msg.symbol]: msg }));

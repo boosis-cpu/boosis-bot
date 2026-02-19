@@ -165,8 +165,22 @@ class BinanceService {
             });
             return parseFloat(response.data.price);
         } catch (error) {
-            // logger.error(`Error obteniendo precio: ${error.message}`); // Silent fail, caller handles it
             throw error;
+        }
+    }
+
+    /**
+     * Obtiene velas directamente de la API pública de Binance
+     */
+    async getKlines(symbol, interval, limit = 500) {
+        try {
+            const response = await axios.get(`${this.baseUrl}/klines`, {
+                params: { symbol, interval, limit }
+            });
+            return response.data; // [[t,o,h,l,c,v...], ...]
+        } catch (error) {
+            logger.error(`[Binance] Error fetching klines: ${error.message}`);
+            return [];
         }
     }
 
