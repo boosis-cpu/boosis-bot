@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useBotData } from './hooks/useBotData';
@@ -6,60 +5,59 @@ import { setTradingMode, emergencyStop, getStatus, setAuthToken } from './servic
 import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import NavTabs from './components/NavTabs';
+import VerticalNav from './components/VerticalNav';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import TheRefinery from './components/TheRefinery';
 import ConfirmationModal from './components/ConfirmationModal';
-import OptimizerPage from './pages/OptimizerPage';
-import SniperTerminal from './pages/SniperTerminal'; // SNIPER
-import PatternVision from './pages/PatternVision'; // VISION 360
+import SniperTerminal from './pages/SniperTerminal';
+import PatternVision from './pages/PatternVision';
 import './App.css';
 
 const AppContent = ({ token, data, candles, trades, health, metrics, handleToggleTradingMode, handleEmergencyStop, handleLogout, refetch, modal, setModal }) => {
   const location = useLocation();
-  const isFullscreen = location.pathname === '/vision';
+  const isFullscreen = location.pathname === '/vision' || location.pathname === '/sniper';
 
   return (
     <div className={`dashboard-container ${data.emergencyStopped ? 'system-stopped' : ''} ${isFullscreen ? 'fullscreen-view' : ''}`}>
-      {/* Emergency & Position Banners */}
       {data.emergencyStopped && (
         <div className="emergency-banner">
           <span>🛑 SISTEMA EN PARADA DE EMERGENCIA - TRADING DETENIDO</span>
           <button onClick={handleToggleTradingMode}>Reanudar Operación</button>
         </div>
       )}
-
       {!isFullscreen && (
-        <>
-          <Header
-            data={data}
-            toggleTradingMode={handleToggleTradingMode}
-            emergencyStop={handleEmergencyStop}
-            logout={handleLogout}
-          />
-          <NavTabs />
-        </>
+        <Header
+          data={data}
+          toggleTradingMode={handleToggleTradingMode}
+          emergencyStop={handleEmergencyStop}
+          logout={handleLogout}
+        />
       )}
 
-      <Routes>
-        <Route path="/" element={
-          <DashboardPage
-            data={data}
-            candles={candles}
-            trades={trades}
-            health={health}
-            metrics={metrics}
-            token={token}
-          />
-        } />
-        <Route path="/refinery" element={<TheRefinery token={token} />} />
-        <Route path="/lab" element={<OptimizerPage token={token} />} />
-        <Route path="/sniper" element={<SniperTerminal token={token} />} />
-        <Route path="/vision" element={<PatternVision token={token} />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <VerticalNav />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {!isFullscreen && <NavTabs />}
+          <main style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+            <Routes>
+              <Route path="/" element={
+                <DashboardPage
+                  data={data}
+                  candles={candles}
+                  trades={trades}
+                  health={health}
+                  metrics={metrics}
+                  token={token}
+                />
+              } />
+              <Route path="/sniper" element={<SniperTerminal token={token} />} />
+              <Route path="/vision" element={<PatternVision token={token} />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </main>
+        </div>
+      </div>
 
-      {/* Global Modal */}
       <ConfirmationModal
         modal={modal}
         onConfirm={modal.onConfirm}
@@ -91,7 +89,6 @@ function App() {
   const handleToggleTradingMode = async () => {
     const targetLive = !!data.paperTrading;
     const modeName = targetLive ? 'REAL (LIVE)' : 'SIMULADO (PAPER)';
-
     setModal({
       show: true,
       title: targetLive ? '🛑 ¡PELIGRO: DINERO REAL!' : 'Confirmar Cambio de Sistema',
@@ -102,7 +99,7 @@ function App() {
       onConfirm: async () => {
         try {
           await setTradingMode(targetLive);
-          refetch(); // Force update
+          refetch();
           setModal({ ...modal, show: false });
         } catch (err) {
           console.error("Error changing mode", err);

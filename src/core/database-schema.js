@@ -133,7 +133,32 @@ const DatabaseSchema = {
       )
     `);
 
-    logger.info('[DB] Esquema actualizado con Strategy Library');
+    // 11. Tabla: sniper_orders (NUEVA - Sniper Terminal)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sniper_orders (
+        id VARCHAR(50) PRIMARY KEY,
+        symbol VARCHAR(20) NOT NULL,
+        action VARCHAR(10) NOT NULL,
+        entry_price NUMERIC NOT NULL,
+        stop_loss NUMERIC NOT NULL,
+        target NUMERIC NOT NULL,
+        risk_usd NUMERIC NOT NULL,
+        position_size NUMERIC,
+        position_usdt NUMERIC,
+        rr_ratio NUMERIC,
+        notes TEXT,
+        mode VARCHAR(10) DEFAULT 'PAPER',
+        status VARCHAR(20) DEFAULT 'PENDING',
+        exit_price NUMERIC,
+        pnl NUMERIC,
+        pnl_percent NUMERIC,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        filled_at TIMESTAMP,
+        closed_at TIMESTAMP
+      )
+    `);
+
+    logger.info('[DB] Esquema actualizado con Sniper Orders');
   }
 };
 

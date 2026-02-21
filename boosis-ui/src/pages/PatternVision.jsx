@@ -69,7 +69,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     const lastDataRef = useRef([]);
 
     const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
-    const availablePairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT'];
+    const availablePairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'FETUSDT', 'RENDERUSDT', 'TAOUSDT', 'WLDUSDT', 'NEARUSDT'];
 
     // Close settings when clicking outside
     useEffect(() => {
@@ -169,10 +169,40 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         return { upper, mid, lower };
     };
 
+
     const formatVal = (val) => {
         if (!val && val !== 0) return '0.00';
         return val.toFixed(val > 100 ? 2 : 5);
     };
+
+    const applyTimeShift = (candles) => {
+        if (!candles) return [];
+        const browserOffsetSecs = new Date().getTimezoneOffset() * 60;
+        const shiftSecs = -browserOffsetSecs;
+
+        return candles.map(c => {
+            let base;
+            if (Array.isArray(c)) {
+                base = {
+                    time: Math.floor(Number(c[0]) / 1000),
+                    open: parseFloat(c[1]),
+                    high: parseFloat(c[2]),
+                    low: parseFloat(c[3]),
+                    close: parseFloat(c[4]),
+                    volume: parseFloat(c[5])
+                };
+            } else {
+                base = { ...c, time: Number(c.time) };
+            }
+            return { ...base, time: base.time + shiftSecs };
+        });
+    };
+
+    const applyTimeShiftToPoint = (time) => {
+        const browserOffsetSecs = new Date().getTimezoneOffset() * 60;
+        return Number(time) - browserOffsetSecs;
+    };
+
 
     // Re-calculate MAVOLs or MACD when periods change
     useEffect(() => {
@@ -304,7 +334,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             try {
                 const res = await getCandles(symbol, timeframe, 1000, token);
                 if (res && res.data && res.data.candles) {
-                    const newCandles = res.data.candles;
+                    const newCandles = applyTimeShift(res.data.candles);
 
                     if (isInitial) {
                         lastDataRef.current = newCandles;
@@ -397,7 +427,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             }
 
             const formattedPoints = pattern.drawingPoints.map(pt => ({
-                time: pt.time,
+                time: applyTimeShiftToPoint(pt.time),
                 value: pt.price
             }));
 
@@ -413,7 +443,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             patternSeriesRef.current = pSeries;
 
             const markers = pattern.drawingPoints.map(pt => ({
-                time: pt.time,
+                time: applyTimeShiftToPoint(pt.time),
                 position: pt.price > (pattern.neckline || pt.price) ? 'aboveBar' : 'belowBar',
                 color: '#ffffff',
                 shape: 'circle',
@@ -448,21 +478,22 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                 const tfMultipliers = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440 };
                 const multiplier = tfMultipliers[timeframe] || 1;
                 const intervalSecs = multiplier * 60;
-                const bucketTime = Math.floor(msg.time / intervalSecs) * intervalSecs;
+                const shiftedMsg = applyTimeShift([msg])[0];
+                const bucketTime = Math.floor(shiftedMsg.time / intervalSecs) * intervalSecs;
 
                 const existingIdx = lastDataRef.current.findIndex(d => d.time === bucketTime);
                 if (existingIdx !== -1) {
                     const current = lastDataRef.current[existingIdx];
                     lastDataRef.current[existingIdx] = {
                         ...current,
-                        high: Math.max(current.high || current.value, msg.high || msg.close),
-                        low: Math.min(current.low || current.value, msg.low || msg.close),
-                        close: msg.close,
-                        volume: (current.volume || 0) + (msg.volume || 0),
+                        high: Math.max(current.high || current.value, shiftedMsg.high || shiftedMsg.close),
+                        low: Math.min(current.low || current.value, shiftedMsg.low || shiftedMsg.close),
+                        close: shiftedMsg.close,
+                        volume: (current.volume || 0) + (shiftedMsg.volume || 0),
                         time: bucketTime
                     };
                 } else if (lastDataRef.current.length > 0) {
-                    lastDataRef.current = [...lastDataRef.current, { ...msg, time: bucketTime }].slice(-1000);
+                    lastDataRef.current = [...lastDataRef.current, { ...shiftedMsg, time: bucketTime }].slice(-1000);
                 }
 
                 const updatedCandle = lastDataRef.current[lastDataRef.current.length - 1];
@@ -785,55 +816,7 @@ const PatternVision = ({ token }) => {
     const isActive = (path) => location.pathname === path;
 
     return (
-        <div className="pattern-vision-container">
-            <aside className="vision-sidebar">
-                <button
-                    className={`sidebar-icon-btn ${isActive('/') ? 'active' : ''}`}
-                    onClick={() => navigate('/')}
-                    title="Dashboard"
-                >
-                    <LayoutDashboard size={22} />
-                </button>
-
-                <button
-                    className={`sidebar-icon-btn ${isActive('/refinery') ? 'active' : ''}`}
-                    onClick={() => navigate('/refinery')}
-                    title="The Refinery"
-                >
-                    <FlaskConical size={22} />
-                </button>
-
-                <button
-                    className={`sidebar-icon-btn ${isActive('/lab') ? 'active' : ''}`}
-                    onClick={() => navigate('/lab')}
-                    title="The Lab"
-                >
-                    <Cpu size={22} />
-                </button>
-
-                <button
-                    className={`sidebar-icon-btn ${isActive('/sniper') ? 'active' : ''}`}
-                    onClick={() => navigate('/sniper')}
-                    title="The Sniper"
-                >
-                    <Crosshair size={22} />
-                </button>
-
-                <button
-                    className={`sidebar-icon-btn ${isActive('/vision') ? 'active' : ''}`}
-                    onClick={() => navigate('/vision')}
-                    title="Pattern Vision"
-                >
-                    <Eye size={22} />
-                </button>
-
-                <div style={{ marginTop: 'auto' }}>
-                    <button className="sidebar-icon-btn" title="Configuración Sistema">
-                        <Settings size={22} />
-                    </button>
-                </div>
-            </aside>
-
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <main className="vision-main-content">
                 <div className="vision-grid">
                     {/* TOP LEFT (1): Main Focus Chart */}

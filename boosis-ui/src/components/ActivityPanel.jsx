@@ -3,53 +3,58 @@ import React from 'react';
 
 const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'connecting', logsLastAttempt = null }) => {
     return (
-        <section className="activity-area panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', borderBottom: '1px solid #30363d', paddingBottom: '10px' }}>
+        <section className="activity-area" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'transparent' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <div
                     onClick={() => setActiveTab('logs')}
                     style={{
                         cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: activeTab === 'logs' ? '#58a6ff' : '#8b949e',
-                        borderBottom: activeTab === 'logs' ? '2px solid #58a6ff' : 'none',
-                        paddingBottom: '4px'
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        color: activeTab === 'logs' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        paddingBottom: '4px',
+                        borderBottom: activeTab === 'logs' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                        transition: 'all 0.2s'
                     }}
                 >
-                    <span style={{ display: 'inline-flex', alignItems: 'center' }} title={logsLastAttempt ? `${logsLastAttempt.ok ? 'Última conexión ok' : 'Último intento: ' + (logsLastAttempt.message || '')} — ${logsLastAttempt ? new Date(logsLastAttempt.when).toLocaleTimeString() : ''}` : ''}>
-                        <span style={{
-                            display: 'inline-block',
-                            width: 10,
-                            height: 10,
-                            borderRadius: 6,
-                            marginRight: 8,
-                            background: logsStatus === 'connected' ? '#2ea043' : logsStatus === 'reconnecting' ? '#d29922' : logsStatus === 'closed' ? '#f85149' : '#8b949e'
-                        }} />
-                        <span style={{ marginRight: 8 }}>{logsStatus === 'connected' ? 'Conectado' : logsStatus === 'reconnecting' ? 'Reconectando' : logsStatus === 'closed' ? 'Cerrado' : 'Conectando'}</span>
-                        LOGS DEL SISTEMA
-                    </span>
+                    <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)',
+                        boxShadow: `0 0 8px ${logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)'}`
+                    }}></div>
+                    SYSTEM LOGS
                 </div>
                 <div
                     onClick={() => setActiveTab('trades')}
                     style={{
                         cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: activeTab === 'trades' ? '#58a6ff' : '#8b949e',
-                        borderBottom: activeTab === 'trades' ? '2px solid #58a6ff' : 'none',
-                        paddingBottom: '4px'
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        color: activeTab === 'trades' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        paddingBottom: '4px',
+                        borderBottom: activeTab === 'trades' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                        transition: 'all 0.2s'
                     }}
                 >
-                    TRADES ({trades.length})
+                    TRADE FEED ({trades.length})
                 </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto' }}>
                 {activeTab === 'trades' ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {trades.length === 0 ? (
-                            <div style={{ color: '#8b949e', fontSize: '11px', textAlign: 'center', padding: '20px' }}>
-                                Esperando señales...
+                            <div style={{ color: 'var(--text-muted)', fontSize: '10px', textAlign: 'center', padding: '40px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                Awaiting Market Signal...
                             </div>
                         ) : (
                             trades.slice(0, 50).map((trade, i) => (
@@ -57,27 +62,26 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'co
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    padding: '8px',
+                                    padding: '12px',
                                     background: 'rgba(255,255,255,0.02)',
-                                    borderRadius: '4px',
-                                    borderLeft: `2px solid ${trade.side === 'BUY' ? '#3fb950' : '#f85149'}`,
+                                    border: '1px solid var(--border-color)',
+                                    borderLeft: `4px solid ${trade.side === 'BUY' ? 'var(--success)' : 'var(--danger)'}`,
                                     marginBottom: '8px'
                                 }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{trade.side} {trade.symbol ? trade.symbol.replace('USDT', '') : '???'}</span>
-                                        <span style={{ fontSize: '10px', color: '#8b949e' }}>{trade.reason || 'Trend'}</span>
+                                    <div>
+                                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>
+                                            {trade.side} {trade.symbol ? trade.symbol.replace('USDT', '') : '???'}
+                                        </div>
+                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                            {trade.reason || 'QUANT_TREND'}
+                                        </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                                        <div style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'JetBrains Mono', color: 'var(--text-main)' }}>
                                             ${trade.price < 1 ? Number(trade.price).toFixed(6) : Number(trade.price).toFixed(2)}
                                         </div>
-                                        {trade.slippage && (
-                                            <div style={{ fontSize: '9px', color: trade.slippage > 0.05 ? '#f85149' : '#8b949e' }}>
-                                                Slip: {trade.slippage}%
-                                            </div>
-                                        )}
-                                        <div style={{ fontSize: '9px', color: '#58a6ff' }}>
-                                            {trade.timestamp ? new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                        <div style={{ fontSize: '9px', color: 'var(--accent-primary)', marginTop: '2px' }}>
+                                            {trade.timestamp ? new Date(parseInt(trade.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--'}
                                         </div>
                                     </div>
                                 </div>
@@ -85,23 +89,23 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'co
                         )}
                     </div>
                 ) : (
-                    <div className="space-y-1" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                    <div className="space-y-1" style={{ fontFamily: 'JetBrains Mono', fontSize: '11px' }}>
                         {logs.length === 0 ? (
-                            <div style={{ color: '#8b949e', textAlign: 'center', padding: '20px' }}>
-                                Conectando a logs...
+                            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px', fontSize: '10px', textTransform: 'uppercase' }}>
+                                Awaiting Kernel Stream...
                             </div>
                         ) : (
                             logs.map((log, i) => (
                                 <div key={i} style={{
                                     display: 'flex',
-                                    gap: '8px',
-                                    padding: '4px 0',
-                                    borderBottom: '1px solid #21262d',
-                                    color: log.level === 'ERROR' ? '#f85149' : log.level === 'WARN' ? '#d29922' : log.level === 'SUCCESS' ? '#2ea043' : '#e6edf3'
+                                    gap: '12px',
+                                    padding: '6px 0',
+                                    borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                    color: log.level === 'ERROR' ? 'var(--danger)' : log.level === 'WARN' ? 'var(--warning)' : log.level === 'SUCCESS' ? 'var(--success)' : 'var(--text-dim)'
                                 }}>
-                                    <span style={{ color: '#8b949e', minWidth: '60px' }}>{log.timestamp}</span>
-                                    <span style={{ fontWeight: 'bold', minWidth: '50px' }}>[{log.level}]</span>
-                                    <span>{log.message}</span>
+                                    <span style={{ color: 'var(--text-muted)', minWidth: '65px', fontSize: '9px' }}>{log.timestamp}</span>
+                                    <span style={{ fontWeight: '800', minWidth: '55px', fontSize: '9px', opacity: 0.8 }}>[{log.level}]</span>
+                                    <span style={{ color: log.level === 'INFO' ? 'var(--text-dim)' : 'inherit' }}>{log.message}</span>
                                 </div>
                             ))
                         )}

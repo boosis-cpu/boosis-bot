@@ -1,5 +1,14 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+    LayoutDashboard,
+    FlaskConical,
+    Cpu,
+    Crosshair,
+    Eye,
+    Settings,
+    ChevronRight
+} from 'lucide-react';
 
 const API = (token) => ({
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -10,6 +19,11 @@ const PAIRS = [
     { symbol: 'ETHUSDT', label: 'ETH', color: '#627EEA', icon: 'Ξ' },
     { symbol: 'SOLUSDT', label: 'SOL', color: '#9945FF', icon: '◎' },
     { symbol: 'XRPUSDT', label: 'XRP', color: '#00AAE4', icon: '✕' },
+    { symbol: 'FETUSDT', label: 'FET', color: '#0050FF', icon: 'F' },
+    { symbol: 'RENDERUSDT', label: 'REND', color: '#FF3333', icon: 'R' },
+    { symbol: 'TAOUSDT', label: 'TAO', color: '#BB86FC', icon: 'T' },
+    { symbol: 'WLDUSDT', label: 'WLD', color: '#FFFFFF', icon: 'W' },
+    { symbol: 'NEARUSDT', label: 'NEAR', color: '#00C896', icon: 'N' },
 ];
 
 function fmt(n, d = 2) {
@@ -68,6 +82,8 @@ function StatsPanel({ stats }) {
 }
 
 export default function SniperTerminal({ token }) {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [prices, setPrices] = useState({});
     const [orders, setOrders] = useState([]);
     const [stats, setStats] = useState(null);
@@ -76,6 +92,10 @@ export default function SniperTerminal({ token }) {
     const [form, setForm] = useState({ action: 'BUY', entryPrice: '', stopLoss: '', target: '', riskUsd: '10', notes: '' });
     const [firing, setFiring] = useState(false);
     const [flash, setFlash] = useState(null);
+    const [balance, setBalance] = useState({ usdt: 0, realUsdt: 0 });
+    const [mode, setMode] = useState('PAPER'); // PAPER | LIVE
+
+    const isActive = (path) => location.pathname === path;
 
     // Derived: live RR calculation
     const entry = parseFloat(form.entryPrice);
@@ -103,6 +123,14 @@ export default function SniperTerminal({ token }) {
     const fetchPrices = useCallback(async () => {
         try {
             const res = await fetch('/api/status', API(token)).then(r => r.json());
+
+            // Sync current mode and balance
+            if (res.mode) setMode(res.mode);
+            setBalance({
+                usdt: res.balance?.usdt || 0,
+                realUsdt: res.realBalance?.find(b => b.asset === 'USDT')?.free || 0
+            });
+
             // Try to get prices from pairManagers via individual status calls
             const priceMap = {};
             await Promise.all(PAIRS.map(async (p) => {
@@ -125,7 +153,20 @@ export default function SniperTerminal({ token }) {
 
     const handleFillPrice = () => {
         const p = prices[selectedPair.symbol];
-        if (p) setForm(f => ({ ...f, entryPrice: p.toFixed(4) }));
+        if (!p) return;
+
+        const isBuy = form.action === 'BUY';
+        const entry = p;
+        // Sugerir setup 2:1 (2% stop, 4% target)
+        const sl = isBuy ? entry * 0.98 : entry * 1.02;
+        const tp = isBuy ? entry * 1.04 : entry * 0.96;
+
+        setForm(f => ({
+            ...f,
+            entryPrice: entry.toFixed(4),
+            stopLoss: sl.toFixed(4),
+            target: tp.toFixed(4)
+        }));
     };
 
     const handleShoot = async () => {
@@ -140,6 +181,7 @@ export default function SniperTerminal({ token }) {
                 target: parseFloat(form.target),
                 riskUsd: parseFloat(form.riskUsd),
                 notes: form.notes,
+                mode: mode // Send current sniper frontend mode
             };
             const res = await fetch('/api/sniper/shoot', {
                 method: 'POST', ...API(token), body: JSON.stringify(body),
@@ -159,6 +201,31 @@ export default function SniperTerminal({ token }) {
         setTimeout(() => setFlash(null), 5000);
     };
 
+    const toggleTradingMode = async () => {
+        const nextMode = mode === 'PAPER' ? true : false; // Backend expects literal boolean for 'live'
+        try {
+            const res = await fetch('/api/settings/trading-mode', {
+                method: 'POST',
+                ...API(token),
+                body: JSON.stringify({ live: nextMode })
+            }).then(r => r.json());
+
+            if (res.error) {
+                setFlash({ type: 'error', msg: res.error });
+            } else {
+                setMode(res.mode);
+                setFlash({
+                    type: 'success',
+                    msg: `MODO CAMBIADO: ${res.mode === 'LIVE' ? '💰 REAL ACTIVADO' : '📝 SIMULACIÓN ACTIVADA'}`
+                });
+                fetchPrices(); // Refresh balances
+            }
+        } catch (e) {
+            setFlash({ type: 'error', msg: 'Error al cambiar modo' });
+        }
+        setTimeout(() => setFlash(null), 3000);
+    };
+
     const handleCancel = async (orderId, isActive, exitPrice) => {
         const body = { orderId, exitPrice, reason: 'Manual close' };
         const res = await fetch('/api/sniper/cancel', {
@@ -175,225 +242,258 @@ export default function SniperTerminal({ token }) {
     const closedOrders = orders.filter(o => o.status === 'CLOSED' || o.status === 'CANCELLED');
 
     return (
-        <div className="sn-root">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <style>{SNIPER_CSS}</style>
 
-            {/* Flash message */}
-            {flash && <div className={`sn-flash sn-flash--${flash.type}`}>{flash.msg}</div>}
+            <div className="sn-main-content">
+                {/* Flash message */}
+                {flash && <div className={`sn-flash sn-flash--${flash.type}`}>{flash.msg}</div>}
 
-            <div className="sn-layout">
+                <div className="sn-layout">
 
-                {/* ── LEFT: FIRE CONTROL ── */}
-                <aside className="sn-fire-panel">
-                    <div className="sn-fire-header">
-                        <span className="sn-crosshair">⊕</span>
-                        <h2>FIRE CONTROL</h2>
-                    </div>
-
-                    {/* Pair selector */}
-                    <div className="sn-pair-selector">
-                        {PAIRS.map(p => (
+                    {/* ── LEFT: FIRE CONTROL ── */}
+                    <aside className="sn-fire-panel">
+                        <div className="sn-fire-header">
                             <button
-                                key={p.symbol}
-                                className={`sn-pair-btn ${selectedPair.symbol === p.symbol ? 'active' : ''}`}
-                                style={{ '--pair-color': p.color }}
-                                onClick={() => setSelectedPair(p)}
+                                className={`sn-mode-toggle ${mode.toLowerCase()}`}
+                                onClick={toggleTradingMode}
+                                title={mode === 'LIVE' ? 'Cambiar a Simulación' : 'Cambiar a Real'}
                             >
-                                <span className="sn-pair-icon">{p.icon}</span>
-                                <span className="sn-pair-label">{p.label}</span>
-                                {prices[p.symbol] && (
-                                    <span className="sn-pair-price">${fmt(prices[p.symbol], prices[p.symbol] > 100 ? 2 : 4)}</span>
-                                )}
+                                <div className="sn-mode-dot" />
+                                <span>{mode}</span>
                             </button>
-                        ))}
-                    </div>
+                            <div className="sn-header-balance">
+                                <span className="sn-bal-label">USDT BINANCE</span>
+                                <span className="sn-bal-value">${fmt(balance.realUsdt)}</span>
+                            </div>
+                        </div>
 
-                    {/* Action selector */}
-                    <div className="sn-action-selector">
-                        <button
-                            className={`sn-action-btn sn-action-buy ${form.action === 'BUY' ? 'active' : ''}`}
-                            onClick={() => setForm(f => ({ ...f, action: 'BUY' }))}
-                        >▲ LONG</button>
-                        <button
-                            className={`sn-action-btn sn-action-sell ${form.action === 'SELL' ? 'active' : ''}`}
-                            onClick={() => setForm(f => ({ ...f, action: 'SELL' }))}
-                        >▼ SHORT</button>
-                    </div>
+                        {/* Pair selector */}
+                        <div className="sn-pair-selector">
+                            {PAIRS.map(p => (
+                                <button
+                                    key={p.symbol}
+                                    className={`sn-pair-btn ${selectedPair.symbol === p.symbol ? 'active' : ''}`}
+                                    style={{ '--pair-color': p.color }}
+                                    onClick={() => setSelectedPair(p)}
+                                >
+                                    <span className="sn-pair-icon">{p.icon}</span>
+                                    <span className="sn-pair-label">{p.label}</span>
+                                    {prices[p.symbol] && (
+                                        <span className="sn-pair-price">${fmt(prices[p.symbol], prices[p.symbol] > 100 ? 2 : 4)}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
 
-                    {/* Form fields */}
-                    <div className="sn-form">
-                        <div className="sn-field">
-                            <label>ENTRADA (USDT)</label>
-                            <div className="sn-input-row">
+                        {/* Action selector */}
+                        <div className="sn-action-selector">
+                            <button
+                                className={`sn-action-btn sn-action-buy ${form.action === 'BUY' ? 'active' : ''}`}
+                                onClick={() => setForm(f => ({ ...f, action: 'BUY' }))}
+                            >▲ LONG</button>
+                            <button
+                                className={`sn-action-btn sn-action-sell ${form.action === 'SELL' ? 'active' : ''}`}
+                                onClick={() => setForm(f => ({ ...f, action: 'SELL' }))}
+                            >▼ SHORT</button>
+                        </div>
+
+                        {/* Form fields */}
+                        <div className="sn-form">
+                            <div className="sn-field">
+                                <label>ENTRADA (USDT)</label>
+                                <div className="sn-input-row">
+                                    <input
+                                        type="number" step="any"
+                                        value={form.entryPrice}
+                                        onChange={e => setForm(f => ({ ...f, entryPrice: e.target.value }))}
+                                        placeholder={prices[selectedPair.symbol] ? `~${fmt(prices[selectedPair.symbol], 2)}` : 'Precio de entrada'}
+                                    />
+                                    <button className="sn-fill-btn" onClick={handleFillPrice} title="Usar precio actual">◎</button>
+                                </div>
+                            </div>
+
+                            <div className="sn-field">
+                                <label>STOP LOSS (INVALIDACIÓN) <span className="sn-field-hint">{form.action === 'BUY' ? '↓ Debajo del soporte' : '↑ Encima de resistencia'}</span></label>
                                 <input
                                     type="number" step="any"
-                                    value={form.entryPrice}
-                                    onChange={e => setForm(f => ({ ...f, entryPrice: e.target.value }))}
-                                    placeholder={prices[selectedPair.symbol] ? `~${fmt(prices[selectedPair.symbol], 2)}` : 'Precio de entrada'}
+                                    value={form.stopLoss}
+                                    onChange={e => setForm(f => ({ ...f, stopLoss: e.target.value }))}
+                                    placeholder="Precio de Stop"
+                                    className="sn-input-sl"
                                 />
-                                <button className="sn-fill-btn" onClick={handleFillPrice} title="Usar precio actual">◎</button>
                             </div>
-                        </div>
 
-                        <div className="sn-field">
-                            <label>STOP LOSS <span className="sn-field-hint">{form.action === 'BUY' ? '↓ Debajo del soporte' : '↑ Encima de resistencia'}</span></label>
-                            <input
-                                type="number" step="any"
-                                value={form.stopLoss}
-                                onChange={e => setForm(f => ({ ...f, stopLoss: e.target.value }))}
-                                placeholder="Nivel de invalidación"
-                                className="sn-input-sl"
-                            />
-                        </div>
-
-                        <div className="sn-field">
-                            <label>TARGET (TP) <span className="sn-field-hint">Nivel de salida</span></label>
-                            <input
-                                type="number" step="any"
-                                value={form.target}
-                                onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
-                                placeholder="Objetivo de precio"
-                                className="sn-input-tp"
-                            />
-                        </div>
-
-                        <div className="sn-field">
-                            <label>RIESGO (USDT) <span className="sn-field-hint">Cuánto arriesgas</span></label>
-                            <div className="sn-risk-options">
-                                {['5', '10', '20', '50'].map(v => (
-                                    <button
-                                        key={v}
-                                        className={`sn-risk-chip ${form.riskUsd === v ? 'active' : ''}`}
-                                        onClick={() => setForm(f => ({ ...f, riskUsd: v }))}
-                                    >${v}</button>
-                                ))}
+                            <div className="sn-field">
+                                <label>TARGET (TP) <span className="sn-field-hint">Nivel de salida</span></label>
                                 <input
-                                    type="number" step="1" min="1"
-                                    value={form.riskUsd}
-                                    onChange={e => setForm(f => ({ ...f, riskUsd: e.target.value }))}
-                                    className="sn-risk-custom"
+                                    type="number" step="any"
+                                    value={form.target}
+                                    onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
+                                    placeholder="Objetivo de precio"
+                                    className="sn-input-tp"
                                 />
                             </div>
-                        </div>
 
-                        {/* Live RR preview */}
-                        {liveRR != null && (
-                            <div className="sn-preview">
-                                <div className="sn-preview-row">
-                                    <span>Risk/Reward</span>
-                                    <RRBar rr={liveRR} />
+                            <div className="sn-field">
+                                <label>
+                                    RIESGO (USDT)
+                                    <span className="sn-field-hint">
+                                        Simulado: <strong style={{ color: mode === 'LIVE' ? '#58a6ff' : '#a371f7' }}>
+                                            ${fmt(mode === 'LIVE' ? balance.realUsdt : balance.usdt)}
+                                        </strong>
+                                    </span>
+                                </label>
+                                <div className="sn-risk-options">
+                                    {['5', '10', '20', '50'].map(v => (
+                                        <button
+                                            key={v}
+                                            className={`sn-risk-chip ${form.riskUsd === v ? 'active' : ''}`}
+                                            onClick={() => setForm(f => ({ ...f, riskUsd: v }))}
+                                        >${v}</button>
+                                    ))}
+                                    <input
+                                        type="number" step="1" min="1"
+                                        value={form.riskUsd}
+                                        onChange={e => setForm(f => ({ ...f, riskUsd: e.target.value }))}
+                                        className="sn-risk-custom"
+                                    />
                                 </div>
-                                <div className="sn-preview-row">
-                                    <span>Tamaño posición</span>
-                                    <span className="sn-preview-val">{fmt(liveSize, 4)} {selectedPair.label} ≈ ${fmt(liveSizeUsdt)}</span>
-                                </div>
-                                <div className="sn-preview-row">
-                                    <span>Riesgo máximo</span>
-                                    <span className="sn-preview-val sn-loss">${form.riskUsd} USDT</span>
-                                </div>
-                                <div className="sn-preview-row">
-                                    <span>Ganancia potencial</span>
-                                    <span className="sn-preview-val sn-win">+${fmt(parseFloat(form.riskUsd) * liveRR)} USDT</span>
+                                <div className="sn-percent-row">
+                                    {[1, 2, 5, 10].map(p => (
+                                        <button
+                                            key={p}
+                                            className="sn-pct-btn"
+                                            onClick={() => {
+                                                const total = mode === 'LIVE' ? balance.realUsdt : balance.usdt;
+                                                const risk = (total * (p / 100)).toFixed(0);
+                                                setForm(f => ({ ...f, riskUsd: risk }));
+                                            }}
+                                        >{p}%</button>
+                                    ))}
+                                    <span style={{ fontSize: '10px', color: 'var(--text2)' }}>del capital</span>
                                 </div>
                             </div>
-                        )}
 
-                        <div className="sn-field">
-                            <label>NOTAS (opcional)</label>
-                            <textarea
-                                value={form.notes}
-                                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                                placeholder="Setup visto, confluencias, contexto del trade..."
-                                rows={2}
-                            />
-                        </div>
-
-                        <button
-                            className={`sn-shoot-btn ${form.action === 'BUY' ? 'buy' : 'sell'} ${firing ? 'firing' : ''}`}
-                            onClick={handleShoot}
-                            disabled={!form.entryPrice || !form.stopLoss || !form.target || firing}
-                        >
-                            {firing ? '⏳ EJECUTANDO...' : `${form.action === 'BUY' ? '▲ LONG' : '▼ SHORT'} ${selectedPair.label}`}
-                        </button>
-
-                        {liveRR != null && liveRR < 1.5 && (
-                            <div className="sn-warning">⚠️ RR menor a 1.5R — considera ajustar el setup</div>
-                        )}
-                    </div>
-                </aside>
-
-                {/* ── RIGHT: ORDERS + STATS ── */}
-                <main className="sn-main">
-                    <div className="sn-tabs">
-                        <button className={`sn-tab ${tab === 'open' ? 'active' : ''}`} onClick={() => setTab('open')}>
-                            ABIERTAS <span className="sn-count">{openOrders.length}</span>
-                        </button>
-                        <button className={`sn-tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>
-                            HISTORIAL <span className="sn-count">{closedOrders.length}</span>
-                        </button>
-                        <button className={`sn-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => setTab('stats')}>
-                            MI EDGE
-                        </button>
-                    </div>
-
-                    {tab === 'open' && (
-                        <div className="sn-orders">
-                            {openOrders.length === 0 ? (
-                                <div className="sn-empty">
-                                    <span className="sn-empty-icon">⊕</span>
-                                    <p>Sin órdenes activas.<br />Define tu setup y dispara.</p>
-                                </div>
-                            ) : (
-                                openOrders.map(o => (
-                                    <OrderCard key={o.id} order={o} onClose={handleCancel} prices={prices} />
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {tab === 'history' && (
-                        <div className="sn-orders">
-                            {closedOrders.length === 0 ? (
-                                <div className="sn-empty"><span className="sn-empty-icon">📋</span><p>Sin trades cerrados aún.</p></div>
-                            ) : (
-                                closedOrders.map(o => (
-                                    <OrderCard key={o.id} order={o} closed prices={prices} />
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {tab === 'stats' && (
-                        <div className="sn-stats">
-                            <div className="sn-stats-header">
-                                <h3>Tu Edge — Estadísticas de Trading</h3>
-                                <p>Basado en {stats?.totalTrades || 0} trades cerrados</p>
-                            </div>
-                            <StatsPanel stats={stats} />
-
-                            {stats && stats.totalTrades > 0 && (
-                                <div className="sn-by-pair">
-                                    <h4>Distribución por par</h4>
-                                    <div className="sn-pair-stats">
-                                        {PAIRS.map(p => {
-                                            const count = stats.bySymbol?.[p.symbol] || 0;
-                                            const pct = stats.totalTrades > 0 ? (count / stats.totalTrades * 100).toFixed(0) : 0;
-                                            return (
-                                                <div key={p.symbol} className="sn-pair-stat">
-                                                    <span style={{ color: p.color }}>{p.icon} {p.label}</span>
-                                                    <div className="sn-pair-bar-wrap">
-                                                        <div className="sn-pair-bar" style={{ width: `${pct}%`, background: p.color }} />
-                                                    </div>
-                                                    <span>{count} trades ({pct}%)</span>
-                                                </div>
-                                            );
-                                        })}
+                            {/* Live RR preview */}
+                            {liveRR != null && (
+                                <div className="sn-preview">
+                                    <div className="sn-preview-row">
+                                        <span>Risk/Reward</span>
+                                        <RRBar rr={liveRR} />
+                                    </div>
+                                    <div className="sn-preview-row">
+                                        <span>Tamaño posición</span>
+                                        <span className="sn-preview-val">{fmt(liveSize, 4)} {selectedPair.label} ≈ ${fmt(liveSizeUsdt)}</span>
+                                    </div>
+                                    <div className="sn-preview-row">
+                                        <span>Riesgo máximo</span>
+                                        <span className="sn-preview-val sn-loss">${form.riskUsd} USDT</span>
+                                    </div>
+                                    <div className="sn-preview-row">
+                                        <span>Ganancia potencial</span>
+                                        <span className="sn-preview-val sn-win">+${fmt(parseFloat(form.riskUsd) * liveRR)} USDT</span>
                                     </div>
                                 </div>
                             )}
+
+                            <div className="sn-field">
+                                <label>NOTAS (opcional)</label>
+                                <textarea
+                                    value={form.notes}
+                                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                                    placeholder="Setup visto, confluencias, contexto del trade..."
+                                    rows={2}
+                                />
+                            </div>
+
+                            <button
+                                className={`sn-shoot-btn ${form.action === 'BUY' ? 'buy' : 'sell'} ${firing ? 'firing' : ''}`}
+                                onClick={handleShoot}
+                                disabled={!form.entryPrice || !form.stopLoss || !form.target || firing}
+                            >
+                                {firing ? '⏳ EJECUTANDO...' : `${form.action === 'BUY' ? '▲ LONG' : '▼ SHORT'} ${selectedPair.label}`}
+                            </button>
+
+                            {liveRR != null && liveRR < 1.5 && (
+                                <div className="sn-warning">⚠️ RR menor a 1.5R — considera ajustar el setup</div>
+                            )}
                         </div>
-                    )}
-                </main>
+                    </aside>
+
+                    {/* ── RIGHT: ORDERS + STATS ── */}
+                    <main className="sn-main">
+                        <div className="sn-tabs">
+                            <button className={`sn-tab ${tab === 'open' ? 'active' : ''}`} onClick={() => setTab('open')}>
+                                ABIERTAS <span className="sn-count">{openOrders.length}</span>
+                            </button>
+                            <button className={`sn-tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>
+                                HISTORIAL <span className="sn-count">{closedOrders.length}</span>
+                            </button>
+                            <button className={`sn-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => setTab('stats')}>
+                                MI EDGE
+                            </button>
+                        </div>
+
+                        {tab === 'open' && (
+                            <div className="sn-orders">
+                                {openOrders.length === 0 ? (
+                                    <div className="sn-empty">
+                                        <span className="sn-empty-icon">⊕</span>
+                                        <p>Sin órdenes activas.<br />Define tu setup y dispara.</p>
+                                    </div>
+                                ) : (
+                                    openOrders.map(o => (
+                                        <OrderCard key={o.id} order={o} onClose={handleCancel} prices={prices} />
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {tab === 'history' && (
+                            <div className="sn-orders">
+                                {closedOrders.length === 0 ? (
+                                    <div className="sn-empty"><span className="sn-empty-icon">📋</span><p>Sin trades cerrados aún.</p></div>
+                                ) : (
+                                    closedOrders.map(o => (
+                                        <OrderCard key={o.id} order={o} closed prices={prices} />
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {tab === 'stats' && (
+                            <div className="sn-stats">
+                                <div className="sn-stats-header">
+                                    <h3>Tu Edge — Estadísticas de Trading</h3>
+                                    <p>Basado en {stats?.totalTrades || 0} trades cerrados</p>
+                                </div>
+                                <StatsPanel stats={stats} />
+
+                                {stats && stats.totalTrades > 0 && (
+                                    <div className="sn-by-pair">
+                                        <h4>Distribución por par</h4>
+                                        <div className="sn-pair-stats">
+                                            {PAIRS.map(p => {
+                                                const count = stats.bySymbol?.[p.symbol] || 0;
+                                                const pct = stats.totalTrades > 0 ? (count / stats.totalTrades * 100).toFixed(0) : 0;
+                                                return (
+                                                    <div key={p.symbol} className="sn-pair-stat">
+                                                        <span style={{ color: p.color }}>{p.icon} {p.label}</span>
+                                                        <div className="sn-pair-bar-wrap">
+                                                            <div className="sn-pair-bar" style={{ width: `${pct}%`, background: p.color }} />
+                                                        </div>
+                                                        <span>{count} trades ({pct}%)</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+                </div>
             </div>
         </div>
     );
@@ -486,65 +586,148 @@ function OrderCard({ order, onClose, closed, prices }) {
 const SNIPER_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-  .sn-root {
-    --bg:        #0a0b0e;
-    --bg2:       #111318;
-    --bg3:       #181b22;
-    --border:    #22262f;
-    --text:      #e2e8f0;
-    --text2:     #8892a4;
-    --green:     #00c896;
-    --red:       #e05555;
-    --yellow:    #f0b429;
-    --purple:    #a78bfa;
-    --mono:      'Space Mono', monospace;
-    --sans:      'DM Sans', sans-serif;
+  .sn-root-container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    background: #0d1117;
+    overflow: hidden;
+    --sans: 'DM Sans', sans-serif;
+    --mono: 'Space Mono', monospace;
     font-family: var(--sans);
-    background:  var(--bg);
-    color:       var(--text);
-    min-height:  100vh;
-    padding:     1.5rem;
-    position:    relative;
+  }
+
+  /* ── SIDEBAR (Synced with PatternVision) ── */
+  .vision-sidebar {
+    width: 54px;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 0;
+    gap: 12px;
+    z-index: 100;
+    flex-shrink: 0;
+  }
+
+  .sidebar-icon-btn {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    width: 42px;
+    height: 42px;
+    border-radius: 0;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .sidebar-icon-btn:hover {
+    background: #21262d;
+    color: #e6edf3;
+  }
+
+  .sidebar-icon-btn.active {
+    background: #21262d;
+    color: #58a6ff;
+  }
+
+  .sidebar-icon-btn.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 3px;
+    height: 20px;
+    background: #58a6ff;
+    border-radius: 0;
+  }
+
+  .sn-main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    overflow-y: auto;
+    background: #0d1117;
   }
 
   .sn-layout {
     display: grid;
     grid-template-columns: 340px 1fr;
     gap: 1.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
+  }
+
+  /* ── TOKENS ── */
+  :root {
+    --bg2: #161b22;
+    --bg3: #0d1117;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --green: #238636;
+    --red: #da3633;
+    --yellow: #d29922;
+    --purple: #8957e5;
   }
 
   /* ── FLASH ── */
   .sn-flash {
-    position: fixed; top: 80px; right: 1.5rem; z-index: 999;
-    padding: .75rem 1.25rem; border-radius: 8px;
+    position: fixed; top: 20px; right: 1.5rem; z-index: 999;
+    padding: .75rem 1.25rem; border-radius: 0;
     font-size: .875rem; font-weight: 500;
     animation: slideIn .2s ease;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
   }
-  .sn-flash--success { background: #0d3326; border: 1px solid var(--green); color: var(--green); }
-  .sn-flash--error   { background: #2d1212; border: 1px solid var(--red);   color: var(--red);   }
-  @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+  .sn-flash--success { background: #1f6723; border: 1px solid #238636; color: #fff; }
+  .sn-flash--error   { background: #8e1519; border: 1px solid #da3633; color: #fff; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:none; } }
 
   /* ── FIRE PANEL ── */
   .sn-fire-panel {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 1.5rem;
     height: fit-content;
     position: sticky;
-    top: 1.5rem;
+    top: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .sn-fire-header {
-    display: flex; align-items: center; gap: .75rem;
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.5rem;
   }
-  .sn-crosshair { font-size: 1.5rem; color: var(--red); line-height: 1; }
-  .sn-fire-header h2 {
-    font-family: var(--mono); font-size: .875rem; letter-spacing: .15em;
-    color: var(--text2); margin: 0;
+  .sn-header-balance {
+    display: flex; flex-direction: column; align-items: flex-end;
+    border-left: 1px solid var(--border); padding-left: 1rem;
   }
+  .sn-bal-label { font-size: 0.6rem; color: var(--text2); font-weight: 800; letter-spacing: 0.1em; }
+  .sn-bal-value { font-family: var(--mono); font-size: 1.25rem; color: #58a6ff; font-weight: 800; }
+  .sn-mode-toggle {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .35rem .75rem; border-radius: 0;
+    font-family: var(--mono); font-size: .65rem; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+    border: 1px solid var(--border);
+    background: #0d1117;
+  }
+  .sn-mode-toggle.paper { color: #a371f7; border-color: rgba(163, 113, 247, 0.3); }
+  .sn-mode-toggle.live  { color: #3fb950; border-color: rgba(63, 185, 80, 0.3); box-shadow: 0 0 10px rgba(63, 185, 80, 0.1); }
+  .sn-mode-toggle:hover { background: #21262d; }
+
+  .sn-mode-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .sn-mode-toggle.live .sn-mode-dot { animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
   /* ── PAIR SELECTOR ── */
   .sn-pair-selector {
@@ -552,28 +735,27 @@ const SNIPER_CSS = `
     margin-bottom: 1.25rem;
   }
   .sn-pair-btn {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    background: #21262d; border: 1px solid var(--border); border-radius: 0;
     padding: .6rem .75rem; cursor: pointer; text-align: left;
     transition: all .15s; display: flex; flex-direction: column; gap: 2px;
+    color: var(--text);
   }
-  .sn-pair-btn:hover   { border-color: var(--pair-color); background: color-mix(in srgb, var(--pair-color) 8%, var(--bg3)); }
-  .sn-pair-btn.active  { border-color: var(--pair-color); background: color-mix(in srgb, var(--pair-color) 15%, var(--bg3)); }
+  .sn-pair-btn:hover { border-color: #8b949e; }
+  .sn-pair-btn.active { border-color: var(--pair-color); background: rgba(255,255,255,0.05); }
   .sn-pair-icon  { font-size: 1rem; color: var(--pair-color); }
-  .sn-pair-label { font-size: .75rem; font-weight: 600; color: var(--text); }
+  .sn-pair-label { font-size: .75rem; font-weight: 600; }
   .sn-pair-price { font-family: var(--mono); font-size: .65rem; color: var(--text2); }
 
   /* ── ACTION ── */
   .sn-action-selector { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1.25rem; }
   .sn-action-btn {
-    padding: .6rem; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--bg3); cursor: pointer; font-family: var(--mono);
+    padding: .6rem; border: 1px solid var(--border); border-radius: 0;
+    background: #21262d; cursor: pointer; font-family: var(--mono);
     font-size: .75rem; font-weight: 700; letter-spacing: .05em; transition: all .15s;
     color: var(--text2);
   }
-  .sn-action-buy.active  { background: #0d3326; border-color: var(--green); color: var(--green); }
-  .sn-action-sell.active { background: #2d1212; border-color: var(--red);   color: var(--red);   }
-  .sn-action-buy:hover   { border-color: var(--green); }
-  .sn-action-sell:hover  { border-color: var(--red);   }
+  .sn-action-buy.active  { background: #238636; border-color: #2ea043; color: #fff; }
+  .sn-action-sell.active { background: #da3633; border-color: #f85149; color: #fff; }
 
   /* ── FORM ── */
   .sn-form { display: flex; flex-direction: column; gap: 1rem; }
@@ -582,181 +764,92 @@ const SNIPER_CSS = `
     font-size: .7rem; font-weight: 600; letter-spacing: .1em;
     color: var(--text2); display: flex; justify-content: space-between;
   }
-  .sn-field-hint { font-weight: 400; letter-spacing: 0; text-transform: none; color: #5a6474; }
+  .sn-field-hint { font-weight: 400; letter-spacing: 0; text-transform: none; color: #484f58; }
   .sn-form input, .sn-form textarea {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    background: #0d1117; border: 1px solid var(--border); border-radius: 0;
     color: var(--text); padding: .6rem .75rem;
     font-family: var(--mono); font-size: .8rem;
     transition: border .15s; width: 100%; box-sizing: border-box;
   }
-  .sn-form input:focus, .sn-form textarea:focus { outline: none; border-color: #3a3f4c; }
-  .sn-input-sl:focus { border-color: var(--red) !important; }
-  .sn-input-tp:focus { border-color: var(--green) !important; }
-  .sn-input-row { display: flex; gap: .5rem; }
-  .sn-input-row input { flex: 1; }
+  .sn-form input:focus { border-color: #58a6ff; outline: none; }
   .sn-fill-btn {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    background: #21262d; border: 1px solid var(--border); border-radius: 0;
     color: var(--text2); cursor: pointer; padding: 0 .75rem; font-size: .9rem;
-    transition: all .15s;
   }
-  .sn-fill-btn:hover { border-color: var(--purple); color: var(--purple); }
+  .sn-fill-btn:hover { color: #58a6ff; border-color: #58a6ff; }
 
-  /* ── RISK CHIPS ── */
+  .sn-percent-row { display: flex; gap: .4rem; align-items: center; margin-top: .4rem; }
+  .sn-pct-btn {
+    background: transparent; border: 1px solid #30363d; border-radius: 0;
+    color: #8b949e; font-size: 10px; padding: 2px 6px; cursor: pointer;
+    font-family: var(--mono);
+  }
+  .sn-pct-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+
   .sn-risk-options { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
   .sn-risk-chip {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    background: #21262d; border: 1px solid var(--border); border-radius: 0;
     padding: .35rem .6rem; font-size: .75rem; cursor: pointer; font-family: var(--mono);
-    color: var(--text2); transition: all .15s;
+    color: var(--text2);
   }
-  .sn-risk-chip.active { background: #1a1230; border-color: var(--purple); color: var(--purple); }
-  .sn-risk-chip:hover  { border-color: var(--purple); }
-  .sn-risk-custom { width: 70px !important; flex-shrink: 0; }
+  .sn-risk-chip.active { background: rgba(88, 166, 255, 0.1); border-color: #58a6ff; color: #58a6ff; }
 
-  /* ── LIVE PREVIEW ── */
   .sn-preview {
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
+    background: #161b22; border: 1px solid var(--border);
+    border-radius: 0; padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
   }
   .sn-preview-row { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; }
-  .sn-preview-row > span:first-child { color: var(--text2); }
   .sn-preview-val { font-family: var(--mono); font-size: .8rem; color: var(--text); }
-  .sn-win  { color: var(--green) !important; }
-  .sn-loss { color: var(--red) !important; }
+  .sn-win  { color: #3fb950 !important; }
+  .sn-loss { color: #f85149 !important; }
 
-  /* ── RR BAR ── */
   .sn-rr-bar { display: flex; align-items: center; gap: .5rem; }
-  .sn-rr-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .sn-rr-fill  { height: 100%; border-radius: 2px; transition: width .3s; }
-  .sn-rr-label { font-family: var(--mono); font-size: .75rem; font-weight: 700; min-width: 32px; text-align: right; }
+  .sn-rr-track { flex: 1; height: 4px; background: #30363d; border-radius: 0; }
+  .sn-rr-fill  { height: 100%; border-radius: 0; }
 
-  /* ── SHOOT BUTTON ── */
   .sn-shoot-btn {
-    padding: .9rem; border-radius: 10px; border: none; cursor: pointer;
+    padding: .9rem; border-radius: 0; border: none; cursor: pointer;
     font-family: var(--mono); font-size: .85rem; font-weight: 700; letter-spacing: .1em;
     transition: all .2s; width: 100%; margin-top: .25rem;
   }
-  .sn-shoot-btn.buy  { background: var(--green); color: #001a11; }
-  .sn-shoot-btn.sell { background: var(--red);   color: #fff; }
-  .sn-shoot-btn:hover:not(:disabled)  { filter: brightness(1.15); transform: translateY(-1px); }
-  .sn-shoot-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-  .sn-shoot-btn.firing { opacity: .7; }
+  .sn-shoot-btn.buy  { background: #238636; color: #fff; }
+  .sn-shoot-btn.sell { background: #da3633; color: #fff; }
+  .sn-shoot-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 
-  .sn-warning {
-    background: #2a1f00; border: 1px solid var(--yellow); border-radius: 8px;
-    padding: .6rem .75rem; font-size: .75rem; color: var(--yellow);
-  }
-
-  /* ── MAIN / TABS ── */
-  .sn-main { display: flex; flex-direction: column; gap: 1.25rem; }
-  .sn-tabs { display: flex; gap: .25rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: .25rem; width: fit-content; }
+  .sn-tabs { display: flex; gap: .25rem; background: #161b22; border: 1px solid #30363d; border-radius: 0; padding: .25rem; width: fit-content; }
   .sn-tab {
-    padding: .5rem 1.25rem; border-radius: 8px; border: none; background: transparent;
-    color: var(--text2); cursor: pointer; font-family: var(--mono); font-size: .75rem;
-    font-weight: 700; letter-spacing: .08em; transition: all .15s; display: flex; align-items: center; gap: .4rem;
+    padding: .5rem 1.25rem; border-radius: 0; border: none; background: transparent;
+    color: #8b949e; cursor: pointer; font-family: var(--mono); font-size: .75rem;
+    font-weight: 700; display: flex; align-items: center; gap: .4rem;
   }
-  .sn-tab.active { background: var(--bg3); color: var(--text); }
-  .sn-count { background: var(--border); border-radius: 12px; padding: .1rem .4rem; font-size: .65rem; }
+  .sn-tab.active { background: #21262d; color: #e6edf3; }
 
-  /* ── ORDERS ── */
-  .sn-orders { display: flex; flex-direction: column; gap: .75rem; }
-  .sn-empty  { text-align: center; padding: 4rem 2rem; color: var(--text2); }
-  .sn-empty-icon { font-size: 2.5rem; display: block; margin-bottom: .75rem; opacity: .3; }
-  .sn-empty p { font-size: .875rem; line-height: 1.6; margin: 0; }
-
-  /* ── ORDER CARD ── */
   .sn-order-card {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    padding: 1.25rem; border-left: 3px solid var(--pair-color);
-    transition: border-color .2s;
+    background: #161b22; border: 1px solid #30363d; border-radius: 0;
+    padding: 1.25rem; margin-bottom: 0.75rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   }
-  .sn-order-card.long  { --accent: var(--green); }
-  .sn-order-card.short { --accent: var(--red);   }
-
-  .sn-order-head { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
-  .sn-order-id-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-  .sn-order-pair { font-size: 1rem; font-weight: 700; }
-  .sn-direction {
-    font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: .2rem .5rem;
-    border-radius: 4px; letter-spacing: .05em;
-  }
-  .sn-direction.buy  { background: #0d3326; color: var(--green); }
-  .sn-direction.sell { background: #2d1212; color: var(--red);   }
-  .sn-status-dot {
-    margin-left: auto; font-size: .65rem; font-weight: 700; letter-spacing: .1em;
-    font-family: var(--mono); padding: .15rem .5rem; border-radius: 4px;
-  }
-  .sn-status-active    { background: #0d3326; color: var(--green); }
-  .sn-status-pending   { background: #1a1230; color: var(--purple); }
-  .sn-status-closed    { background: #1a1a1a; color: var(--text2); }
-  .sn-status-cancelled { background: #1a1a1a; color: var(--text2); opacity: .6; }
-  .sn-current-price { font-size: .8rem; color: var(--text2); font-family: var(--mono); }
+  .sn-order-card.long  { border-left: 3px solid #3fb950; }
+  .sn-order-card.short { border-left: 3px solid #f85149; }
 
   .sn-order-levels {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem;
-    background: var(--bg3); border-radius: 8px; padding: .75rem; margin-bottom: .75rem;
+    background: #0d1117; border-radius: 0; padding: .75rem; margin-top: 1rem;
   }
-  .sn-level { display: flex; flex-direction: column; gap: .2rem; }
-  .sn-level span { font-size: .65rem; color: var(--text2); letter-spacing: .05em; text-transform: uppercase; }
-  .sn-level strong { font-family: var(--mono); font-size: .8rem; }
-  .sn-level-sl strong { color: var(--red); }
-  .sn-level-tp strong { color: var(--green); }
-  .sn-rr-text { color: var(--purple); }
+  .sn-level span { font-size: .65rem; color: #8b949e; text-transform: uppercase; }
+  .sn-level strong { font-family: var(--mono); font-size: .8rem; color: #e6edf3; }
 
-  .sn-progress-wrap { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
-  .sn-progress-bar  { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .sn-progress-fill { height: 100%; border-radius: 3px; transition: width .5s; }
-  .sn-progress-label { font-size: .7rem; color: var(--text2); font-family: var(--mono); white-space: nowrap; }
+  .sn-status-dot { font-family: var(--mono); font-size: .65rem; padding: .15rem .5rem; border-radius: 0; font-weight: 700; }
+  .sn-status-active { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+  .sn-status-pending { background: rgba(137, 87, 229, 0.15); color: #a371f7; }
 
-  .sn-floating { font-size: .8rem; margin-bottom: .5rem; display: flex; align-items: center; gap: .5rem; color: var(--text2); }
-  .sn-closed-pnl { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; }
-  .sn-exit-price { font-family: var(--mono); font-size: .75rem; color: var(--text2); }
-  .sn-notes {
-    font-size: .75rem; color: var(--text2); background: var(--bg3);
-    border-radius: 6px; padding: .5rem .75rem; margin-bottom: .5rem; line-height: 1.5;
-  }
-
-  .sn-order-foot {
-    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
-    border-top: 1px solid var(--border); padding-top: .75rem; margin-top: .25rem;
-  }
-  .sn-ts        { font-size: .7rem; color: var(--text2); font-family: var(--mono); }
-  .sn-risk-tag  { font-size: .7rem; color: var(--text2); margin-left: auto; font-family: var(--mono); }
-  .sn-close-btn {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text2); font-size: .75rem; padding: .3rem .75rem; cursor: pointer; transition: all .15s;
-  }
-  .sn-close-btn:hover { border-color: var(--red); color: var(--red); }
-
-  /* ── BADGES ── */
-  .sn-badge { font-family: var(--mono); font-size: .8rem; font-weight: 700; padding: .25rem .6rem; border-radius: 6px; }
-  .sn-badge--win     { background: #0d3326; color: var(--green); }
-  .sn-badge--loss    { background: #2d1212; color: var(--red);   }
-  .sn-badge--neutral { background: var(--bg3); color: var(--text2); }
-
-  /* ── STATS ── */
-  .sn-stats { display: flex; flex-direction: column; gap: 1.5rem; }
-  .sn-stats-header h3 { margin: 0 0 .25rem; font-size: 1rem; }
-  .sn-stats-header p  { margin: 0; font-size: .8rem; color: var(--text2); }
-  .sn-stats-empty { text-align: center; padding: 3rem; color: var(--text2); font-size: .875rem; }
-  .sn-stats-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;
-  }
   .sn-stat-card {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-    padding: 1rem; display: flex; flex-direction: column; gap: .35rem;
+    background: #161b22; border: 1px solid #30363d; border-radius: 0;
+    padding: 1rem;
   }
-  .sn-stat-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text2); }
-  .sn-stat-value { font-family: var(--mono); font-size: 1.25rem; font-weight: 700; color: var(--text); }
-
-  .sn-by-pair h4 { margin: 0 0 1rem; font-size: .875rem; color: var(--text2); letter-spacing: .05em; text-transform: uppercase; }
-  .sn-pair-stats { display: flex; flex-direction: column; gap: .75rem; }
-  .sn-pair-stat  { display: grid; grid-template-columns: 80px 1fr 120px; align-items: center; gap: .75rem; font-size: .8rem; }
-  .sn-pair-bar-wrap { background: var(--border); border-radius: 3px; height: 6px; overflow: hidden; }
-  .sn-pair-bar  { height: 100%; border-radius: 3px; transition: width .5s; min-width: 2px; }
+  .sn-stat-value { font-family: var(--mono); font-size: 1.25rem; font-weight: 700; }
 
   @media (max-width: 900px) {
     .sn-layout { grid-template-columns: 1fr; }
-    .sn-fire-panel { position: static; }
-    .sn-order-levels { grid-template-columns: repeat(2, 1fr); }
   }
 `;
