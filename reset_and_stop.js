@@ -17,9 +17,9 @@ async function resetAndStop() {
     try {
         console.log('🚀 Iniciando limpieza general del Batallón Boosis...');
 
-        // 1. Detener todos los pares activos
+        // 1. Detener la vigilancia de todos los pares
         await pool.query('UPDATE active_trading_pairs SET is_active = false');
-        console.log('✅ Todas las hormigas han sido retiradas del frente (is_active = false).');
+        console.log('✅ Vigilancia de red detenida (Modo Sentinel en reposo).');
 
         // 2. Limpiar historial de trades (Ruido de Scalping)
         await pool.query('TRUNCATE TABLE trades RESTART IDENTITY');
@@ -29,7 +29,11 @@ async function resetAndStop() {
         await pool.query('DELETE FROM active_position');
         console.log('✅ Posiciones activas liquidadas en base de datos.');
 
-        // 4. Resetear Balance a $200.00
+        // 4. Limpiar órdenes del Sniper
+        await pool.query('TRUNCATE TABLE sniper_orders');
+        console.log('✅ Órdenes del Sniper Terminal eliminadas.');
+
+        // 5. Resetear Balance a $200.00
         const initialBalance = { usdt: 200.00, asset: 0 };
 
         // Update bot_state
@@ -51,6 +55,14 @@ async function resetAndStop() {
 
         console.log('✅ Balance de simulación reseteado a $200.00 USDT.');
         console.log('✅ Sistema forzado a modo PAPER.');
+
+        // 6. Limpiar Logs físicos
+        const fs = require('fs');
+        const logPath = './logs/system.log';
+        if (fs.existsSync(logPath)) {
+            fs.writeFileSync(logPath, '');
+            console.log('✅ Logs del sistema vaciados.');
+        }
 
         console.log('\n✨ OPERACIÓN DE LIMPIEZA COMPLETADA CON ÉXITO.');
         console.log('Soldados en barracones. Esperando nuevo plan estratégico.');

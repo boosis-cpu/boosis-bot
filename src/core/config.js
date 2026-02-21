@@ -5,7 +5,7 @@ module.exports = {
     BINANCE: {
         REST_API_URL: 'https://api.binance.com/api/v3',
         WS_API_URL: 'wss://stream.binance.com:9443/ws',
-        DEFAULT_SYMBOL: 'BTCUSDT',
+        DEFAULT_SYMBOL: 'FETUSDT',
         DEFAULT_INTERVAL: '1h',
         FEES: {
             MAKER: 0.001, // 0.1%

@@ -19,9 +19,9 @@ const axios = require('axios');
 
 // Configuration
 const CONFIG = {
-    symbol: 'BTCUSDT',
+    symbol: 'FETUSDT',
     interval: '1m',
-    wsUrl: `wss://stream.binance.com:9443/ws/btcusdt@kline_1m`,
+    wsUrl: `wss://stream.binance.com:9443/ws/fetusdt@kline_1m`,
     apiUrl: 'https://api.binance.com/api/v3',
     port: 3000
 };
@@ -1117,14 +1117,14 @@ class LiveTrader {
                 this.handleKlineMessage(klineData.k, symbol);
             });
 
-            // 5. Persist Activation
+            const effectiveStrategy = strategyName || 'BoosisTrend';
             await db.pool.query(`
                 INSERT INTO active_trading_pairs (symbol, strategy_name, is_active)
                 VALUES ($1, $2, true)
                 ON CONFLICT (symbol) DO UPDATE SET is_active = true, strategy_name = $2
-            `, [symbol, effectiveStrategyName]);
+            `, [symbol, effectiveStrategy]);
 
-            logger.info(`[LiveTrader] ✅ Pair Activated: ${symbol} (${effectiveStrategyName})`);
+            logger.info(`[LiveTrader] ✅ Pair Activated: ${symbol} (${effectiveStrategy})`);
 
         } catch (error) {
             logger.error(`Failed to add pair ${symbol}: ${error.message}`);
@@ -1133,10 +1133,32 @@ class LiveTrader {
 
 
     startHeartbeat() {
+        this.lastPulseHour = -1;
         setInterval(() => {
-            const status = this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO';
-            notifications.send(`💓 **HEARTBEAT**: ${status}\nModo: ${this.liveTrading ? 'LIVE' : 'PAPER'}`, 'info');
-        }, 12 * 60 * 60 * 1000);
+            const now = new Date();
+            const hour = now.getHours();
+
+            // Horarios solicitados: Cada 3 hrs desde las 6 am, excluyendo 00:00 y 03:00
+            const pulseHours = [6, 9, 12, 15, 18, 21];
+
+            if (pulseHours.includes(hour) && hour !== this.lastPulseHour) {
+                const status = this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO';
+                const mode = this.liveTrading ? '💰 LIVE' : '📝 PAPER';
+                const totalEquity = this.calculateTotalEquity ? this.calculateTotalEquity() : 0;
+
+                notifications.send(
+                    `💓 **HEARTBEAT TÁCTICO**\n\n` +
+                    `Estado: ${status}\n` +
+                    `Modo: ${mode}\n` +
+                    `Balance Total: $${totalEquity.toFixed(2)} USD\n` +
+                    `Próximo pulso: En 3 horas`,
+                    'info'
+                );
+
+                logger.info(`[Heartbeat] Pulso programado enviado (${hour}:00)`);
+                this.lastPulseHour = hour;
+            }
+        }, 60 * 1000); // Verificación cada minuto
     }
 
     async reconcileOrders() {
@@ -1255,9 +1277,12 @@ class LiveTrader {
                     await this.addTradingPair(row.symbol, row.strategy_name);
                 }
             } else {
-                // Default: BTCUSDT - DESACTIVADO POR PETICIÓN DE TONY PARA CONTROL TOTAL
-                logger.info('[Startup] No active pairs found. Keeping battalion on standby.');
-                // await this.addTradingPair(CONFIG.symbol, 'BoosisTrend');
+                // Default: CARGA AUTOMÁTICA DE IA INFRA (FET, RENDER, TAO, WLD, NEAR)
+                const aiInfraPairs = ['FETUSDT', 'RENDERUSDT', 'TAOUSDT', 'WLDUSDT', 'NEARUSDT'];
+                logger.info(`[Startup] No active pairs. Auto-loading AI Infra Battalion: ${aiInfraPairs.join(', ')}`);
+                for (const symbol of aiInfraPairs) {
+                    await this.addTradingPair(symbol, 'BoosisTrend');
+                }
             }
 
             // Connect WS
@@ -1367,12 +1392,7 @@ class LiveTrader {
         }
     }
 
-    startHeartbeat() {
-        setInterval(() => {
-            const status = this.emergencyStopped ? '🛑 DETENIDO' : '✅ OPERANDO';
-            notifications.send(`💓 **HEARTBEAT**: ${status}\nModo: ${this.liveTrading ? 'LIVE' : 'PAPER'}`, 'info');
-        }, 12 * 60 * 60 * 1000);
-    }
+
 
     async loadPaperBalance() {
         const res = await db.pool.query('SELECT value FROM trading_settings WHERE key = $1', ['paper_balance']);
