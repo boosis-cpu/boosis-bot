@@ -23,7 +23,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     const volumeOnly = mode === 'volume';
     const macdOnly = mode === 'macd';
 
-    const [symbol, setSymbol] = useState(initialSymbol || syncedSymbol || localStorage.getItem('vision_symbol') || 'BTCUSDT');
+    const [symbol, setSymbol] = useState(initialSymbol || syncedSymbol || localStorage.getItem('vision_symbol') || 'FETUSDT');
     const [timeframe, setTimeframe] = useState(syncedTimeframe || localStorage.getItem('vision_tf') || '1h');
 
     // Persistent MAVOL periods
@@ -69,7 +69,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     const lastDataRef = useRef([]);
 
     const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
-    const availablePairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'FETUSDT', 'RENDERUSDT', 'TAOUSDT', 'WLDUSDT', 'NEARUSDT'];
+    const availablePairs = ['FETUSDT', 'RENDERUSDT', 'TAOUSDT', 'WLDUSDT', 'NEARUSDT'];
 
     // Close settings when clicking outside
     useEffect(() => {
@@ -797,7 +797,7 @@ const PatternVision = ({ token }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [detections, setDetections] = useState({});
-    const [focusSymbol, setFocusSymbol] = useState(() => localStorage.getItem('vision_symbol') || 'BTCUSDT');
+    const [focusSymbol, setFocusSymbol] = useState(() => localStorage.getItem('vision_symbol') || 'FETUSDT');
     const [focusTimeframe, setFocusTimeframe] = useState(() => localStorage.getItem('vision_tf') || '1h');
 
     // Persistir cambios
@@ -822,7 +822,7 @@ const PatternVision = ({ token }) => {
                     {/* TOP LEFT (1): Main Focus Chart */}
                     <VisionChart
                         mode="price"
-                        initialSymbol="BTCUSDT"
+                        initialSymbol="FETUSDT"
                         token={token}
                         onPattern={handleNewPattern}
                         onSymbolChange={(s) => setFocusSymbol(s)}

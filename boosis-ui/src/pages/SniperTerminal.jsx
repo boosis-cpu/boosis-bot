@@ -15,10 +15,6 @@ const API = (token) => ({
 });
 
 const PAIRS = [
-    { symbol: 'BTCUSDT', label: 'BTC', color: '#F7931A', icon: '₿' },
-    { symbol: 'ETHUSDT', label: 'ETH', color: '#627EEA', icon: 'Ξ' },
-    { symbol: 'SOLUSDT', label: 'SOL', color: '#9945FF', icon: '◎' },
-    { symbol: 'XRPUSDT', label: 'XRP', color: '#00AAE4', icon: '✕' },
     { symbol: 'FETUSDT', label: 'FET', color: '#0050FF', icon: 'F' },
     { symbol: 'RENDERUSDT', label: 'REND', color: '#FF3333', icon: 'R' },
     { symbol: 'TAOUSDT', label: 'TAO', color: '#BB86FC', icon: 'T' },
@@ -253,20 +249,7 @@ export default function SniperTerminal({ token }) {
 
                     {/* ── LEFT: FIRE CONTROL ── */}
                     <aside className="sn-fire-panel">
-                        <div className="sn-fire-header">
-                            <button
-                                className={`sn-mode-toggle ${mode.toLowerCase()}`}
-                                onClick={toggleTradingMode}
-                                title={mode === 'LIVE' ? 'Cambiar a Simulación' : 'Cambiar a Real'}
-                            >
-                                <div className="sn-mode-dot" />
-                                <span>{mode}</span>
-                            </button>
-                            <div className="sn-header-balance">
-                                <span className="sn-bal-label">USDT BINANCE</span>
-                                <span className="sn-bal-value">${fmt(balance.realUsdt)}</span>
-                            </div>
-                        </div>
+                        {/* Pair selector - Compacted */}
 
                         {/* Pair selector */}
                         <div className="sn-pair-selector">
@@ -589,7 +572,7 @@ const SNIPER_CSS = `
   .sn-root-container {
     display: flex;
     flex-direction: row;
-    height: 100vh;
+    height: 100%;
     background: #0d1117;
     overflow: hidden;
     --sans: 'DM Sans', sans-serif;
@@ -650,15 +633,15 @@ const SNIPER_CSS = `
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 1.5rem;
+    padding: 1rem;
     overflow-y: auto;
     background: #0d1117;
   }
 
   .sn-layout {
     display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 300px 1fr;
+    gap: 1rem;
     width: 100%;
     margin: 0;
   }
@@ -693,19 +676,11 @@ const SNIPER_CSS = `
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 0;
-    padding: 1.5rem;
+    padding: 0.75rem;
     height: fit-content;
     position: sticky;
     top: 0;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  }
-  .sn-fire-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
-  .sn-header-balance {
-    display: flex; flex-direction: column; align-items: flex-end;
-    border-left: 1px solid var(--border); padding-left: 1rem;
   }
   .sn-bal-label { font-size: 0.6rem; color: var(--text2); font-weight: 800; letter-spacing: 0.1em; }
   .sn-bal-value { font-family: var(--mono); font-size: 1.25rem; color: #58a6ff; font-weight: 800; }
@@ -731,12 +706,12 @@ const SNIPER_CSS = `
 
   /* ── PAIR SELECTOR ── */
   .sn-pair-selector {
-    display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
-    margin-bottom: 1.25rem;
+    display: grid; grid-template-columns: 1fr 1fr; gap: .35rem;
+    margin-bottom: 1rem;
   }
   .sn-pair-btn {
     background: #21262d; border: 1px solid var(--border); border-radius: 0;
-    padding: .6rem .75rem; cursor: pointer; text-align: left;
+    padding: .4rem .6rem; cursor: pointer; text-align: left;
     transition: all .15s; display: flex; flex-direction: column; gap: 2px;
     color: var(--text);
   }
@@ -744,10 +719,10 @@ const SNIPER_CSS = `
   .sn-pair-btn.active { border-color: var(--pair-color); background: rgba(255,255,255,0.05); }
   .sn-pair-icon  { font-size: 1rem; color: var(--pair-color); }
   .sn-pair-label { font-size: .75rem; font-weight: 600; }
-  .sn-pair-price { font-family: var(--mono); font-size: .65rem; color: var(--text2); }
+  .sn-pair-price { font-family: var(--mono); font-size: .6rem; color: var(--text2); }
 
   /* ── ACTION ── */
-  .sn-action-selector { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1.25rem; }
+  .sn-action-selector { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; margin-bottom: 1rem; }
   .sn-action-btn {
     padding: .6rem; border: 1px solid var(--border); border-radius: 0;
     background: #21262d; cursor: pointer; font-family: var(--mono);
@@ -758,7 +733,7 @@ const SNIPER_CSS = `
   .sn-action-sell.active { background: #da3633; border-color: #f85149; color: #fff; }
 
   /* ── FORM ── */
-  .sn-form { display: flex; flex-direction: column; gap: 1rem; }
+  .sn-form { display: flex; flex-direction: column; gap: 0.75rem; }
   .sn-field { display: flex; flex-direction: column; gap: .35rem; }
   .sn-field label {
     font-size: .7rem; font-weight: 600; letter-spacing: .1em;
@@ -767,7 +742,7 @@ const SNIPER_CSS = `
   .sn-field-hint { font-weight: 400; letter-spacing: 0; text-transform: none; color: #484f58; }
   .sn-form input, .sn-form textarea {
     background: #0d1117; border: 1px solid var(--border); border-radius: 0;
-    color: var(--text); padding: .6rem .75rem;
+    color: var(--text); padding: .4rem .5rem;
     font-family: var(--mono); font-size: .8rem;
     transition: border .15s; width: 100%; box-sizing: border-box;
   }
@@ -796,7 +771,7 @@ const SNIPER_CSS = `
 
   .sn-preview {
     background: #161b22; border: 1px solid var(--border);
-    border-radius: 0; padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
+    border-radius: 0; padding: 0.75rem; display: flex; flex-direction: column; gap: .35rem;
   }
   .sn-preview-row { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; }
   .sn-preview-val { font-family: var(--mono); font-size: .8rem; color: var(--text); }
@@ -808,9 +783,9 @@ const SNIPER_CSS = `
   .sn-rr-fill  { height: 100%; border-radius: 0; }
 
   .sn-shoot-btn {
-    padding: .9rem; border-radius: 0; border: none; cursor: pointer;
-    font-family: var(--mono); font-size: .85rem; font-weight: 700; letter-spacing: .1em;
-    transition: all .2s; width: 100%; margin-top: .25rem;
+    padding: .75rem; border-radius: 0; border: none; cursor: pointer;
+    font-family: var(--mono); font-size: .8rem; font-weight: 700; letter-spacing: .1em;
+    transition: all .2s; width: 100%; margin-top: .15rem;
   }
   .sn-shoot-btn.buy  { background: #238636; color: #fff; }
   .sn-shoot-btn.sell { background: #da3633; color: #fff; }

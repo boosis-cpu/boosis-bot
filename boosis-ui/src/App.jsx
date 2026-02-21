@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBotData } from './hooks/useBotData';
-import { setTradingMode, emergencyStop, getStatus, setAuthToken } from './services/api';
+import { setTradingMode, emergencyStop, setAuthToken } from './services/api';
 import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
-import NavTabs from './components/NavTabs';
 import VerticalNav from './components/VerticalNav';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -13,49 +12,42 @@ import SniperTerminal from './pages/SniperTerminal';
 import PatternVision from './pages/PatternVision';
 import './App.css';
 
-const AppContent = ({ token, data, candles, trades, health, metrics, handleToggleTradingMode, handleEmergencyStop, handleLogout, refetch, modal, setModal }) => {
-  const location = useLocation();
-  const isFullscreen = location.pathname === '/vision' || location.pathname === '/sniper';
-
+const AppContent = ({ token, data, candles, trades, health, metrics, handleToggleTradingMode, handleEmergencyStop, handleLogout, modal, setModal }) => {
   return (
-    <div className={`dashboard-container ${data.emergencyStopped ? 'system-stopped' : ''} ${isFullscreen ? 'fullscreen-view' : ''}`}>
+    <div className={`dashboard-container ${data.emergencyStopped ? 'system-stopped' : ''}`}>
       {data.emergencyStopped && (
         <div className="emergency-banner">
           <span>🛑 SISTEMA EN PARADA DE EMERGENCIA - TRADING DETENIDO</span>
           <button onClick={handleToggleTradingMode}>Reanudar Operación</button>
         </div>
       )}
-      {!isFullscreen && (
-        <Header
-          data={data}
-          toggleTradingMode={handleToggleTradingMode}
-          emergencyStop={handleEmergencyStop}
-          logout={handleLogout}
-        />
-      )}
+
+      <Header
+        data={data}
+        toggleTradingMode={handleToggleTradingMode}
+        emergencyStop={handleEmergencyStop}
+        logout={handleLogout}
+      />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <VerticalNav />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {!isFullscreen && <NavTabs />}
-          <main style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-            <Routes>
-              <Route path="/" element={
-                <DashboardPage
-                  data={data}
-                  candles={candles}
-                  trades={trades}
-                  health={health}
-                  metrics={metrics}
-                  token={token}
-                />
-              } />
-              <Route path="/sniper" element={<SniperTerminal token={token} />} />
-              <Route path="/vision" element={<PatternVision token={token} />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </main>
-        </div>
+        <main style={{ flex: 1, overflowY: 'auto', position: 'relative', background: 'var(--bg-color)' }}>
+          <Routes>
+            <Route path="/" element={
+              <DashboardPage
+                data={data}
+                candles={candles}
+                trades={trades}
+                health={health}
+                metrics={metrics}
+                token={token}
+              />
+            } />
+            <Route path="/sniper" element={<SniperTerminal token={token} />} />
+            <Route path="/vision" element={<PatternVision token={token} />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </main>
       </div>
 
       <ConfirmationModal
@@ -69,7 +61,7 @@ const AppContent = ({ token, data, candles, trades, health, metrics, handleToggl
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('boosis_token'));
-  const { data, candles, trades, health, metrics, loading, error, refetch } = useBotData(token);
+  const { data, candles, trades, health, metrics, refetch } = useBotData(token);
   const [modal, setModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' });
 
   useEffect(() => {
@@ -147,7 +139,6 @@ function App() {
           handleToggleTradingMode={handleToggleTradingMode}
           handleEmergencyStop={handleEmergencyStop}
           handleLogout={handleLogout}
-          refetch={refetch}
           modal={modal}
           setModal={setModal}
         />

@@ -64,7 +64,7 @@ const Sidebar = ({ data, health }) => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Asset Hold</span>
-                    <span style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'JetBrains Mono' }}>{data.balance?.asset?.toFixed(6)} BTC</span>
+                    <span style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'JetBrains Mono' }}>{data.balance?.asset?.toFixed(6)} FET</span>
                 </div>
             </div>
 
