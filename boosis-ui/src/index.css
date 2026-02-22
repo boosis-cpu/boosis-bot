@@ -1,17 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Core Palette - Deep Space */
-  --bg-color: #020617;
-  --bg-card: rgba(15, 23, 42, 0.6);
-  --bg-panel: rgba(2, 6, 23, 0.8);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(0, 229, 255, 0.3);
+  /* Core Palette - Stealth Black */
+  --bg-color: #050505;
+  --bg-card: rgba(20, 20, 20, 0.6);
+  --bg-panel: rgba(10, 10, 10, 0.9);
+  --border-color: rgba(255, 255, 255, 0.05);
+  --border-active: rgba(0, 229, 255, 0.4);
 
   /* Text */
-  --text-main: #f8fafc;
+  --text-main: #ffffff;
   --text-dim: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #475569;
 
   /* Accent Colors */
   --accent-primary: #00e5ff;
@@ -20,15 +20,17 @@
   /* Tactical Amber */
   --accent-render: #ef4444;
   /* Render Red */
-  --success: #10b981;
+  --success: #22c55e;
   --danger: #ef4444;
   --warning: #f59e0b;
 
   /* Effects */
-  --glass: blur(12px) saturate(180%);
+  --glass: blur(16px) saturate(180%);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --radius-sq: 0px;
+  /* Forzado a cuadrado */
 }
 
 * {

@@ -101,46 +101,46 @@ export default function CandlestickChart({ symbol = 'BTCUSDT', token, height = 4
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: '#0b0e11' }, // Binance Dark
-        textColor: '#848e9c',
+        background: { color: 'transparent' },
+        textColor: '#94a3b8',
         fontSize: 11,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'JetBrains Mono, monospace',
       },
       grid: {
-        vertLines: { color: '#1e2329' },
-        horzLines: { color: '#1e2329' },
+        vertLines: { color: 'rgba(255,255,255,0.03)' },
+        horzLines: { color: 'rgba(255,255,255,0.03)' },
       },
       width: containerRef.current.clientWidth || 300,
       height: mini ? 150 : height,
       timeScale: {
         timeVisible: true,
-        borderColor: '#2b3139',
+        borderColor: 'rgba(255,255,255,0.08)',
         barSpacing: mini ? 4 : 10,
       },
       rightPriceScale: {
-        borderColor: '#2b3139',
+        borderColor: 'rgba(255,255,255,0.08)',
         visible: !mini,
         autoScale: true,
         scaleMargins: {
           top: 0.1,
-          bottom: 0.25, // Deja espacio abajo para el volumen
+          bottom: 0.25,
         },
       },
       handleScroll: !mini,
       handleScale: !mini,
       crosshair: {
-        mode: 0, // Magnet mode
+        mode: 0,
         vertLine: {
-          color: '#707a8a',
+          color: '#00e5ff',
           width: 1,
           style: 1,
-          labelBackgroundColor: '#4b525d',
+          labelBackgroundColor: '#00e5ff',
         },
         horzLine: {
-          color: '#707a8a',
+          color: '#00e5ff',
           width: 1,
           style: 1,
-          labelBackgroundColor: '#4b525d',
+          labelBackgroundColor: '#00e5ff',
         },
       },
     });

@@ -213,35 +213,38 @@ const GlobalMarketScanner = ({ token }) => {
                     return (
                         <div key={pair.symbol} style={{
                             position: 'relative', overflow: 'hidden',
-                            background: '#0d1117',
-                            border: hasHolding ? `1px solid #f39c1266` : `1px solid ${style.color}44`,
-                            boxShadow: hasHolding ? '0 0 20px rgba(243,156,18,0.15)' : style.glow,
-                            borderRadius: '8px', padding: '24px'
+                            background: 'var(--bg-card)',
+                            backdropFilter: 'var(--glass)',
+                            border: hasHolding ? `1px solid var(--accent-secondary)` : `1px solid var(--border-color)`,
+                            boxShadow: hasHolding ? '0 0 30px rgba(245,158,11,0.1)' : 'var(--card-shadow)',
+                            borderRadius: '0', padding: '24px',
+                            transition: 'all 0.3s ease'
                         }}>
                             {/* Accent bar */}
                             <div style={{
                                 position: 'absolute', top: 0, left: 0,
                                 width: '100%', height: '4px',
-                                background: hasHolding ? '#f39c12' : style.color
+                                background: hasHolding ? 'var(--accent-secondary)' : style.color,
+                                opacity: 0.8
                             }} />
 
                             {/* Symbol + Price */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                                 <div>
-                                    <div style={{ fontSize: '10px', color: '#8b949e', fontWeight: 800, marginBottom: '4px' }}>CORE_ASSET</div>
-                                    <div style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.05em', color: '#e6edf3' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.1em' }}>CORE_ASSET</div>
+                                    <div style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.05em', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
                                         {pair.symbol.replace('USDT', '')}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '10px', color: '#8b949e', fontWeight: 800, marginBottom: '4px' }}>PRICE_USD</div>
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 700, fontFamily: 'monospace', color: '#e6edf3' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.1em' }}>PRICE_USD</div>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--text-main)' }}>
                                         ${price.toFixed(4)}
                                     </div>
-                                    <div style={{ fontSize: '12px', color: isPositive ? '#23d18b' : '#ff4747', fontWeight: 800 }}>
+                                    <div style={{ fontSize: '12px', color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
                                         {isPositive ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
                                     </div>
-                                    <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '2px' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
                                         Vol ${(vol / 1e6).toFixed(0)}M
                                     </div>
                                 </div>
@@ -250,36 +253,36 @@ const GlobalMarketScanner = ({ token }) => {
                             {/* HOLDING BADGE — solo si hay posición real */}
                             {hasHolding && (
                                 <div style={{
-                                    background: 'rgba(243,156,18,0.08)',
-                                    border: '1px solid #f39c1244',
-                                    borderRadius: '6px',
+                                    background: 'rgba(245, 158, 11, 0.05)',
+                                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                                    borderRadius: '0',
                                     padding: '12px',
                                     marginBottom: '14px',
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 900, color: '#f39c12' }}>
+                                        <span style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent-secondary)' }}>
                                             🏦 HOLDING EN BINANCE
                                         </span>
-                                        <span style={{ fontSize: '10px', color: '#8b949e' }}>
+                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                                             {holding.locked > 0 ? '🔒 Con órdenes activas' : '✅ Libre'}
                                         </span>
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                                         <div>
-                                            <div style={{ fontSize: '9px', color: '#8b949e', marginBottom: '2px' }}>CANTIDAD</div>
-                                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#e6edf3' }}>
+                                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginBottom: '2px' }}>CANTIDAD</div>
+                                            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'JetBrains Mono' }}>
                                                 {holding.total.toFixed(2)}
                                             </div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '9px', color: '#8b949e', marginBottom: '2px' }}>VALOR</div>
-                                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#e6edf3' }}>
+                                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginBottom: '2px' }}>VALOR</div>
+                                            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'JetBrains Mono' }}>
                                                 ${(price * holding.total).toFixed(2)}
                                             </div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '9px', color: '#8b949e', marginBottom: '2px' }}>PnL EST.</div>
-                                            <div style={{ fontSize: '11px', fontWeight: 800, color: pnlPositive ? '#23d18b' : '#ff4747' }}>
+                                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginBottom: '2px' }}>PnL EST.</div>
+                                            <div style={{ fontSize: '11px', fontWeight: 800, color: pnlPositive ? 'var(--success)' : 'var(--danger)', fontFamily: 'JetBrains Mono' }}>
                                                 {pnlPct !== null ? `${pnlPositive ? '+' : ''}${pnlPct.toFixed(2)}%` : '—'}
                                             </div>
                                         </div>
@@ -288,25 +291,25 @@ const GlobalMarketScanner = ({ token }) => {
                             )}
 
                             {/* Semáforo */}
-                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '4px', marginBottom: '14px', border: `1px solid ${style.color}22` }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px', marginBottom: '14px', border: `1px solid var(--border-color)` }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: style.color, boxShadow: `0 0 6px ${style.color}` }} />
-                                    <span style={{ fontSize: '10px', fontWeight: 900, color: style.color }}>{style.label}</span>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: style.color, boxShadow: `0 0 10px ${style.color}` }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: style.color, letterSpacing: '0.05em' }}>{style.label}</span>
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#8b949e', lineHeight: 1.5 }}>{reasoning}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.5, fontFamily: 'Outfit' }}>{reasoning}</div>
                             </div>
 
                             {/* HMM + VOL */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-                                <div style={{ border: '1px solid #30363d', padding: '8px', borderRadius: '4px' }}>
-                                    <div style={{ fontSize: '9px', color: '#8b949e', marginBottom: '4px' }}>HMM_REGIME</div>
-                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#58a6ff' }}>
+                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.1)' }}>
+                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>HMM_REGIME</div>
+                                    <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-primary)', fontFamily: 'JetBrains Mono' }}>
                                         {pair.marketRegime?.name || 'INICIALIZANDO'}
                                     </div>
                                 </div>
-                                <div style={{ border: '1px solid #30363d', padding: '8px', borderRadius: '4px' }}>
-                                    <div style={{ fontSize: '9px', color: '#8b949e', marginBottom: '4px' }}>VOL_24H</div>
-                                    <div style={{ fontSize: '11px', fontWeight: 800, color: vol > (VOL_HIGH[pair.symbol] || 1e8) ? '#00ff88' : '#8b949e' }}>
+                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.1)' }}>
+                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>VOL_24H</div>
+                                    <div style={{ fontSize: '11px', fontWeight: 800, color: vol > (VOL_HIGH[pair.symbol] || 1e8) ? 'var(--success)' : 'var(--text-dim)', fontFamily: 'JetBrains Mono' }}>
                                         ${(vol / 1e6).toFixed(0)}M
                                     </div>
                                 </div>
@@ -314,17 +317,19 @@ const GlobalMarketScanner = ({ token }) => {
 
                             {/* Noticias */}
                             {news.length > 0 && (
-                                <div style={{ marginBottom: '14px' }}>
-                                    <div style={{ fontSize: '9px', color: '#8b949e', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                        📰 Noticias Recientes
+                                <div style={{ marginBottom: '16px' }}>
+                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        📰 Neural Feed
                                     </div>
                                     {news.slice(0, 2).map((article, i) => (
                                         <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
-                                            style={{ display: 'block', textDecoration: 'none', marginBottom: '6px', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid #21262d' }}>
-                                            <div style={{ fontSize: '10px', color: '#e6edf3', lineHeight: 1.4, marginBottom: '4px' }}>
+                                            style={{ display: 'block', textDecoration: 'none', marginBottom: '6px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--border-color)', transition: 'background 0.2s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
+                                            <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1.4, marginBottom: '4px' }}>
                                                 {article.title?.length > 70 ? article.title.substring(0, 70) + '...' : article.title}
                                             </div>
-                                            <div style={{ fontSize: '9px', color: '#8b949e' }}>
+                                            <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600 }}>
                                                 {article.source} · {timeAgo(article.publishedAt)}
                                             </div>
                                         </a>
@@ -334,9 +339,29 @@ const GlobalMarketScanner = ({ token }) => {
 
                             {/* CTA */}
                             <button
-                                style={{ width: '100%', background: hasHolding ? '#f39c12' : style.color, color: '#000', border: 'none', padding: '10px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer', transition: 'transform 0.1s' }}
-                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                style={{
+                                    width: '100%',
+                                    background: hasHolding ? 'var(--accent-secondary)' : style.color,
+                                    color: '#000',
+                                    border: 'none',
+                                    padding: '12px',
+                                    borderRadius: '0',
+                                    fontWeight: 900,
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    boxShadow: `0 4px 15px ${hasHolding ? 'rgba(245,158,11,0.3)' : style.color + '44'}`
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.filter = 'brightness(1.1)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.filter = 'brightness(1)';
+                                }}
                             >
                                 {hasHolding ? `⚡ GESTIONAR ${pair.symbol.replace('USDT', '')}` : `EJECUTAR SNIPER ${pair.symbol.replace('USDT', '')}`}
                             </button>

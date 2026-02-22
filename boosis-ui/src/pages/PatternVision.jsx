@@ -180,10 +180,10 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     useEffect(() => {
         let isMounted = true;
         const chart = createChart(chartContainerRef.current, {
-            layout: { background: { color: '#0d1117' }, textColor: '#8b949e' },
-            grid: { vertLines: { color: '#161b22' }, horzLines: { color: '#161b22' } },
-            crosshair: { mode: 0 },
-            timeScale: { borderColor: '#30363d', timeVisible: true },
+            layout: { background: { color: 'transparent' }, textColor: '#94a3b8', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' },
+            grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
+            crosshair: { mode: 0, vertLine: { color: '#00e5ff', labelBackgroundColor: '#00e5ff' }, horzLine: { color: '#00e5ff', labelBackgroundColor: '#00e5ff' } },
+            timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true },
             width: chartContainerRef.current.clientWidth,
             height: chartContainerRef.current.clientHeight || 400
         });
@@ -590,7 +590,7 @@ const PatternVision = ({ token }) => {
     return (
         <div
             ref={containerRef}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#0d1117' }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-color)' }}
         >
             {/* Botón flotante de fullscreen — esquina superior derecha */}
             <button
