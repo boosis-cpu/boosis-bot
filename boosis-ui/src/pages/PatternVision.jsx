@@ -317,7 +317,10 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
         loadData(true);
         const refreshInterval = setInterval(() => loadData(false), 60000);
 
-        const wsUrl = `ws://${window.location.hostname}:3000/api/candles/stream?token=${token}&symbol=${symbol}&timeframe=${timeframe}`;
+        const isSecure = window.location.protocol === 'https:';
+        const wsHost = isSecure ? window.location.host : `${window.location.hostname}:3000`;
+        const wsProtocol = isSecure ? 'wss' : 'ws';
+        const wsUrl = `${wsProtocol}://${wsHost}/api/candles/stream?token=${token}&symbol=${symbol}&timeframe=${timeframe}`;
         const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
 
@@ -395,7 +398,7 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
 
             // SALIENDO de fullscreen — guardar rango y tomar control manual
             let savedRange = null;
-            try { savedRange = chartRef.current.timeScale().getVisibleLogicalRange(); } catch (e) {}
+            try { savedRange = chartRef.current.timeScale().getVisibleLogicalRange(); } catch (e) { }
             chartRef.current.applyOptions({ autoSize: false });
 
             const manualResize = () => {
