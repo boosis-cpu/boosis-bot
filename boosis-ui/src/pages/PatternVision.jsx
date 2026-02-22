@@ -384,28 +384,47 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             }
         };
 
-        // autoSize maneja el resize automáticamente.
-        // Al salir de fullscreen, forzar recálculo del timeScale para que las etiquetas reaparezcan.
+        // Al ENTRAR a fullscreen, autoSize se encarga solo.
+        // Al SALIR, el DOM tarda en estabilizar dimensiones. Desactivamos autoSize,
+        // hacemos resize manual en intervalos, y al final re-activamos autoSize.
+        const fsTimers = [];
         const onFullscreenChange = () => {
-            if (!chartRef.current) return;
-            // Guardar rango visible actual para restaurarlo después
+            if (!chartRef.current || !chartContainerRef.current) return;
+            // Si estamos ENTRANDO a fullscreen, autoSize lo maneja bien
+            if (document.fullscreenElement) return;
+
+            // SALIENDO de fullscreen — guardar rango y tomar control manual
             let savedRange = null;
             try { savedRange = chartRef.current.timeScale().getVisibleLogicalRange(); } catch (e) {}
-            // Toggle autoSize para forzar re-attach del ResizeObserver interno
             chartRef.current.applyOptions({ autoSize: false });
-            requestAnimationFrame(() => {
-                if (chartRef.current) {
-                    chartRef.current.applyOptions({ autoSize: true });
-                    if (savedRange) {
-                        chartRef.current.timeScale().setVisibleLogicalRange(savedRange);
-                    }
+
+            const manualResize = () => {
+                if (!chartRef.current || !chartContainerRef.current) return;
+                const w = chartContainerRef.current.clientWidth;
+                const h = chartContainerRef.current.clientHeight;
+                if (w > 0 && h > 0) {
+                    chartRef.current.resize(w, h);
                 }
-            });
+            };
+
+            // Resize manual escalonado mientras el DOM se asienta
+            [50, 200, 500].forEach(d => fsTimers.push(setTimeout(manualResize, d)));
+
+            // Después de que el DOM se estabiliza, devolver control a autoSize
+            fsTimers.push(setTimeout(() => {
+                if (!chartRef.current || !chartContainerRef.current) return;
+                manualResize();
+                chartRef.current.applyOptions({ autoSize: true });
+                if (savedRange) {
+                    chartRef.current.timeScale().setVisibleLogicalRange(savedRange);
+                }
+            }, 900));
         };
         document.addEventListener('fullscreenchange', onFullscreenChange);
 
         return () => {
             isMounted = false;
+            fsTimers.forEach(clearTimeout);
             document.removeEventListener('fullscreenchange', onFullscreenChange);
             clearInterval(refreshInterval);
             if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
