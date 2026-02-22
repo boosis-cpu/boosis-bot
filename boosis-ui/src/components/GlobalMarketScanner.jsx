@@ -219,6 +219,9 @@ const GlobalMarketScanner = ({ token }) => {
                             outlineOffset: '-1px',
                             boxShadow: hasHolding ? '0 0 30px rgba(245,158,11,0.1)' : 'var(--card-shadow)',
                             borderRadius: '0', padding: '24px',
+                            height: '380px',
+                            display: 'flex',
+                            flexDirection: 'column',
                             transition: 'all 0.3s ease'
                         }}>
                             {/* Accent bar */}
@@ -342,6 +345,7 @@ const GlobalMarketScanner = ({ token }) => {
                             <button
                                 style={{
                                     width: '100%',
+                                    marginTop: 'auto',
                                     background: hasHolding ? 'var(--accent-secondary)' : style.color,
                                     color: '#000',
                                     border: 'none',

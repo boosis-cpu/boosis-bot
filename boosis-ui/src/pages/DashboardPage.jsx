@@ -1,36 +1,24 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import Sidebar from '../components/Sidebar';
 import GlobalMarketScanner from '../components/GlobalMarketScanner';
-import ActivityPanel from '../components/ActivityPanel';
 import { useLogs } from '../hooks/useLogs';
 import '../components/Charts/Charts.css';
 
-const DashboardPage = ({ data, trades, health, metrics, token }) => {
-    const [activeTab, setActiveTab] = useState('logs');
-    const { logs, status: logsStatus, lastAttempt } = useLogs(token);
-
-    const realUsdt = parseFloat(data.realBalance?.find(b => b.asset === 'USDT')?.free || 0).toFixed(2);
-    const totalBalance = data.totalBalanceUSD || data.totalEquity || 0;
+const DashboardPage = ({ data, health, token }) => {
+    const { logs, status: logsStatus } = useLogs(token);
 
     return (
         <div className="grid-layout">
-            {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
-            <Sidebar data={data} health={health} />
+            {/* SIDEBAR: BINANCE + INVENTORY + SYSTEM VITALS + SYSTEM_KERNEL */}
+            <Sidebar data={data} health={health} logs={logs} logsStatus={logsStatus} />
 
-            {/* MAIN QUANT TERMINAL AREA */}
+            {/* MAIN: GLOBAL MARKET SCANNER */}
             <div className="main-chart-area">
                 <GlobalMarketScanner token={token} />
             </div>
-
-            {/* ACTIVITY AREA */}
-            <ActivityPanel
-                logs={logs}
-                logsStatus={logsStatus}
-            />
         </div>
     );
 };
 
 export default DashboardPage;
-

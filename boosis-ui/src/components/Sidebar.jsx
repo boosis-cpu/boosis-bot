@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const Sidebar = ({ data, health }) => {
+const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
     return (
         <aside className="sidebar-area panel" style={{ border: 'none', background: 'transparent', padding: '0' }}>
             <div className="mb-6">
@@ -103,6 +103,44 @@ const Sidebar = ({ data, health }) => {
                 </div>
             </div>
 
+            {/* ── SYSTEM KERNEL ── */}
+            <div>
+                <h3 className="stat-label-tiny mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontWeight: 800 }}>
+                    <div style={{
+                        width: '6px', height: '6px', borderRadius: '50%',
+                        background: logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)',
+                        boxShadow: `0 0 8px ${logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)'}`
+                    }} />
+                    SYSTEM_KERNEL
+                </h3>
+                <div style={{
+                    fontFamily: 'JetBrains Mono', fontSize: '10px',
+                    background: 'rgba(0,0,0,0.3)', padding: '12px',
+                    border: '1px solid var(--border-color)',
+                    maxHeight: '220px', overflowY: 'auto',
+                    scrollbarWidth: 'thin'
+                }}>
+                    {logs.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Awaiting Kernel Stream...
+                        </div>
+                    ) : (
+                        logs.map((log, i) => (
+                            <div key={i} style={{
+                                display: 'flex', flexDirection: 'column', gap: '2px',
+                                padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                color: log.level === 'ERROR' ? 'var(--danger)' : log.level === 'WARN' ? 'var(--warning)' : log.level === 'SUCCESS' ? 'var(--success)' : 'var(--text-dim)',
+                            }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '9px', opacity: 0.6, whiteSpace: 'nowrap' }}>{log.timestamp}</span>
+                                    <span style={{ fontWeight: '800', fontSize: '9px', opacity: 0.9 }}>[{log.level}]</span>
+                                </div>
+                                <span style={{ fontSize: '10px', letterSpacing: '-0.01em', paddingLeft: '4px' }}>{log.message}</span>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
 
         </aside>
     );

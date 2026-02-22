@@ -52,7 +52,7 @@ class BinanceService {
         }
 
         const timestamp = Date.now();
-        const queryParams = { ...params, timestamp };
+        const queryParams = { ...params, timestamp, recvWindow: 60000 };
 
         // Construir query string
         const queryString = Object.keys(queryParams)
@@ -127,7 +127,8 @@ class BinanceService {
             side: side.toUpperCase(), // BUY o SELL
             type: 'MARKET',
             quantity: this.formatQuantity(quantity, symbol),
-            timestamp: timestamp
+            timestamp: timestamp,
+            recvWindow: 60000
         };
 
         const queryString = Object.keys(params)
