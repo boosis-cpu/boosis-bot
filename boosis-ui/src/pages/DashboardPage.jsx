@@ -25,12 +25,8 @@ const DashboardPage = ({ data, trades, health, metrics, token }) => {
 
             {/* ACTIVITY AREA */}
             <ActivityPanel
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                trades={trades}
                 logs={logs}
                 logsStatus={logsStatus}
-                logsLastAttempt={lastAttempt}
             />
         </div>
     );
