@@ -590,7 +590,7 @@ const PatternVision = ({ token }) => {
     return (
         <div
             ref={containerRef}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-color)' }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden', background: 'var(--bg-color)' }}
         >
             {/* Botón flotante de fullscreen — esquina superior derecha */}
             <button
@@ -619,7 +619,7 @@ const PatternVision = ({ token }) => {
                 {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
 
-            <main className="vision-main-content">
+            <main className="vision-main-content" style={{ flex: 1, minHeight: 0 }}>
                 <div className="vision-grid">
                     {/* PANEL 1: Price */}
                     <VisionChart

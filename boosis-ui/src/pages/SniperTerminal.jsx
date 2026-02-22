@@ -241,11 +241,11 @@ export default function SniperTerminal({ token }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <style>{SNIPER_CSS}</style>
 
-            <div className="sn-main-content">
+            <div className="sn-main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 {/* Flash message */}
                 {flash && <div className={`sn-flash sn-flash--${flash.type}`}>{flash.msg}</div>}
 
-                <div className="sn-layout">
+                <div className="sn-layout" style={{ flex: 1, height: '100%' }}>
 
                     {/* ── LEFT: FIRE CONTROL ── */}
                     <aside className="sn-fire-panel">
@@ -633,16 +633,20 @@ const SNIPER_CSS = `
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 1rem;
-    overflow-y: auto;
+    padding: 0;
+    overflow: hidden;
     background: transparent;
   }
 
   .sn-layout {
     display: grid;
     grid-template-columns: 320px 1fr;
-    gap: 1rem;
+    gap: 1px;
+    background: var(--border);
     width: 100%;
+    height: 100%;
+    flex: 1;
+    overflow: hidden;
     margin: 0;
   }
 
@@ -676,14 +680,33 @@ const SNIPER_CSS = `
   /* ── FIRE PANEL ── */
   .sn-fire-panel {
     background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.25rem;
-    height: fit-content;
-    position: sticky;
-    top: 0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 0;
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+
+  /* ── MAIN PANEL ── */
+  .sn-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+    background: transparent;
+  }
+
+  .sn-orders {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+    padding-right: 4px;
   }
   .sn-bal-label { font-size: 0.6rem; color: var(--text2); font-weight: 800; letter-spacing: 0.1em; }
   .sn-bal-value { font-family: var(--mono); font-size: 1.25rem; color: var(--accent); font-weight: 800; }
