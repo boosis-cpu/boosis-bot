@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getStatus } from '../services/api';
 
 const COINGECKO_IDS = {
@@ -84,6 +84,22 @@ const GlobalMarketScanner = ({ token }) => {
     const [holdings, setHoldings] = useState({}); // Balance real de Binance
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const scannerRef = useRef();
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            scannerRef.current?.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    useEffect(() => {
+        const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onFsChange);
+        return () => document.removeEventListener('fullscreenchange', onFsChange);
+    }, []);
 
     const fetchCoinGecko = async () => {
         try {
@@ -207,7 +223,26 @@ const GlobalMarketScanner = ({ token }) => {
     );
 
     return (
-        <div className="market-scanner-container" style={{ padding: '24px 24px 0 24px' }}>
+        <div ref={scannerRef} className="market-scanner-container" style={{ padding: '24px 24px 0 24px', position: 'relative', background: isFullscreen ? 'var(--bg-color)' : undefined, overflow: isFullscreen ? 'auto' : undefined }}>
+
+            {/* Botón flotante fullscreen */}
+            <button
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Salir de pantalla completa (ESC)' : 'Pantalla completa — Scanner'}
+                style={{
+                    position: 'absolute', top: '8px', right: '8px', zIndex: 100,
+                    background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
+                    color: 'var(--text-dim)', cursor: 'pointer', padding: '4px 7px',
+                    display: 'flex', alignItems: 'center', fontSize: '11px', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+            >
+                {isFullscreen
+                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
+                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+                }
+            </button>
 
             {/* Cards — grid de 3 columnas, 5 cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
