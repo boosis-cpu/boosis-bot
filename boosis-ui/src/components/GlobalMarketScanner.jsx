@@ -188,23 +188,6 @@ const GlobalMarketScanner = ({ token }) => {
 
     return (
         <div className="market-scanner-container" style={{ padding: '0 10px' }}>
-            {/* Header */}
-            <div style={{ marginBottom: '30px', borderBottom: '1px solid #30363d', paddingBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <div style={{ width: '12px', height: '12px', background: '#58a6ff', borderRadius: '50%', boxShadow: '0 0 8px #58a6ff' }} />
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#e6edf3' }}>AI Infra Sentinel</h2>
-                        <div style={{ fontSize: '10px', color: '#8b949e', textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '4px' }}>
-                            Computing Power Intelligence Unit — CoinGecko + NewsAPI Live
-                        </div>
-                    </div>
-                </div>
-                {lastUpdate && (
-                    <div style={{ fontSize: '10px', color: '#8b949e' }}>
-                        Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
-                    </div>
-                )}
-            </div>
 
             {/* Cards — grid de 3 columnas, 5 cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>

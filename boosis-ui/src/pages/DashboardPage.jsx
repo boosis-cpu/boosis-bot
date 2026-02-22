@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import MetricsRow from '../components/MetricsRow';
 import Sidebar from '../components/Sidebar';
 import GlobalMarketScanner from '../components/GlobalMarketScanner';
 import ActivityPanel from '../components/ActivityPanel';
@@ -16,15 +15,6 @@ const DashboardPage = ({ data, trades, health, metrics, token }) => {
 
     return (
         <div className="grid-layout">
-            {/* TOP ROW: KEY METRICS */}
-            <MetricsRow
-                totalBalance={totalBalance}
-                realUsdt={realUsdt}
-                data={data}
-                metrics={metrics}
-                trades={trades}
-            />
-
             {/* SIDEBAR AREA: SYSTEM & INDICATORS */}
             <Sidebar data={data} health={health} />
 

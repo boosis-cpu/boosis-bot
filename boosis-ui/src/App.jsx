@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBotData } from './hooks/useBotData';
 import { setTradingMode, emergencyStop, setAuthToken } from './services/api';
 import ErrorBoundary from './components/ErrorBoundary';
-import Header from './components/Header';
+
 import VerticalNav from './components/VerticalNav';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -22,15 +22,9 @@ const AppContent = ({ token, data, candles, trades, health, metrics, handleToggl
         </div>
       )}
 
-      <Header
-        data={data}
-        toggleTradingMode={handleToggleTradingMode}
-        emergencyStop={handleEmergencyStop}
-        logout={handleLogout}
-      />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <VerticalNav />
+        <VerticalNav logout={handleLogout} data={data} toggleTradingMode={handleToggleTradingMode} />
         <main style={{ flex: 1, overflowY: 'auto', position: 'relative', background: 'var(--bg-color)' }}>
           <Routes>
             <Route path="/" element={
