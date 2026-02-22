@@ -329,7 +329,7 @@ const GlobalMarketScanner = ({ token }) => {
                                                 {article.title?.length > 70 ? article.title.substring(0, 70) + '...' : article.title}
                                             </div>
                                             <div style={{ fontSize: '8px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>{article.source}</span>
+                                                <span>{article.source?.name || article.source}</span>
                                                 <span>{timeAgo(article.publishedAt)}</span>
                                             </div>
                                         </a>
