@@ -4,7 +4,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 
 const Sidebar = ({ data, health }) => {
     return (
-        <aside className="sidebar-area panel" style={{ border: 'none', background: 'transparent', padding: '24px' }}>
+        <aside className="sidebar-area panel" style={{ border: 'none', background: 'transparent', padding: '0' }}>
             <div className="mb-6">
                 <h3 className="stat-label-tiny mb-3" style={{ color: 'var(--accent-primary)', letterSpacing: '0.1em', fontWeight: 800 }}>TERMINAL REAL (BINANCE)</h3>
                 {data.realBalance && data.realBalance.length > 0 ? (
@@ -64,7 +64,7 @@ const Sidebar = ({ data, health }) => {
                         </div>
                     </div>
                 ) : (
-                    <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '0', border: '1px solid var(--border-color)' }}>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }} className="animate-pulse">
                             📡 Sincronizando telemetría de Binance...
                         </div>
@@ -74,7 +74,7 @@ const Sidebar = ({ data, health }) => {
 
             <div className="mb-8">
                 <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--text-muted)', fontWeight: 800 }}>SYSTEM VITALS</h3>
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)' }} className="space-y-4">
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '0', padding: '16px', border: '1px solid var(--border-color)' }} className="space-y-4">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Core Uptime</span>
                         <span style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 800, fontFamily: 'JetBrains Mono' }}>{health ? `${Math.floor(health.uptime / 60)}h ${health.uptime % 60}m` : '--'}</span>
@@ -104,7 +104,7 @@ const Sidebar = ({ data, health }) => {
 
             <div>
                 <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--text-muted)', fontWeight: 800 }}>EQUITY GROWTH</h3>
-                <div style={{ height: '120px', width: '100%', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ height: '120px', width: '100%', border: '1px solid var(--border-color)', borderRadius: '0', background: 'rgba(0,0,0,0.3)', overflow: 'hidden', position: 'relative' }}>
                     {data.equityHistory && data.equityHistory.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={data.equityHistory} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>

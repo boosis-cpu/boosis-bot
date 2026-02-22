@@ -601,20 +601,20 @@ const PatternVision = ({ token }) => {
                     top: '8px',
                     right: '12px',
                     zIndex: 100,
-                    background: 'rgba(22, 27, 34, 0.85)',
-                    border: '1px solid #30363d',
-                    borderRadius: '4px',
-                    color: '#8b949e',
+                    background: 'var(--bg-panel)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '0',
+                    color: 'var(--text-dim)',
                     cursor: 'pointer',
                     padding: '4px 7px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '5px',
                     fontSize: '11px',
-                    transition: 'color 0.15s, border-color 0.15s',
+                    transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#e6edf3'; e.currentTarget.style.borderColor = '#58a6ff'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#8b949e'; e.currentTarget.style.borderColor = '#30363d'; }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
             >
                 {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
