@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 
 const Sidebar = ({ data, health }) => {
     return (
@@ -77,7 +76,9 @@ const Sidebar = ({ data, health }) => {
                 <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '0', padding: '16px', border: '1px solid var(--border-color)' }} className="space-y-4">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Core Uptime</span>
-                        <span style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 800, fontFamily: 'JetBrains Mono' }}>{health ? `${Math.floor(health.uptime / 60)}h ${health.uptime % 60}m` : '--'}</span>
+                        <span style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 800, fontFamily: 'JetBrains Mono' }}>
+                            {health ? `${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m` : '--'}
+                        </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Neural Connection</span>
@@ -102,38 +103,7 @@ const Sidebar = ({ data, health }) => {
                 </div>
             </div>
 
-            <div>
-                <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--text-muted)', fontWeight: 800 }}>EQUITY GROWTH</h3>
-                <div style={{ height: '120px', width: '100%', border: '1px solid var(--border-color)', borderRadius: '0', background: 'rgba(0,0,0,0.3)', overflow: 'hidden', position: 'relative' }}>
-                    {data.equityHistory && data.equityHistory.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={data.equityHistory} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <Area type="monotone" dataKey="value" stroke="var(--accent-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorVal)" dot={false} />
-                                <Tooltip content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                        return (
-                                            <div style={{ background: 'var(--bg-color)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px' }}>
-                                                ${payload[0].value.toFixed(2)}
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                }} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Awaiting Data Cycle...
-                        </div>
-                    )}
-                </div>
-            </div>
+
         </aside>
     );
 };

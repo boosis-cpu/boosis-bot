@@ -29,12 +29,14 @@ export const useBotData = (token) => {
 
             // 2. Opcionales
             try {
+                const t0 = Date.now();
                 const [candlesRes, tradesRes, healthRes, metricsRes] = await Promise.all([
                     getCandles(),
                     getTrades(),
                     getHealth(),
                     getMetrics()
                 ]);
+                const apiLatency = Date.now() - t0;
 
                 if (candlesRes.data && Array.isArray(candlesRes.data.candles)) {
                     setCandles(candlesRes.data.candles.map(c => ({
@@ -47,7 +49,7 @@ export const useBotData = (token) => {
                     })));
                 }
                 if (tradesRes.data) setTrades(tradesRes.data);
-                if (healthRes.data) setHealth(healthRes.data);
+                if (healthRes.data) setHealth({ ...healthRes.data, latency: { apiLatency } });
                 if (metricsRes.data) setMetrics(metricsRes.data);
             } catch (subErr) {
                 console.warn('Fallo en datos secundarios:', subErr.message);
