@@ -12,7 +12,8 @@
     flex-direction: column;
     padding: 0;
     gap: 0;
-    overflow-y: auto;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .vision-grid {
@@ -22,6 +23,8 @@
     gap: 1px;
     background: var(--border-color);
     flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .tf-popover {
