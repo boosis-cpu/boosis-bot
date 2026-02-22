@@ -49,6 +49,26 @@ class DatabaseManager {
                 );
             `);
 
+            // Migración: agregar columna timeframe si no existe (DB antigua)
+            await client.query(`
+                ALTER TABLE candles ADD COLUMN IF NOT EXISTS timeframe VARCHAR(10) NOT NULL DEFAULT '1m';
+            `);
+
+            // Migración: crear índice único compuesto si no existe
+            await client.query(`
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'candles_symbol_open_time_timeframe_key'
+                    ) THEN
+                        ALTER TABLE candles DROP CONSTRAINT IF EXISTS candles_symbol_open_time_key;
+                        ALTER TABLE candles ADD CONSTRAINT candles_symbol_open_time_timeframe_key 
+                            UNIQUE (symbol, open_time, timeframe);
+                    END IF;
+                END $$;
+            `);
+
             // 2. Trades Table
             await client.query(`
                 CREATE TABLE IF NOT EXISTS trades (
