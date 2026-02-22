@@ -3,7 +3,7 @@ import React from 'react';
 
 const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'connecting', logsLastAttempt = null }) => {
     return (
-        <section className="activity-area" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'transparent', padding: '24px' }}>
+        <section className="activity-area" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'transparent', padding: '0' }}>
             <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
                 <div
                     onClick={() => setActiveTab('logs')}
@@ -68,7 +68,7 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'co
                                     backdropFilter: 'var(--glass)',
                                     border: '1px solid var(--border-color)',
                                     borderLeft: `4px solid ${trade.side === 'BUY' ? 'var(--success)' : 'var(--danger)'}`,
-                                    borderRadius: '8px',
+                                    borderRadius: '0',
                                     marginBottom: '8px',
                                     transition: 'transform 0.2s'
                                 }}>
@@ -93,7 +93,7 @@ const ActivityPanel = ({ activeTab, setActiveTab, trades, logs, logsStatus = 'co
                         )}
                     </div>
                 ) : (
-                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: '11px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: '11px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '0', border: '1px solid var(--border-color)' }}>
                         {logs.length === 0 ? (
                             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                 Awaiting Kernel Stream...

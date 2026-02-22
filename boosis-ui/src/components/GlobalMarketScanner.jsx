@@ -187,10 +187,10 @@ const GlobalMarketScanner = ({ token }) => {
     );
 
     return (
-        <div className="market-scanner-container" style={{ padding: '0 10px' }}>
+        <div className="market-scanner-container" style={{ padding: '0' }}>
 
             {/* Cards — grid de 3 columnas, 5 cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: 'var(--border-color)' }}>
                 {scannerData.map((pair) => {
                     const cg = cgData[pair.symbol];
                     const holding = holdings[pair.symbol];
@@ -215,7 +215,8 @@ const GlobalMarketScanner = ({ token }) => {
                             position: 'relative', overflow: 'hidden',
                             background: 'var(--bg-card)',
                             backdropFilter: 'var(--glass)',
-                            border: hasHolding ? `1px solid var(--accent-secondary)` : `1px solid var(--border-color)`,
+                            outline: hasHolding ? `1px solid var(--accent-secondary)` : `none`,
+                            outlineOffset: '-1px',
                             boxShadow: hasHolding ? '0 0 30px rgba(245,158,11,0.1)' : 'var(--card-shadow)',
                             borderRadius: '0', padding: '24px',
                             transition: 'all 0.3s ease'
@@ -291,7 +292,7 @@ const GlobalMarketScanner = ({ token }) => {
                             )}
 
                             {/* Semáforo */}
-                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px', marginBottom: '14px', border: `1px solid var(--border-color)` }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '0', marginBottom: '14px', border: `1px solid var(--border-color)` }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: style.color, boxShadow: `0 0 10px ${style.color}` }} />
                                     <span style={{ fontSize: '11px', fontWeight: 900, color: style.color, letterSpacing: '0.05em' }}>{style.label}</span>
@@ -301,13 +302,13 @@ const GlobalMarketScanner = ({ token }) => {
 
                             {/* HMM + VOL */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.1)' }}>
+                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '0', background: 'rgba(0,0,0,0.1)' }}>
                                     <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>HMM_REGIME</div>
                                     <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-primary)', fontFamily: 'JetBrains Mono' }}>
                                         {pair.marketRegime?.name || 'INICIALIZANDO'}
                                     </div>
                                 </div>
-                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.1)' }}>
+                                <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '0', background: 'rgba(0,0,0,0.1)' }}>
                                     <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>VOL_24H</div>
                                     <div style={{ fontSize: '11px', fontWeight: 800, color: vol > (VOL_HIGH[pair.symbol] || 1e8) ? 'var(--success)' : 'var(--text-dim)', fontFamily: 'JetBrains Mono' }}>
                                         ${(vol / 1e6).toFixed(0)}M
@@ -323,7 +324,7 @@ const GlobalMarketScanner = ({ token }) => {
                                     </div>
                                     {news.slice(0, 2).map((article, i) => (
                                         <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
-                                            style={{ display: 'block', textDecoration: 'none', marginBottom: '6px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--border-color)', transition: 'background 0.2s' }}
+                                            style={{ display: 'block', textDecoration: 'none', marginBottom: '6px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '0', border: '1px solid var(--border-color)', transition: 'background 0.2s' }}
                                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
                                             <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1.4, marginBottom: '4px' }}>
