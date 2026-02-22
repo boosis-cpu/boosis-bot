@@ -330,7 +330,12 @@ class LiveTrader {
                 if (finalCandles.length === 0) {
                     // Fallback a DB / Agregado local para 1m o si Binance falla
                     if (!manager || manager.candles.length < needed1m) {
-                        candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
+                        try {
+                            candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
+                        } catch (dbErr) {
+                            logger.warn(`[API/Candles] DB fallback falló (schema?): ${dbErr.message}`);
+                            candles1m = [];
+                        }
                     } else {
                         candles1m = manager.candles.slice(-Math.ceil(needed1m));
                     }
