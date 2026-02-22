@@ -10,7 +10,7 @@ const VerticalNav = ({ logout, data, toggleTradingMode }) => {
     return (
         <aside style={{
             width: '64px',
-            background: 'rgba(2, 6, 23, 0.8)',
+            background: 'rgba(10, 10, 10, 0.9)',
             backdropFilter: 'blur(10px)',
             borderRight: '1px solid var(--border-color)',
             display: 'flex',

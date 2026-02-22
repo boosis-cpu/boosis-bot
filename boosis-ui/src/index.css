@@ -68,7 +68,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(2, 6, 23, 0.8);
+  background: rgba(10, 10, 10, 0.9);
   backdrop-filter: var(--glass);
   border-bottom: 1px solid var(--border-color);
   z-index: 100;

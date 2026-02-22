@@ -7,7 +7,7 @@
 .timeframe-selector select {
   width: 100%;
   padding: 8px 12px;
-  background-color: #1a1f3a;
+  background-color: #141414;
   color: #00ff88;
   border: 1px solid #00ff88;
   border-radius: 4px;
@@ -33,7 +33,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background-color: #1a1f3a;
+  background-color: #141414;
   border-radius: 4px;
   margin-bottom: 12px;
 }
@@ -71,7 +71,7 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background-color: #0a0e27;
+  background-color: #0a0a0a;
   border: 1px solid #00ff88;
   border-radius: 6px;
   padding: 0;
@@ -98,7 +98,7 @@
   align-items: center;
   padding: 12px;
   border-bottom: 1px solid #00ff88;
-  background-color: #1a1f3a;
+  background-color: #141414;
   border-radius: 6px 6px 0 0;
 }
 
@@ -156,14 +156,14 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background-color: #0a0e27;
+  background-color: #0a0a0a;
   border-radius: 8px;
-  border: 1px solid #1a1f3a;
+  border: 1px solid #141414;
 }
 
 .chart-container {
   width: 100%;
-  background-color: #0a0e27;
+  background-color: #0a0a0a;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -191,7 +191,7 @@
 
 .chart-controls button {
   padding: 6px 12px;
-  background-color: #1a1f3a;
+  background-color: #141414;
   color: #00ff88;
   border: 1px solid #00ff88;
   border-radius: 4px;
@@ -202,7 +202,7 @@
 
 .chart-controls button:hover {
   background-color: #00ff88;
-  color: #0a0e27;
+  color: #0a0a0a;
 }
 
 /* Currency Selector */
@@ -213,7 +213,7 @@
   gap: 12px;
   padding: 12px 0;
   margin-bottom: 16px;
-  border-bottom: 1px solid #1a1f3a;
+  border-bottom: 1px solid #141414;
 }
 
 .currency-selector-section label {
@@ -226,7 +226,7 @@
 .currency-selector-section select {
   flex: 1;
   padding: 8px 12px;
-  background-color: #1a1f3a;
+  background-color: #141414;
   color: #00ff88;
   border: 1px solid #00ff88;
   border-radius: 4px;
