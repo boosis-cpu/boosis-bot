@@ -180,12 +180,11 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
     useEffect(() => {
         let isMounted = true;
         const chart = createChart(chartContainerRef.current, {
+            autoSize: true,
             layout: { background: { color: 'transparent' }, textColor: '#94a3b8', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' },
             grid: { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
             crosshair: { mode: 0, vertLine: { color: '#00e5ff', labelBackgroundColor: '#00e5ff' }, horzLine: { color: '#00e5ff', labelBackgroundColor: '#00e5ff' } },
             timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true },
-            width: chartContainerRef.current.clientWidth,
-            height: chartContainerRef.current.clientHeight || 400
         });
 
         let mainSeries;
@@ -385,16 +384,29 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
             }
         };
 
-        const handleResize = () => {
-            if (chartContainerRef.current && chartRef.current) {
-                chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
-            }
+        // autoSize maneja el resize automáticamente.
+        // Al salir de fullscreen, forzar recálculo del timeScale para que las etiquetas reaparezcan.
+        const onFullscreenChange = () => {
+            if (!chartRef.current) return;
+            // Guardar rango visible actual para restaurarlo después
+            let savedRange = null;
+            try { savedRange = chartRef.current.timeScale().getVisibleLogicalRange(); } catch (e) {}
+            // Toggle autoSize para forzar re-attach del ResizeObserver interno
+            chartRef.current.applyOptions({ autoSize: false });
+            requestAnimationFrame(() => {
+                if (chartRef.current) {
+                    chartRef.current.applyOptions({ autoSize: true });
+                    if (savedRange) {
+                        chartRef.current.timeScale().setVisibleLogicalRange(savedRange);
+                    }
+                }
+            });
         };
-        window.addEventListener('resize', handleResize);
+        document.addEventListener('fullscreenchange', onFullscreenChange);
 
         return () => {
             isMounted = false;
-            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
             clearInterval(refreshInterval);
             if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
                 socket.close();
@@ -581,11 +593,6 @@ const PatternVision = ({ token }) => {
             document.exitFullscreen();
         }
     };
-
-    // Notificar a los charts para que se redimensionen tras el cambio
-    useEffect(() => {
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
-    }, [isFullscreen]);
 
     return (
         <div
