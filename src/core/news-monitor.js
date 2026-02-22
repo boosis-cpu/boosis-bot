@@ -19,7 +19,7 @@ const HIGH_IMPACT_KEYWORDS = [
 ];
 
 const SYMBOLS = [
-    { name: 'RENDER', query: 'Render Network GPU crypto' },
+    { name: 'RENDER', query: 'Render Network GPU AI crypto' },
     { name: 'FET', query: 'Fetch AI autonomous agents crypto' },
     { name: 'NEAR', query: 'NEAR Protocol AI blockchain' },
 ];
@@ -40,9 +40,9 @@ class NewsMonitor {
             return;
         }
 
-        logger.info('[NewsMonitor] 🗞️ Iniciando monitor de noticias AI Infra (cada 30 min)');
+        logger.info('[NewsMonitor] 🗞️ Iniciando monitor de noticias AI Infra (cada 2 horas)');
         this._check(); // Primera verificación inmediata
-        this.interval = setInterval(() => this._check(), 30 * 60 * 1000);
+        this.interval = setInterval(() => this._check(), 120 * 60 * 1000); // 2 hours
         this.isRunning = true;
     }
 
@@ -63,7 +63,7 @@ class NewsMonitor {
                 // Pequeña pausa entre requests para respetar rate limit
                 await new Promise(r => setTimeout(r, 1000));
             } catch (e) {
-                logger.error(`[NewsMonitor] Error en ${symbol.name}: ${e.message}`);
+                logger.debug(`[NewsMonitor] Error en ${symbol.name}: ${e.message}`);
             }
         }
     }

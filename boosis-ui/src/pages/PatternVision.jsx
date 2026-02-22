@@ -283,9 +283,15 @@ const VisionChart = ({ initialSymbol, symbol: syncedSymbol, timeframe: syncedTim
                         }
                         lastDataRef.current = newCandles;
                     }
-                    if (!volumeOnly && !macdOnly && res.data.pattern) {
-                        drawPattern(res.data.pattern);
-                        onPattern({ symbol, data: res.data.pattern });
+                    if (!volumeOnly && !macdOnly) {
+                        if (res.data.pattern) {
+                            drawPattern(res.data.pattern);
+                            onPattern({ symbol, data: res.data.pattern });
+                        } else {
+                            // Limpiar el gráfico de patrones viejos que ya no aplican para esta temporalidad o caducaron
+                            if (patternSeriesRef.current) { try { chart.removeSeries(patternSeriesRef.current); patternSeriesRef.current = null; } catch (e) { } }
+                            if (necklineRef.current) { try { seriesRef.current.removePriceLine(necklineRef.current); necklineRef.current = null; } catch (e) { } }
+                        }
                     }
                 }
             } catch (e) {

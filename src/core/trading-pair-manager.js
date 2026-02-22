@@ -49,9 +49,44 @@ class TradingPairManager {
 
     async init() {
         try {
-            // 1. Cargar Velas Recientes (Warmup)
-            const recentCandles = await db.getRecentCandles(this.symbol, 400);
+            // 1. Cargar Velas Recientes (Warmup) - Requiere 1500 velas para HMM
+            let recentCandles = await db.getRecentCandles(this.symbol, 1500);
+
+            if (recentCandles.length < 1500) {
+                try {
+                    const binanceService = require('./binance');
+                    await binanceService.initialize();
+                    const klines = await binanceService.getKlines(this.symbol, '1m', 1500);
+                    if (klines && klines.length > 0) {
+                        recentCandles = klines.map(k => [
+                            parseInt(k[0]), parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4]), parseFloat(k[5]), true
+                        ]);
+                    }
+                } catch (err) {
+                    logger.warn(`[${this.symbol}] Binance warmup failed, using ${recentCandles.length} local candles: ${err.message}`);
+                }
+            }
             this.candles = recentCandles;
+
+            // Iniciar HMM de inmediato si hay suficientes datos
+            if (this.candles.length >= 100) { // El HMM puede arrancar a partir de 100 velas (fallback de 1500 ideal)
+                await this.hmm.train(this.candles.slice(-5000), 20);
+                this.lastHMMTrain = this.candles.length > 0 ? parseInt(this.candles[this.candles.length - 1][0]) : 0;
+
+                if (this.candles.length > 20) {
+                    const prediction = this.hmm.predictState(this.candles.slice(-20));
+                    if (prediction) {
+                        this.marketRegime = {
+                            state: prediction.state,
+                            probability: prediction.probability,
+                            name: prediction.label,
+                            sequence: prediction.sequence
+                        };
+                        const isDeadMarket = prediction.label.includes('LATERAL') || prediction.label.includes('AGOTAMIENTO');
+                        this.shieldMode = (isDeadMarket && prediction.probability > 0.60);
+                    }
+                }
+            }
 
             // 2. Cargar Posición Activa
             const posQuery = await db.pool.query('SELECT * FROM active_position WHERE symbol = $1', [this.symbol]);
@@ -195,8 +230,13 @@ class TradingPairManager {
             marketRegime: this.marketRegime,
             shieldMode: this.shieldMode,
             status: this.initialized ? 'ACTIVE' : 'INITIALIZING',
+            lastPattern: this.lastPattern || null,
             priceHistory: this.candles.slice(-30).map(c => ({ time: c[0], price: c[4] }))
         };
+    }
+
+    setLastPattern(pattern) {
+        this.lastPattern = pattern;
     }
 }
 

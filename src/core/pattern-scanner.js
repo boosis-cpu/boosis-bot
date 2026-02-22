@@ -15,12 +15,12 @@ class PatternScanner {
         this.ZIGZAG_THRESHOLD = 0.01; // 1% mínimo (muy sensible para visualización)
         this.SIMILARITY = 0.15;  // 15% tolerancia (muy flexible)
         this.NECKLINE_ZONE = 0.03; // 3% zona de gatillo
-        this.RECENT_CANDLES = 120;    // Aceptar patrones de los últimos 20 días en 4H
-        this.MIN_SEPARATION = 5;     // 5 velas entre picos (mínimo estructural)
+        this.RECENT_CANDLES = 4;    // Aceptar solo patrones de las últimas 4 velas (Ultra-fresco)
+        this.MIN_SEPARATION = 3;     // 3 velas entre picos (mínimo estructural para admitir cruces rápidos)
 
         // Deduplicación: evitar el mismo patrón en bucle
         this._lastDetected = new Map();
-        this.DEDUP_CANDLES = 12;        // 2 días de silencio nada más
+        this.DEDUP_CANDLES = 4;        // Silencio muy breve para este timeframe
 
         this.historicalData = {
             HEAD_AND_SHOULDERS: { successRate: 0.62, avgReturn: 3.5, winRate: 65, minConfidence: 0.55 },
@@ -72,7 +72,7 @@ class PatternScanner {
     }
 
     // ─── DETECTOR PRINCIPAL ──────────────────────────────────
-    detect(lastCandle, candles) {
+    detect(lastCandle, candles, isSimulation = false) {
         if (!candles || candles.length < 20) return null;
 
         const close = parseFloat(lastCandle[4]);
@@ -81,24 +81,30 @@ class PatternScanner {
 
         if (zz.length < 3) return null;
 
+        this._simulating = isSimulation;
         const results = [
             this._detectDoubleTopBottom(zz, close, candles, candleIdx),
             this._detectHeadAndShoulders(zz, close, candles, candleIdx),
             this._detectTriangle(zz, close, candles, candleIdx),
             this._detectWedge(zz, close, candles, candleIdx),
         ].filter(p => p && p.detected);
+        this._simulating = false;
 
         if (results.length === 0) return null;
 
         const best = results.sort((a, b) => b.confidence - a.confidence)[0];
-        this._lastDetected.set(best.type + '_' + (best.subType || ''), candleIdx);
 
-        logger.info(`[Scanner] ✅ Detectado ${best.type} en index ${candleIdx} | Config: Thr=${this.ZIGZAG_THRESHOLD}`);
+        if (!isSimulation) {
+            this._lastDetected.set(best.type + '_' + (best.subType || ''), candleIdx);
+            logger.info(`[Scanner] ✅ Detectado ${best.type} en index ${candleIdx} | Config: Thr=${this.ZIGZAG_THRESHOLD}`);
+        }
+
         return best;
     }
 
     // ─── DEDUP CHECK ─────────────────────────────────────────
     _isDuplicate(type, subType, candleIdx) {
+        if (this._simulating) return false;
         const key = type + '_' + (subType || '');
         const last = this._lastDetected.get(key);
         if (last === undefined) return false;

@@ -95,16 +95,19 @@ const GlobalMarketScanner = ({ token }) => {
     const fetchNews = async () => {
         try {
             const storedToken = token || localStorage.getItem('boosis_token');
-            const results = await Promise.all(
-                AI_SYMBOLS.map(async (symbol) => {
-                    const query = NEWS_QUERIES[symbol];
+            const results = [];
+            for (const symbol of AI_SYMBOLS) {
+                const query = NEWS_QUERIES[symbol];
+                try {
                     const res = await fetch(`/api/news?query=${encodeURIComponent(query)}`, {
                         headers: { Authorization: `Bearer ${storedToken}` }
                     });
                     const data = await res.json();
-                    return { symbol, articles: data.articles || [] };
-                })
-            );
+                    results.push({ symbol, articles: data.articles || [] });
+                } catch (e) {
+                    results.push({ symbol, articles: [] });
+                }
+            }
             const mapped = {};
             results.forEach(r => { mapped[r.symbol] = r.articles; });
             setNewsData(mapped);

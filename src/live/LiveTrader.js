@@ -165,18 +165,32 @@ class LiveTrader {
         });
 
         // STATUS ENDPOINT (Multi-Asset Ready)
+        const newsCache = {};
+        const NEWS_CACHE_TTL = 30 * 60 * 1000; // 30 minutos
+
         this.app.get('/api/news', authMiddleware, async (req, res) => {
             const query = req.query.query;
             if (!query) return res.json({ articles: [] });
+
+            const now = Date.now();
+            if (newsCache[query] && (now - newsCache[query].timestamp < NEWS_CACHE_TTL)) {
+                return res.json({ articles: newsCache[query].data });
+            }
+
             try {
                 const newsApiKey = process.env.NEWS_API_KEY;
                 if (!newsApiKey) return res.json({ articles: [] });
                 const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=5&apiKey=${newsApiKey}`;
                 const response = await axios.get(url, { timeout: 5000 });
-                res.json({ articles: response.data.articles || [] });
+                const articles = response.data.articles || [];
+
+                newsCache[query] = { data: articles, timestamp: now };
+                res.json({ articles });
             } catch (err) {
-                logger.warn(`[News] Error fetching news for "${query}": ${err.message}`);
-                res.json({ articles: [] });
+                logger.debug(`[News] Error fetching news for "${query}": ${err.message}`);
+                // Devolver info vieja si la tenemos, sino array vacío
+                const fallback = newsCache[query] ? newsCache[query].data : [];
+                res.json({ articles: fallback });
             }
         });
 
@@ -294,10 +308,13 @@ class LiveTrader {
                 const manager = this.pairManagers.get(symbol);
 
                 // Si pedimos temporalidades altas o muchos datos, vamos directo a Binance para mayor precisión histórica
+                let finalCandles = [];
+
+                // Si pedimos temporalidades altas o muchos datos, vamos directo a Binance para mayor precisión histórica
                 if (timeframe !== '1m' || limit > 500) {
                     const binanceData = await binanceService.getKlines(symbol, timeframe, limit);
                     if (binanceData && binanceData.length > 0) {
-                        const response = binanceData.map(c => ({
+                        finalCandles = binanceData.map(c => ({
                             time: Math.floor(c[0] / 1000),
                             open: parseFloat(c[1]),
                             high: parseFloat(c[2]),
@@ -305,54 +322,55 @@ class LiveTrader {
                             close: parseFloat(c[4]),
                             volume: parseFloat(c[5])
                         }));
-                        return res.json({ candles: response, timeframe, symbol, count: response.length });
                     }
                 }
 
-                // Fallback a DB / Agregado local para 1m o si Binance falla
-                if (!manager || manager.candles.length < needed1m) {
-                    candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
-                } else {
-                    candles1m = manager.candles.slice(-Math.ceil(needed1m));
+                if (finalCandles.length === 0) {
+                    // Fallback a DB / Agregado local para 1m o si Binance falla
+                    if (!manager || manager.candles.length < needed1m) {
+                        candles1m = await db.getRecentCandles(symbol, Math.ceil(needed1m), '1m');
+                    } else {
+                        candles1m = manager.candles.slice(-Math.ceil(needed1m));
+                    }
+
+                    if (timeframe === '1m') {
+                        finalCandles = candles1m.slice(-limit).map(c => ({
+                            time: Math.floor(c[0] / 1000),
+                            open: parseFloat(c[1]),
+                            high: parseFloat(c[2]),
+                            low: parseFloat(c[3]),
+                            close: parseFloat(c[4]),
+                            volume: parseFloat(c[5])
+                        }));
+                    } else {
+                        const aggregated = this._aggregateCandles(candles1m, timeframe);
+                        finalCandles = aggregated.slice(-limit).map(c => ({
+                            time: c.time,
+                            open: c.open,
+                            high: c.high,
+                            low: c.low,
+                            close: c.close,
+                            volume: c.volume
+                        }));
+                    }
                 }
 
-                if (timeframe === '1m') {
-                    const response = candles1m.slice(-limit).map(c => ({
-                        time: Math.floor(c[0] / 1000),
-                        open: parseFloat(c[1]),
-                        high: parseFloat(c[2]),
-                        low: parseFloat(c[3]),
-                        close: parseFloat(c[4]),
-                        volume: parseFloat(c[5])
-                    }));
-                    return res.json({ candles: response, timeframe: '1m', symbol, count: response.length });
-                }
-
-                const aggregated = this._aggregateCandles(candles1m, timeframe);
-                const response = aggregated.slice(-limit).map(c => ({
-                    time: c.time,
-                    open: c.open,
-                    high: c.high,
-                    low: c.low,
-                    close: c.close,
-                    volume: c.volume
-                }));
-
-                // 🏁 PATTERN SCAN ON AGGREGATED DATA (Structural Vision)
+                // 🏁 PATTERN SCAN ON CURRENT CHART TIMEFRAME
                 let detectedPattern = null;
-                if (manager && manager.patternScanner) {
-                    const scannerInput = aggregated.map(c => [
+                if (manager && manager.patternScanner && finalCandles.length > 0) {
+                    const scannerInput = finalCandles.map(c => [
                         c.time * 1000,
                         c.open, c.high, c.low, c.close, c.volume
                     ]);
 
-                    // Look back up to 30 candles to find the most recent structural pattern
-                    const lookback = Math.min(30, scannerInput.length - 20); // Safety margin
+                    // Buscar patrones solo en las últimas 4 velas de esta temporalidad. 
+                    // Si el patrón completó hace más de 4 velas, ya no es útil ("stale").
+                    const lookback = Math.min(4, scannerInput.length - 20); // Ventana de frescura accionable
                     if (lookback > 0) {
                         for (let i = 0; i < lookback; i++) {
                             const idx = scannerInput.length - 1 - i;
                             const subInput = scannerInput.slice(0, idx + 1);
-                            const p = manager.patternScanner.detect(subInput[subInput.length - 1], subInput);
+                            const p = manager.patternScanner.detect(subInput[subInput.length - 1], subInput, true);
                             if (p && p.detected) {
                                 detectedPattern = p;
                                 break; // Found the most recent one
@@ -362,10 +380,10 @@ class LiveTrader {
                 }
 
                 res.json({
-                    candles: response,
+                    candles: finalCandles,
                     timeframe,
                     symbol,
-                    count: response.length,
+                    count: finalCandles.length,
                     pattern: detectedPattern
                 });
             } catch (error) {
@@ -870,16 +888,19 @@ class LiveTrader {
             // 🚨 ALERT ENGINE: Buscar confluencias
             this.alertEngine.processCandle(symbol, manager.candles)
                 .then(result => {
-                    if (result && result.pattern && this.clients && this.clients.size > 0) {
-                        const patternMsg = {
-                            type: 'PATTERN_DETECTION',
-                            symbol: symbol,
-                            data: result.pattern,
-                            regime: result.regime
-                        };
-                        this.clients.forEach(client => {
-                            if (client.readyState === 1) client.send(JSON.stringify(patternMsg));
-                        });
+                    if (result && result.pattern) {
+                        manager.setLastPattern(result.pattern); // Guarda memoria para F5 y llamadas REST
+                        if (this.clients && this.clients.size > 0) {
+                            const patternMsg = {
+                                type: 'PATTERN_DETECTION',
+                                symbol: symbol,
+                                data: result.pattern,
+                                regime: result.regime
+                            };
+                            this.clients.forEach(client => {
+                                if (client.readyState === 1) client.send(JSON.stringify(patternMsg));
+                            });
+                        }
                     }
                 })
                 .catch(err => logger.error(`[AlertEngine] ${err.message}`));
