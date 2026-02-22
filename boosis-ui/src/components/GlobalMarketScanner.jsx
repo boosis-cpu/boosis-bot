@@ -235,21 +235,29 @@ const GlobalMarketScanner = ({ token }) => {
                             {/* Symbol + Price */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                                 <div>
-                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.1em' }}>CORE_ASSET</div>
                                     <div style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.05em', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
                                         {pair.symbol.replace('USDT', '')}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.1em' }}>PRICE_USD</div>
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--text-main)' }}>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'JetBrains Mono', color: 'var(--text-main)', marginBottom: '4px' }}>
                                         ${price.toFixed(4)}
                                     </div>
-                                    <div style={{ fontSize: '12px', color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
+                                    <div style={{
+                                        display: 'inline-block',
+                                        padding: '4px 8px',
+                                        background: isPositive ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 68, 68, 0.1)',
+                                        border: `1px solid ${isPositive ? 'var(--success)' : 'var(--danger)'}`,
+                                        color: isPositive ? 'var(--success)' : 'var(--danger)',
+                                        fontSize: '14px',
+                                        fontWeight: 900,
+                                        borderRadius: '4px',
+                                        marginBottom: '6px'
+                                    }}>
                                         {isPositive ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
                                     </div>
-                                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                                        Vol ${(vol / 1e6).toFixed(0)}M
+                                    <div style={{ fontSize: '11px', color: 'var(--text-main)', fontWeight: 800, opacity: 0.8, letterSpacing: '0.02em' }}>
+                                        VOL: ${(vol / 1e6).toFixed(0)}M
                                     </div>
                                 </div>
                             </div>
@@ -265,7 +273,7 @@ const GlobalMarketScanner = ({ token }) => {
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                         <span style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent-secondary)' }}>
-                                            🏦 HOLDING EN BINANCE
+                                            🏦 POSICIÓN EN BINANCE
                                         </span>
                                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                                             {holding.locked > 0 ? '🔒 Con órdenes activas' : '✅ Libre'}
@@ -306,13 +314,13 @@ const GlobalMarketScanner = ({ token }) => {
                             {/* HMM + VOL */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
                                 <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '0', background: 'rgba(0,0,0,0.1)' }}>
-                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>HMM_REGIME</div>
+                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>RÉGIMEN_HMM</div>
                                     <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-primary)', fontFamily: 'JetBrains Mono' }}>
                                         {pair.marketRegime?.name || 'INICIALIZANDO'}
                                     </div>
                                 </div>
                                 <div style={{ border: '1px solid var(--border-color)', padding: '10px', borderRadius: '0', background: 'rgba(0,0,0,0.1)' }}>
-                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>VOL_24H</div>
+                                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>VOLUMEN</div>
                                     <div style={{ fontSize: '11px', fontWeight: 800, color: vol > (VOL_HIGH[pair.symbol] || 1e8) ? 'var(--success)' : 'var(--text-dim)', fontFamily: 'JetBrains Mono' }}>
                                         ${(vol / 1e6).toFixed(0)}M
                                     </div>
@@ -323,7 +331,7 @@ const GlobalMarketScanner = ({ token }) => {
                             {news.length > 0 && (
                                 <div style={{ marginBottom: '16px' }}>
                                     <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                        📰 Neural Feed
+                                        📰 Notificaciones Neurales
                                     </div>
                                     {news.slice(0, 2).map((article, i) => (
                                         <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"

@@ -5,7 +5,7 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
     return (
         <aside className="sidebar-area panel" style={{ border: 'none', background: 'transparent', padding: '0' }}>
             <div className="mb-6">
-                <h3 className="stat-label-tiny mb-3" style={{ color: 'var(--accent-primary)', letterSpacing: '0.1em', fontWeight: 800 }}>TERMINAL REAL (BINANCE)</h3>
+                <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--accent-primary)', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 900, textAlign: 'center', textTransform: 'uppercase' }}>BILLETERA</h3>
                 {data.realBalance && data.realBalance.length > 0 ? (
                     <div className="space-y-4">
                         <div style={{
@@ -16,20 +16,16 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
                             borderRadius: '0',
                             boxShadow: 'var(--card-shadow)',
                             position: 'relative',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            textAlign: 'center'
                         }}>
-                            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--accent-primary)' }} />
-                            <div className="stat-label-tiny" style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>EQUITY ESTIMADO</div>
+
+                            <div className="stat-label-tiny" style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>PESOS MEXICANOS</div>
                             <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'JetBrains Mono', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                                ${data.totalBalanceUSD ? data.totalBalanceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                            </div>
-                            <div style={{ fontSize: '10px', color: 'var(--accent-primary)', textTransform: 'uppercase', marginTop: '8px', fontWeight: 700, letterSpacing: '0.05em' }}>
-                                <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)', marginRight: '6px', boxShadow: '0 0 8px var(--accent-primary)' }} />
-                                USD Connectivity Active
+                                ${data.totalBalanceMXN ? data.totalBalanceMXN.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                             </div>
                         </div>
 
-                        <div className="stat-label-tiny mt-6 mb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontWeight: 800 }}>INVENTARIO DE ACTIVOS</div>
                         <div className="space-y-1">
                             {data.realBalance
                                 .filter(asset => !['GVT', 'NCASH', 'XVG', 'VTHO'].includes(asset.asset))
@@ -46,9 +42,6 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
                                     }}>
                                         <div>
                                             <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{asset.asset}</div>
-                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono' }}>
-                                                ${asset.priceUSD ? asset.priceUSD.toFixed(asset.priceUSD > 1 ? 2 : 6) : '0.00'}
-                                            </div>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', fontFamily: 'JetBrains Mono' }}>
@@ -72,16 +65,16 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
             </div>
 
             <div className="mb-8">
-                <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--text-muted)', fontWeight: 800 }}>SYSTEM VITALS</h3>
+                <h3 className="stat-label-tiny mb-4" style={{ color: 'var(--text-muted)', fontWeight: 800, textAlign: 'center' }}>ESTADO DEL SISTEMA</h3>
                 <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '0', padding: '16px', border: '1px solid var(--border-color)' }} className="space-y-4">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Core Uptime</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Tiempo en Línea</span>
                         <span style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 800, fontFamily: 'JetBrains Mono' }}>
                             {health ? `${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m` : '--'}
                         </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Neural Connection</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Conexión Neuronal</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: health?.bot.wsConnected ? 'var(--success)' : 'var(--danger)', boxShadow: `0 0 10px ${health?.bot.wsConnected ? 'var(--success)' : 'var(--danger)'}` }} />
                             <span style={{
@@ -90,12 +83,12 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
                                 fontSize: '10px',
                                 letterSpacing: '0.05em'
                             }}>
-                                {health?.bot.wsConnected ? 'ESTABLISHED' : 'SEVERED'}
+                                {health?.bot.wsConnected ? 'ESTABLECIDA' : 'DESCONECTADA'}
                             </span>
                         </div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>API Latency</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>Latencia API</span>
                         <span style={{ color: health?.latency?.apiLatency > 400 ? 'var(--danger)' : 'var(--success)', fontFamily: 'JetBrains Mono', fontSize: '12px', fontWeight: 700 }}>
                             {health?.latency?.apiLatency || '--'}ms
                         </span>
@@ -105,13 +98,13 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
 
             {/* ── SYSTEM KERNEL ── */}
             <div>
-                <h3 className="stat-label-tiny mb-4" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontWeight: 800 }}>
+                <h3 className="stat-label-tiny mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-muted)', fontWeight: 800 }}>
                     <div style={{
                         width: '6px', height: '6px', borderRadius: '50%',
                         background: logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)',
                         boxShadow: `0 0 8px ${logsStatus === 'connected' ? 'var(--success)' : 'var(--warning)'}`
                     }} />
-                    SYSTEM_KERNEL
+                    NÚCLEO_DEL_SISTEMA
                 </h3>
                 <div style={{
                     fontFamily: 'JetBrains Mono', fontSize: '10px',
@@ -122,7 +115,7 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
                 }}>
                     {logs.length === 0 ? (
                         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Awaiting Kernel Stream...
+                            Esperando flujo de datos...
                         </div>
                     ) : (
                         logs.map((log, i) => (
@@ -142,7 +135,7 @@ const Sidebar = ({ data, health, logs = [], logsStatus = 'connecting' }) => {
                 </div>
             </div>
 
-        </aside>
+        </aside >
     );
 };
 

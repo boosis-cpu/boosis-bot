@@ -10,6 +10,8 @@ export const useBotData = (token) => {
         paperTrading: true,
         equityHistory: [],
         realBalance: [],
+        totalBalanceUSD: 0,
+        totalBalanceMXN: 0,
         marketStatus: { status: 'UNKNOWN', volatility: 0 }
     });
     const [candles, setCandles] = useState([]);

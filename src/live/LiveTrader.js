@@ -59,6 +59,7 @@ class LiveTrader {
         };
         this.realBalance = [];
         this.totalBalanceUSD = 0;
+        this.totalBalanceMXN = 0;
         this.equityHistory = [];
         this.emergencyStopped = false;
         this.tradingLocked = false; // [NEW] Bloqueo de ejecución táctica
@@ -237,6 +238,7 @@ class LiveTrader {
                     balance: this.balance,
                     realBalance: this.realBalance,
                     totalBalanceUSD: this.totalBalanceUSD,
+                    totalBalanceMXN: this.totalBalanceMXN,
                     totalEquity: this.calculateTotalEquity ? this.calculateTotalEquity() : this.totalBalanceUSD,
                     activePairs: activePairs,
                     activePositionsCount: positions.length,
@@ -1211,6 +1213,7 @@ class LiveTrader {
             const data = await binanceService.getEnrichedBalance();
             this.realBalance = data.balances;
             this.totalBalanceUSD = data.totalUSD;
+            this.totalBalanceMXN = data.totalMXN;
         } catch (e) { logger.error(`Balance Fetch Error: ${e.message}`); }
     }
 

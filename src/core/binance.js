@@ -261,9 +261,19 @@ class BinanceService {
             // Calcular total en USD
             const totalUSD = enrichedBalances.reduce((sum, b) => sum + b.valueUSD, 0);
 
+            // Obtener tipo de cambio USD/MXN para el balance principal
+            let totalMXN = 0;
+            try {
+                const mxnRate = await this.getCurrentPrice('USDTMXN');
+                totalMXN = totalUSD * mxnRate;
+            } catch (e) {
+                totalMXN = totalUSD * 20.0; // Fallback
+            }
+
             return {
                 balances: enrichedBalances,
-                totalUSD
+                totalUSD,
+                totalMXN
             };
         } catch (error) {
             logger.error(`Error obteniendo balance enriquecido: ${error.message}`);
