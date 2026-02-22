@@ -58,15 +58,26 @@ class NotificationManager {
 
         const url = `https://api.telegram.org/bot${this.telegramToken}/sendMessage`;
 
+        // Sanitización y conversión de Markdown básico a HTML para evitar Errores 400
+        // Especialmente útil para strings con '_' como 'DOUBLE_TOP_BOTTOM'
+        const htmlMessage = `🤖 <b>Boosis Bot</b>\n\n${message
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+            .replace(/\`\`\`([\s\S]*?)\`\`\`/g, '<pre>$1</pre>')
+            .replace(/\`(.*?)\`/g, '<code>$1</code>')}`;
+
         try {
             await axios.post(url, {
                 chat_id: this.telegramChatId,
-                text: `🤖 *Boosis Bot*\n\n${message}`,
-                parse_mode: 'Markdown'
+                text: htmlMessage,
+                parse_mode: 'HTML'
             });
             logger.debug('Telegram notification sent');
         } catch (error) {
-            logger.error(`Error enviando notificación a Telegram: ${error.message}`);
+            const errorDesc = error.response?.data?.description || error.message;
+            logger.error(`Error enviando notificación a Telegram: ${errorDesc}`);
         }
     }
 
@@ -127,15 +138,24 @@ class NotificationManager {
         try {
             if (!this.telegramToken || !this.telegramChatId) return;
             const url = `https://api.telegram.org/bot${this.telegramToken}/sendPhoto`;
+
+            const htmlCaption = caption
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/\`(.*?)\`/g, '<code>$1</code>');
+
             await axios.post(url, {
                 chat_id: this.telegramChatId,
                 photo: photoUrl,
-                caption: caption,
-                parse_mode: 'Markdown'
+                caption: htmlCaption,
+                parse_mode: 'HTML'
             });
             logger.debug('Telegram photo sent');
         } catch (error) {
-            logger.error(`Error enviando foto a Telegram: ${error.message}`);
+            const errorDesc = error.response?.data?.description || error.message;
+            logger.error(`Error enviando foto a Telegram: ${errorDesc}`);
         }
     }
 

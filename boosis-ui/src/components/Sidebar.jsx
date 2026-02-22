@@ -24,29 +24,31 @@ const Sidebar = ({ data, health }) => {
 
                         <div className="stat-label-tiny mt-4" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>Inventario de Activos</div>
                         <div className="space-y-2">
-                            {data.realBalance.map((asset, idx) => (
-                                <div key={idx} style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    padding: '8px 0',
-                                    borderBottom: '1px solid rgba(255,255,255,0.03)'
-                                }}>
-                                    <div>
-                                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>{asset.asset}</div>
-                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                            ${asset.priceUSD ? asset.priceUSD.toFixed(asset.priceUSD > 1 ? 2 : 8) : '0.00'}
+                            {data.realBalance
+                                .filter(asset => !['GVT', 'NCASH', 'XVG'].includes(asset.asset))
+                                .map((asset, idx) => (
+                                    <div key={idx} style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        padding: '8px 0',
+                                        borderBottom: '1px solid rgba(255,255,255,0.03)'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>{asset.asset}</div>
+                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                ${asset.priceUSD ? asset.priceUSD.toFixed(asset.priceUSD > 1 ? 2 : 8) : '0.00'}
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--accent-primary)' }}>
+                                                {asset.total.toFixed(asset.asset === 'USDT' ? 2 : 6)}
+                                            </div>
+                                            <div style={{ fontSize: '10px', color: asset.locked > 0 ? '#f39c12' : 'var(--success)' }}>
+                                                {asset.locked > 0 ? '🔒 ' : '≈ '}${asset.valueUSD ? asset.valueUSD.toFixed(2) : '0.00'}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-primary)' }}>
-                                            {asset.total.toFixed(['USDT', 'MXN', 'USD', 'EUR'].includes(asset.asset) ? 2 : 6)}
-                                        </div>
-                                        <div style={{ fontSize: '10px', color: 'var(--success)' }}>
-                                            ≈ ${asset.valueUSD ? asset.valueUSD.toFixed(2) : '0.00'}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     </div>
                 ) : (
@@ -56,17 +58,7 @@ const Sidebar = ({ data, health }) => {
                 )}
             </div>
 
-            <div className="mb-6">
-                <h3 className="stat-label-tiny mb-3" style={{ color: 'var(--accent-secondary)' }}>Failsafe Simulator (Paper)</h3>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>USDT Balance</span>
-                    <span style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'JetBrains Mono' }}>${data.balance?.usdt?.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Asset Hold</span>
-                    <span style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'JetBrains Mono' }}>{data.balance?.asset?.toFixed(6)} FET</span>
-                </div>
-            </div>
+
 
             <div className="mb-6">
                 <h3 className="stat-label-tiny mb-3">System Vitals</h3>

@@ -12,7 +12,7 @@ const DashboardPage = ({ data, trades, health, metrics, token }) => {
     const { logs, status: logsStatus, lastAttempt } = useLogs(token);
 
     const realUsdt = parseFloat(data.realBalance?.find(b => b.asset === 'USDT')?.free || 0).toFixed(2);
-    const totalBalance = data.totalEquity || data.totalBalance || 0;
+    const totalBalance = data.totalBalanceUSD || data.totalEquity || 0;
 
     return (
         <div className="grid-layout">

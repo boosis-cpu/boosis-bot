@@ -269,6 +269,18 @@ class BinanceService {
             throw error;
         }
     }
+
+    /**
+     * Obtiene trades ejecutados para un símbolo (órdenes completadas)
+     */
+    async getMyTrades(symbol, limit = 10) {
+        try {
+            return await this._authenticatedRequest('/myTrades', { symbol, limit });
+        } catch (error) {
+            logger.error(`[Binance] Error obteniendo trades de ${symbol}: ${error.message}`);
+            return [];
+        }
+    }
 }
 
 module.exports = new BinanceService();

@@ -16,6 +16,8 @@ const HealthChecker = require('../core/health');
 const schema = require('../core/database-schema');
 const fs = require('fs');
 const axios = require('axios');
+const newsMonitor = require('../core/news-monitor');
+const orderMonitor = require('../core/order-monitor');
 
 // Configuration
 const CONFIG = {
@@ -163,6 +165,21 @@ class LiveTrader {
         });
 
         // STATUS ENDPOINT (Multi-Asset Ready)
+        this.app.get('/api/news', authMiddleware, async (req, res) => {
+            const query = req.query.query;
+            if (!query) return res.json({ articles: [] });
+            try {
+                const newsApiKey = process.env.NEWS_API_KEY;
+                if (!newsApiKey) return res.json({ articles: [] });
+                const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=5&apiKey=${newsApiKey}`;
+                const response = await axios.get(url, { timeout: 5000 });
+                res.json({ articles: response.data.articles || [] });
+            } catch (err) {
+                logger.warn(`[News] Error fetching news for "${query}": ${err.message}`);
+                res.json({ articles: [] });
+            }
+        });
+
         this.app.get('/api/status', authMiddleware, (req, res) => {
             const requestedSymbol = req.query.symbol;
 
@@ -1299,9 +1316,11 @@ class LiveTrader {
             // Send to Telegram
             await notifications.send(initialLink, 'success');
 
-            // 🤖 ACTIVAR COMANDOS DE TELEGRAM
+            // 🤖 ACTIVAR MONITORES Y COMANDOS
             this.setupTelegramCommands();
             notifications.startPolling();
+            newsMonitor.start();
+            orderMonitor.start();
 
             const server = this.app.listen(CONFIG.port, () => {
                 logger.success(`API listening on port ${CONFIG.port}`);
