@@ -1,7 +1,7 @@
 /* boosis-ui/src/components/TheRefinery.css */
 
 .the-refinery {
-  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+  background: #050505;
   color: #fff;
   padding: 30px;
   border-radius: 10px;
@@ -82,7 +82,7 @@
 
 .symbol-selector select {
   padding: 8px 12px;
-  background: #1a1f3a;
+  background: #141414;
   border: 1px solid #00ff88;
   color: #fff;
   border-radius: 5px;
@@ -148,7 +148,7 @@
 
 .days-selector select {
   padding: 8px 12px;
-  background: #0a0e27;
+  background: #0a0a0a;
   border: 1px solid #FFA500;
   color: #FFA500;
   border-radius: 5px;
@@ -163,7 +163,7 @@
 
 .interval-selector select {
   padding: 8px 12px;
-  background: #0a0e27;
+  background: #0a0a0a;
   border: 1px solid #FFA500;
   color: #FFA500;
   border-radius: 5px;
@@ -203,7 +203,7 @@
 .progress-bar-container {
   width: 100%;
   height: 10px;
-  background: #0a0e27;
+  background: #0a0a0a;
   border-radius: 5px;
   overflow: hidden;
   border: 1px solid #333;
@@ -339,7 +339,7 @@
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
-  background: linear-gradient(90deg, #1a1f3a 0%, #1a1f3a 100%);
+  background: linear-gradient(90deg, #141414 0%, #141414 100%);
   border-radius: 3px;
   outline: none;
 }
@@ -571,7 +571,7 @@
 
 .save-to-lib input {
   flex: 1;
-  background: #0a0e27;
+  background: #0a0a0a;
   border: 1px solid #30363d;
   color: #fff;
   padding: 10px 15px;

@@ -652,8 +652,8 @@ const SNIPER_CSS = `
 
   /* ── TOKENS ── */
   :root {
-    --bg2: rgba(2, 6, 23, 0.6);
-    --bg3: #020617;
+    --bg2: rgba(15, 15, 15, 0.7);
+    --bg3: #050505;
     --border: rgba(255, 255, 255, 0.1);
     --text: #f8fafc;
     --text2: #94a3b8;
@@ -716,7 +716,7 @@ const SNIPER_CSS = `
     font-family: var(--mono); font-size: .65rem; font-weight: 700;
     cursor: pointer; transition: all .2s;
     border: 1px solid var(--border);
-    background: rgba(2, 6, 23, 0.8);
+    background: rgba(15, 15, 15, 0.8);
   }
   .sn-mode-toggle.paper { color: var(--purple); border-color: rgba(139, 92, 246, 0.3); }
   .sn-mode-toggle.live  { color: var(--green); border-color: rgba(34, 197, 94, 0.3); box-shadow: 0 0 10px rgba(34, 197, 94, 0.1); }
@@ -767,7 +767,7 @@ const SNIPER_CSS = `
   }
   .sn-field-hint { font-weight: 400; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, 0.3); }
   .sn-form input, .sn-form textarea {
-    background: rgba(2, 6, 23, 0.8); border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(15, 15, 15, 0.8); border: 1px solid var(--border); border-radius: 4px;
     color: var(--text); padding: .6rem .75rem;
     font-family: var(--mono); font-size: .9rem;
     transition: all .2s; width: 100%; box-sizing: border-box;
@@ -796,7 +796,7 @@ const SNIPER_CSS = `
   .sn-risk-chip.active { background: rgba(0, 229, 255, 0.15); border-color: var(--accent); color: var(--accent); font-weight: bold; }
 
   .sn-preview {
-    background: rgba(2, 6, 23, 0.5); border: 1px solid rgba(0, 229, 255, 0.2);
+    background: rgba(5, 5, 5, 0.5); border: 1px solid rgba(0, 229, 255, 0.2);
     border-radius: 0; padding: 1rem; display: flex; flex-direction: column; gap: .5rem;
     box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
   }
@@ -819,7 +819,7 @@ const SNIPER_CSS = `
   .sn-shoot-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.2); }
   .sn-shoot-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); box-shadow: none; transform: none; }
 
-  .sn-tabs { display: flex; gap: .5rem; background: rgba(2, 6, 23, 0.6); border: 1px solid var(--border); border-radius: 0; padding: .4rem; width: fit-content; backdrop-filter: blur(10px); margin-bottom: 20px; }
+  .sn-tabs { display: flex; gap: .5rem; background: rgba(15, 15, 15, 0.7); border: 1px solid var(--border); border-radius: 0; padding: .4rem; width: fit-content; backdrop-filter: blur(10px); margin-bottom: 20px; }
   .sn-tab {
     padding: .6rem 1.5rem; border-radius: 0; border: none; background: transparent;
     color: var(--text2); cursor: pointer; font-family: var(--mono); font-size: .8rem;
